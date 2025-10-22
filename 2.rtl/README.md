@@ -204,6 +204,93 @@ Add brief description of how the RTL part of TestApp interacts with the PCIE Cor
 
 I don't see where in the diagram a configuration space is located unless it's part of the transaction layer or maybe there's supposed to be an interface defined for external, peripheral specific implementation? Also, I don't see where generation and detection of PHY ordered sets is done---from the blurb in the top level README.md, I assume not the thin layer RTL PHY with PIPE. If so, that suggests a partial PHY layer between the DLL layer and the thin PHY PIPE layer, that implements the LTSSM to generated training sequences and count received training sequences of the different types, and a means to regularly generate skip ordered sets (unless in the thin PHY?). I am aware that the top level README.md says _"We only support x1 (single-lane) PCIE links. The link width training is therefore omitted"_, but whatever you connect to will be in the link down state and will need training to get to the link up state. Link training is not only to set the link width and it is not optional, even for an x1 link.
 
+### Initial Development Order
+
+The following gives a suggestion of the initial implementation features for the endpoint RTL. It is meant to get the simplest TX and RX data paths going and initial transfers from which more features can be added. It is split into two steps, to process reception of a 32-bit memory write request in the first step, and then process a 32-bit memory read requests and the return a completion with a 32-bit word data payload.
+
+It does not require link training, DLL initialisation or flow control  to have been implemented (though some simple new configuration features needs to be added to _pcievhost_ for this part).
+
+#### Step 1
+
+  * RX data path: receive _MemWr_ for a 32-bit write
+    * PHY MAC (post PIPE)
+        * Pass through PIPE data/K bits to DLL interface for _MemWr_ request
+
+    * DLL
+        * Remove STP and END framing on data from PHY
+        * Return ACK on receiving END over PHY TX data channel (no LCRC check, always assume good)
+            * CRC == 0
+        * No Flow control (assume infinite for all flow control types)
+        * Pass de-framed data to TLP (with first and last bits)
+
+    * TLP
+        * Check is a _MemWr_ type
+        * Extract Address, length, last be and first be
+        * Delete header words
+        * Pass payload with addr and fbe and lbe over TLP RX data interface (TBD)
+
+  * TX Data path: generate ACK
+
+    * TLP
+        * Nothing
+
+    * DLL
+        * Generate ACK DLLP to PHY TX data path on receiving END
+
+    * PHY MAC
+        * Pass DLLPs through to PIPE TX data/K bit interface
+
+
+#### Step 2
+
+  * RX data path: receive request a _MemRd_ for 32-bit word
+
+    * PHY MAC
+        * [Pass through PIPE data/K bits to DLL interface for _MemRd_ request]
+
+    * DLL
+        * [Remove STP and END framing on data from PHY]
+        * [Return ACK on receiving END over PHY TX data channel (no LCRC check, always assume good)]
+        * [Pass de-framed data to TLP (with first and last bits)]
+
+
+    * TLP
+        * [Check is a _MemRd_]
+        * [Extract Address, length, last be and first be]
+        * Extract requester ID and tag
+        * [Delete header words]
+        * [Pass addr, fbe and lbe over TLP RX data interface (TBD)]
+        * Pass tag and RID with address as well
+
+
+  * Tx Data path: complete _MemRd_ request
+
+    * PHY MAC
+      * Receive completion PIPE data and K bits from DLL and pass through to TX data channel of PIPE
+
+    * DLL
+      * Frame completion packet from TLP with STP and END and send to PHY TX data channel
+
+    * TLP
+        * Construct completion header with
+            * Cpl type (01010b)
+            * Length in 32-bit words (1)
+            * Completer ID (fixed at 0)
+            * Completion status of Successful Completion (000b)
+            * byte count (4)
+            * Requester ID as received with MemRd request
+            * Tag received with MemRd request
+            * Lower address (bottom 7 bits of received MemRd address, aligned to 32-bits)
+        * Send completion data and header over TLP TX data interface
+
+[ ] actions implemented in previous step
+
+
+#### _pcievhost_ new configuration features required
+    * Disable DLLP CRC checks
+    * Disable TLP CRC checks
+    * Configurable initial upstream flow control credits
+    * Pipex1 updated for wider PIPE interface to match the CologneChip
  
 
 --------------------
