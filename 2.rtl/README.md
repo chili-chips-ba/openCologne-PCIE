@@ -290,10 +290,11 @@ Add brief description of how the RTL part of TestApp interacts with the PCIE Cor
 I don't see where in the diagram a configuration space is located unless it's part of the transaction layer or maybe there's supposed to be an interface defined for external, peripheral specific implementation? Also, I don't see where generation and detection of PHY ordered sets is done---from the blurb in the top level README.md, I assume not the thin layer RTL PHY with PIPE. If so, that suggests a partial PHY layer between the DLL layer and the thin PHY PIPE layer, that implements the LTSSM to generated training sequences and count received training sequences of the different types, and a means to regularly generate skip ordered sets (unless in the thin PHY?). I am aware that the top level README.md says _"We only support x1 (single-lane) PCIE links. The link width training is therefore omitted"_, but whatever you connect to will be in the link down state and will need training to get to the link up state. Link training is not only to set the link width and it is not optional, even for an x1 link.
 
 #### _pcievhost_ new configuration features required
-    * Disable DLLP CRC checks
-    * Disable TLP CRC checks
-    * Configurable initial upstream flow control credits
-    * Pipex1 updated for wider PIPE interface to match the CologneChip
+
+* Disable DLLP CRC checks:  **DONE**
+* Disable TLP CRC checks : **DONE**
+* Configurable initial upstream flow control credits: **Disabling FC already configurable and does the job**
+* Pipex1 updated for wider PIPE interface to match the CologneChip: **DONE**
  
 
 --------------------
