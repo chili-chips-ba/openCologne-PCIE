@@ -2,9 +2,9 @@
 
 **[WIP]**
 
-At the moment, this section is merely a scratchpad of our thoughts and ideas, team comments and suggestions..., from which we seek to define the structure, interfaces, partitioning. 
+At the moment, this section is merely a scratchpad of our thoughts and ideas, team comments and suggestions..., from which we seek to define the structure, interfaces, partitioning...
 
-**This is also an open, community-wide invite to contribute to this creation process...**
+**This is also an open, community-wide invite to contribute to this creation process.**
 
 <p align="center">
   <img width="50%" src="../0.doc/diagrams/pcie-ep-top-stack.png">
@@ -22,7 +22,7 @@ Proprietary PCIE Core for Xilinx 7Series FPGA devices
   - [Xilinx UG477 7series PCIE HM - User Guide](https://docs.amd.com/v/u/en-US/ug477_7Series_IntBlock_PCIe) ✔
   - [Xilinx PG054 7series PCIE HM - Product Guide](https://www.xilinx.com/support/documents/ip_documentation/pcie_7x/v3_3/pg054-7series-pcie.pdf)
   - [Xilinx DS821 7series PCIE HM - Datasheet](https://docs.xilinx.com/v/u/en-US/ds821_7series_pcie)
-> The Xilinx 7-series FPGAs Integrated block (HM, Hard Macro) for PCIe sits in a similar space to the _openCologne-PCIE_ project goals, but more highly configurable (e.g. root complex mode, multi-lanes etc.). It does serve, though, as an indicator of the complexity of requirements if _openCologne-PCIE_ is to be a viable open-source alternative.
+> The Xilinx 7-series FPGAs Integrated block (HM, Hard Macro) for PCIE sits in a similar space as the _openCologne-PCIE_ project goals, except that it is more comprehensive and configurable, with more options (e.g. root complex mode, multi-lanes etc.). It does serve, though, as an indicator of the complexity of requirements if _openCologne-PCIE_ is to be a viable open-source alternative.
 >
 > The links below are examples of open-source **applications** built around vendor PCIE Hard-Macros (HM), such as this Xilinx _pcie_7x_ core. 
 > - [regymm pcie_7x](https://github.com/regymm/pcie_7x)
@@ -32,84 +32,89 @@ Proprietary PCIE Core for Xilinx 7Series FPGA devices
 > - [Alex's wrappers for Xilinx and Altera PCIE HMs, with DMA](https://github.com/alexforencich/verilog-pcie)
 > - [LitePCIE wrappers for vendor (Xilinx, Gowin, Lattice, ...) PCIE HMs](https://github.com/enjoy-digital/litepcie)
 >
-> It must be noted that there is a common misconception about these projects. They are not open-source PCIE cores, but rather the examples of how to use the proprietary cores. Our project is unique in that sense, and currently the only open-source work that is about creating a PCIE core itself. 
+> It must be noted here that there is a common misconception about these projects. They are not open-source PCIE cores, but rather the examples of how to use the proprietary cores. Our project is unique in that sense, and currently the only open-source work which is about creating a PCIE core itself. 
 
-# Quick walkthrough the PIO MemWr -> MemRd
+# Quick walkthrough the PIO MemWr, MemRd process
 
-In order to sub-divide the DLL and TL into implemenable design blocks, we need to first work out what goes on inside of them for a PIO memory write followed by a PIO memory read. We start by identifying the minimum functionality of each layer, yet one that still does something useful and can be simulated. The goal is to then built upon it as new features are added and regression tests constructed. The goal is also to mitigate risk and buy time for the LTSSM / PHY development. This desrisking is by the virtue of initially eliminating the configuration space, link training, or DLL flow control initialisation complexities.
+In order to sub-divide the DLL and TL into implementable design blocks, we need to first work out what goes on inside of them for a PIO memory write and read. We start by identifying the minimum functionality of each layer, yet one that still does something useful and can be simulated. We will then later on built upon it, add new features and construct regression tests. The goal is to mitigate risk and buy time for the LTSSM / PHY development. This desrisking is by the virtue of initially eliminating the configuration space, link training, and DLL flow control initialization.
 
-With the right configuration settings, the _pcievhost_ can be used to exercise in simulation the `minTL + minDLL + PHYMAC` independently from the `PHYPIPE` block. Both dev tracks can therefore go on in parallel. With two already partially-tested blocks, the follow on integration shall be simplified and hastened. The _pcievhost_ open-source VIP also gains from it, at it will now get new simplification options (bypass DLL initialisation; disable TLP CRC checks; the model already works without link training). Those are useful verification features. 
+With the right configuration settings, the _pcievhost_ can be used to exercise (in simulation) this [minimum TL + minimum DLL + PHY_MAC] independently from the [PHY_PIPE] block. Both dev tracks can therefore go on in parallel. With these two functions already partially tested, the follow on integration is simplified and hastened. The _pcievhost_ open-source VIP also gains from it, as it will now get new options (bypass DLL initialization; disable TLP CRC checks; the model already works without link training). Those are useful verification features. 
 
-The following two sections describe the process of (1) receiving a 32-bit MemWrite request and (2) receiving a 32-bit MemRead request with the return of Completion with a 32-bit word data payload. Both RX and TX sides of each layer are covered. This simplifed process does not require link training, DLL initialisation or flow control to be implemented (though some simple new configuration features needs to be added to _pcievhost_ ).
+The following two sections describe the process of (i) receiving a 32-bit `MemWr Request` and (ii) receiving a 32-bit `MemRd Request` with the return of `Completion` with a 32-bit data payload. Both the `RX and TX side` of each layer are covered. This simplifed process does not require link training, DLL initialization or flow control to be implemented (though some simple new configuration features need to be added to _pcievhost_).
 
-## 1.Reception of a MemWr Request
-This is a `Posted` transaction. This means fire-and-forget.
+## (i) Reception of a `MemWr` Request
 
-#### RX data path: receive _MemWr_ for a 32-bit write
-    * PHY MAC (post PIPE)
-        * Pass through PIPE data/K bits to DLL interface for _MemWr_ request
+This is a `Posted` transaction... which, from the Root Complex perspective, means fire-and-forget -- Send a request and don't wait for a response. 
 
-    * DLL
-        * Remove STP and END framing on data from PHY
-        * Return ACK on receiving END over PHY TX data channel (no LCRC check, always assume good)
-            * CRC == 0
-        * No Flow control (assume infinite for all flow control types)
-        * Pass de-framed data to TLP (with first and last bits)
+#### RX data path
 
-    * TLP
-        * Check is a _MemWr_ type
-        * Extract Address, length, last be and first be
-        * Delete header words
-        * Pass payload with addr and fbe and lbe over TLP RX data interface (TBD)
+`RX_PHY_MAC` 
+   - Pass through PIPE data/K bits to DLL
 
-#### TX Data path: generate ACK
-    * TLP
-        * Nothing
+`RX_DLL`
+   - Remove **STP** and **END** framing on data from PHY
+   - Upon receiving **END**, instruct TX_DLL to return **ACK** (no LCRC check, always assume good)
+       - CRC is kept at 0
+   - No tracking of flow control credits (assume infinite credits for all flow control types)
+   - Pass de-framed data to TLP (with first and last bits)
 
-    * DLL
-        * Generate ACK DLLP to PHY TX data path on receiving END
+`RX_TLP`
+   - Check is a _MemWr_ type?
+   - Extract Address, Length, Last_BE (lbe) and First_BE (fbe)
+   - Delete header words
+   - Pass Payload with Addr, fbe and lbe over RX_TLP_IF (which is TBD)
 
-    * PHY MAC
-        * Pass DLLPs through to PIPE TX data/K bit interface
 
-## 2.Reception of a MemRead Request and Resonse generation
-This is a `non-Posted` transaction. This means that it requires a follow up.
+#### TX data path: generate ACK
 
-#### RX data path: receive request a _MemRd_ for 32-bit word
-    * PHY MAC
-        * [Pass through PIPE data/K bits to DLL interface for _MemRd_ request]
+`TX_TLP`
+   - Nothing
 
-    * DLL
-        * [Remove STP and END framing on data from PHY]
-        * [Return ACK on receiving END over PHY TX data channel (no LCRC check, always assume good)]
-        * [Pass de-framed data to TLP (with first and last bits)]
+`TX_DLL`
+   - Generate **ACK** DLLP to TX_PHY_MAC when told so (which is upon receiving **END**)
 
-    * TLP
-        * [Check is a _MemRd_]
-        * [Extract Address, length, last be and first be]
-        * Extract requester ID and tag
-        * [Delete header words]
-        * [Pass addr, fbe and lbe over TLP RX data interface (TBD)]
-        * Pass tag and RID with address as well
+`TX_PHY_MAC`
+   - Pass DLLPs through to TX_PHY_PIPE data/K bit interface
 
-#### Tx Data path: complete _MemRd_ request
-    * TLP
-        * Construct completion header with
-            * Cpl type (01010b)
-            * Length in 32-bit words (1)
-            * Completer ID (fixed at 0)
-            * Completion status of Successful Completion (000b)
-            * byte count (4)
-            * Requester ID as received with MemRd request
-            * Tag received with MemRd request
-            * Lower address (bottom 7 bits of received MemRd address, aligned to 32-bits)
-        * Send completion data and header over TLP TX data interface
 
-    * DLL
-      * Frame completion packet from TLP with STP and END and send to PHY TX data channel
+## (ii) Reception of a `MemRd` Request and Completion
+
+This is a `Non-posted` transaction. It requires a `Completion` packet in response, meaning the sender must wait for a reply. It is therefore a slower operation, and considered more complicated than the MemWr.  
+
+#### RX data path
+
+`RX_PHY_MAC` [same operations as for the MemWr] 
+
+`RX_DLL` [same operations as for the MemWr] 
+
+`RX_TLP`
+   - Check is a MemRd type?
+   - [same: Extract Address, Length, Last_BE (lbe) and First_BE (fbe)]
+   - **Extra-for-MemRd**: Extract Requester_ID (RID) and Tag
+   - [same: Delete header words]
+   - [same: Pass Addr, fbe and lbe over RX_TLP_IF]
+   - **Extra-for-MemRd**: Pass RID and Tag
+
+#### Tx data path: Complete _MemRd_ request
+
+`TX_TLP`
+   - Construct completion header with
+      - CPL_TYPE (01010b)
+      - Length in 32-bit words (1)
+      - Completer_ID (CID), fixed at 0
+      - Completion status of Successful Completion (000b)
+      - byte_count (4)
+      - Requester_ID as received with MemRd request
+      - Tag received with MemRd request
+      - Lower address (bottom 7 bits of received MemRd address, aligned to 32-bits)
+   - Send completion data and header over TX_TLP_IF
+
+`TX_DLL`
+   - Frame completion packet from TLP with **STP** and **END** and send to PHY TX data channel
      
-    * PHY MAC
-      * Receive completion PIPE data and K bits from DLL and pass through to TX data channel of PIPE
+`TX_PHY_MAC`
+   - Receive completion PIPE data and K bits from DLL and pass through to TX data channel of PIPE
+
 
 ## 1) TL_IF
 ### Features and Support
