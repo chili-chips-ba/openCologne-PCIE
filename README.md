@@ -3,7 +3,7 @@ This project is the direct continuation of [openCologne](https://github.com/chil
 The project aims to take _openCologne_ to a new level, not only by introducing **soft PCIE EndPoint core** to GateMate portfolio, but also by challenging and validating the new, fully opensource [nextPNR](https://github.com/YosysHQ/prjpeppercorn) tool suite.
 
 <p align="center">
-  <img width="30%" src="0.doc/artwork/openCologne-PCIE.png">
+  <img width="30%" src="0.doc/artwork/openCologne-PCIE.hex.png">
 </p>
 
 It aims to complement _openPCIE RootComplex_ with a layered EndPoint that's portable to other FPGA families, and even to [OpenROAD](https://github.com/The-OpenROAD-Project) ASICs, leaving only the PHY in the hard-macro (HM) domain. This is the only soft PCIE protocol stack in opensource at the moment.
