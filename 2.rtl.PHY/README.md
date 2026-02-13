@@ -3,7 +3,7 @@
 This is work area for the CologneChip PHY PIPE developers.
 
 #### References:
-- [GateMate PIPE repo](https://github.com/colognechip/gatemate-pipe) ✔
+- [GateMate PIPE repo](https://github.com/colognechip/gatemate-pipe) with DLL testbecnh ✔
 - [GateMate datasheet](https://colognechip.com/docs/ds1001-gatemate1-datasheet-latest.pdf)
 - [CologneChip PHY/PIPE Overview](0.doc/PIPE_overview.pdf)
 - [Unified PIPE Spec, Sept.2025, v7.1](0.doc/Intel.643108_PIPE_Arch_Spec_Rev_7_1.pdf)
@@ -46,6 +46,11 @@ That's when your 100MHz reference clock source comes from a different oscillator
 #### Signal Composition
 #### Data Flow
 #### Control Flow
+
+#### DLL TestBench
+
+Hai: Simon has provided x1 PIPE model. All I had to do was to modify the C++ model of the RC for different feature tests and setup my MAC layer design as the EP.
+https://github.com/colognechip/gatemate-pipe/tree/dll_test/sim
 
 --------------------
 #### End of Document
