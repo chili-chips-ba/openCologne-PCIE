@@ -69,8 +69,8 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 - [x] ✔ Procure Test equipment, test fixtures, dev boards and accessories
 
 - [ ] Create docs and diagrams that are easy to follow and comprehend
->- [ ] RTL DLL and TL
->- [ ] PIPE
+>- [x] ✔ RTL DLL and TL
+>- [x] ✔ PIPE
 >- [ ] SW
 >- [ ] TB, Sim, VIP
 
