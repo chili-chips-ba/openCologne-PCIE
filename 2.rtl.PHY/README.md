@@ -20,16 +20,11 @@ This is work area for the CologneChip PHY PIPE developers.
   <img width="60%" src="0.doc/images/PHY-Layers-GateMate.png">
 </p>
 
-**Hai:**
-> _"... our PIPE interface does not contain any functionality of the so called "MAC layer" which handles the training sequences, OSs and LTSSM..."_
 
-**Simon**
-> The LTSSM, I'd suggest, just needs to be the linear power up sequence from Detect.Quiet  to L0 (Link UP) for first functionality (as per the table on page 14 of the PCIe Primer). Not part of the pcievhost proper, but the model comes with some demonstration code to implement the LTSSM to this spec., so we have a means to test this first implementation.
 
-### Async RefClock?
-- Does GateMate PHY support `Async RefClock`? 
+## Implementation Details
+See [block diagram](0.doc/Physical_layer_block_diagram.pdf).
 
-That's when your 100MHz reference clock source comes from a different oscillator that the oscillator used by the Root Complex. They are both nominally 100MHz, but they are still different.
 
 ### SerDes
 <p align="center">
@@ -40,12 +35,20 @@ That's when your 100MHz reference clock source comes from a different oscillator
   <img width="60%" src="0.doc/images/optimizing-pcie-pipe-pwr-mgmt.png">
 </p>
 
-@HaiLuong01 and @pu-cc shall work out our plan for the extent of _Low Power_ (LP) support. After all, SerDes, as a mixed-signal HM, is the primary power consumer.
 
-## PIPE Interface Recap
-#### Signal Composition
-#### Data Flow
-#### Control Flow
+**Hai:**
+> _"... our PIPE interface does not contain any functionality of the so called "MAC layer" which handles the training sequences, OSs and LTSSM..."_
+
+
+**Simon**
+> The LTSSM, I'd suggest, just needs to be the linear power up sequence from Detect.Quiet  to L0 (Link UP) for first functionality (as per the table on page 14 of the PCIe Primer). Not part of the pcievhost proper, but the model comes with some demonstration code to implement the LTSSM to this spec., so we have a means to test this first implementation.
+
+
+**Async RefClock?**
+> Does GateMate PHY support `Async RefClock`? 
+
+That's when your 100MHz reference clock source comes from a different oscillator that the oscillator used by the Root Complex. They are both nominally 100MHz, but they are still different.
+
 
 --------------------
 #### End of Document
