@@ -3,7 +3,7 @@
 This is work area for the CologneChip PHY PIPE developers.
 
 #### References:
-- [GateMate PIPE repo](https://github.com/colognechip/gatemate-pipe) with DLL testbecnh ✔
+- [GateMate PIPE repo](https://github.com/colognechip/gatemate-pipe) with DLL testbench ✔
 - [GateMate datasheet](https://colognechip.com/docs/ds1001-gatemate1-datasheet-latest.pdf)
 - [CologneChip PHY/PIPE Overview](0.doc/PIPE_overview.pdf)
 - [Unified PIPE Spec, Sept.2025, v7.1](0.doc/Intel.643108_PIPE_Arch_Spec_Rev_7_1.pdf)
