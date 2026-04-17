@@ -1,6 +1,6 @@
 # SerDes Loopback tests
 
-For @KemalLikic and Mujo Sejdic to fill in with details.
+For Mujo Sejdic, @KemalLikic and @adnangrbesic to fill in with details, explanations, diagrams and oscillograms.
 
 
 --------------------
