@@ -76,10 +76,12 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 
 - [ ] Design, debug and manufacture two flavors of EP cards
 > Given the high-speed nature of this design, we plan for two iterations:
->- [ ] Slot **RevA**
->- [ ] M.2  RevA
->- [ ] Slot **RevB**
->- [ ] M.2  RevB
+>- [ ] M.2  **RevA**
+>- [ ] Edge RevA
+
+>- [ ] M.2  **RevB**
+>- [ ] Edge RevB
+
  
 - [ ] Develop opensource PHY with PIPE interface for GateMate SerDes
 >- [ ] x1, **Gen1**
