@@ -348,6 +348,8 @@ We are thankful to **NLnet Foundation** for unreserved sponsorship of this devel
    <img width="115" alt="NGI-Entrust-Logo" src="https://github.com/chili-chips-ba/openeye-CamSI/assets/67533663/013684f5-d530-42ab-807d-b4afd34c1522">
 </p>
 
+This project was funded through the NGI0 Commons Fund, a fund established by NLnet with financial support from the European Commission's Next Generation Internet programme, under the aegis of DG Communications Networks, Content and Technology under grant agreement No 101135429. Additional funding is made available by the Swiss State Secretariat for Education, Research and Innovation (SERI).
+
 The **wyvernSemi**'s wisdom and contribution mean a world of difference -- Thank you, we are honored to have you on the project!
 
 <p align="center">
