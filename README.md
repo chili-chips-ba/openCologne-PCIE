@@ -1,3 +1,6 @@
+[![NLnet Foundation](https://img.shields.io/badge/funded%20by-NLnet%20Foundation-74AA00)](https://nlnet.nl/)
+[![GitHub stars](https://img.shields.io/github/stars/chili-chips-ba/openCologne-PCIE?style=social)](https://github.com/chili-chips-ba/uberCologne-PCIE/stargazers)
+
 This project is the direct continuation of [openCologne](https://github.com/chili-chips-ba/openCologne), and it also firmly ties into [openPCIE](https://github.com/chili-chips-ba/openpcie).
 
 The project aims to take _openCologne_ to a new level, not only by introducing **soft PCIE EndPoint core** to GateMate portfolio, but also by challenging and validating the new, fully opensource [nextPNR](https://github.com/YosysHQ/prjpeppercorn) tool suite.
