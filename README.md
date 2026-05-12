@@ -35,7 +35,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 
 ### References:
 
-- **[PCIE Primer](https://drive.google.com/file/d/1CECftcznLwcKDADtjpHhW13-IBHTZVXx/view) by Simon Southwell** ✔
+- **[PCIE Primer](http://www.anita-simulators.org.uk/wyvernsemi/articles/pci_express.pdf) by Simon Southwell** ✔
 
   
 ### Design Blueprint
