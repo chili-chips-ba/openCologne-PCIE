@@ -1,0 +1,16 @@
+# Sistemski Clock 10 MHz
+Pin_in "clk_10m" Loc = "IO_SB_A8";
+
+# Korisnički taster SW3 na Eval ploči (Active Low) za Reset
+Pin_in "rst_n" Loc = "IO_EB_B0" | PULLUP=true;
+
+# LED Diode na Eval ploči (Active Low)
+Pin_out "led[0]" Loc = "IO_EB_B1";
+Pin_out "led[1]" Loc = "IO_EB_B2";
+Pin_out "led[2]" Loc = "IO_EB_B3";
+Pin_out "led[3]" Loc = "IO_EB_B4";
+Pin_out "led[4]" Loc = "IO_EB_B5";
+Pin_out "led[5]" Loc = "IO_EB_B6";
+Pin_out "led[6]" Loc = "IO_EB_B7";
+Pin_out "led[7]" Loc = "IO_EB_B8";
+
