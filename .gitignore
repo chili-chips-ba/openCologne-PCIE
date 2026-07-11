@@ -16,25 +16,6 @@
 
 
 #--------
-# Vivado project directories and files
-#--------
-*.jou
-*.log
-.Xil
-*.cache
-*.data
-*.ipdefs
-*.ip_user_files
-*.runs
-*.gen
-*.obj
-*.dll
-*.lib
-*.exe
-*.str
-
-
-#--------
 #PCB
 #--------
 1.pcb/*/*-backups
