@@ -178,15 +178,16 @@ Field layout: `type | Reserved | AckNak_Seq_Num | 16-bit CRC`.
 - A **replay timer** counts the time since the last transmission or retransmission.
 - The first version offers a retry buffer of **size one**; a later version may move to **size two**, implemented as a ping-pong scheme.
 
-## Prerequisites
+<!--## Prerequisites
 The simulation can be run using the pcieVHost model … *TODO*
 
 ## Run Testbench
 `make -f makefile.ica run`
 
 ## Testbench description
-The testbench drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers.
+The testbench drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers.-->
 
 ## References
-- PCI Express Base Specification (Gen 2 / 5.0 GT/s) — PCI-SIG (membership required).
-- See also the sibling **MAC layer** and **PIPE interface** documentation for the layers below.
+- [PIPE Specs, Sept. 2025, v7.1](https://cdrdv2-public.intel.com/643108/643108_PIPE_Arch_Spec_Rev_7_1.pdf)
+- [Simon Southwell's Primer](https://www.linkedin.com/pulse/pci-express-primer-1-overview-physical-layer-simon-southwell/)
+- [DLL Overview](./Doc/DLL_draft_v2.pdf)
