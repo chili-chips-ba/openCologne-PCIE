@@ -72,12 +72,11 @@ module virtual_channel_tx #
             dllp_sending <= 1'b0;
             tlp_sending  <= 1'b0;
         end else begin
-            if (ack_sending  && !ack_scheduled)
+            if (dllp_sending && dllp_sent) begin
                 ack_sending  <= 1'b0;
-            if (nak_sending  && !nak_scheduled)
                 nak_sending  <= 1'b0;
-            if (dllp_sending && !(ack_scheduled || nak_scheduled || dllp_scheduled))
                 dllp_sending <= 1'b0;
+            end
             if (tlp_sending  && !tlp_scheduled)
                 tlp_sending  <= 1'b0;
 
@@ -112,7 +111,7 @@ module virtual_channel_tx #
                 packet_type_reg <= packet_type;
                 dllp_scheduled  <= 1'b1;
             end else if (dllp_sent) begin
-                if (dllp_sending) begin
+                if (dllp_sending && !ack_sending && !nak_sending) begin
                     dllp_scheduled <= 1'b0;
                 end
             end

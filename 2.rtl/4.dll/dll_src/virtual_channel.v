@@ -336,7 +336,7 @@ module virtual_channel #
     end*/
 
     // TODO: Check timer
-    ccfpga_clk_counter #(
+    dll_clk_counter #(
         .BIT_WIDTH(14)        // Width of Count Register
     ) init_counter_inst (
         .i_clk(clk),

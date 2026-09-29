@@ -67,7 +67,12 @@ module send_DLLP #
             dllp_initfc2_sent <= 1'b0;
 
 
-            if (packet_avail) begin
+            if (dllp_sent) begin
+                txdata  <= {DATA_WIDTH{1'b0}};
+                txdatak <= {DATA_BYTES{1'b0}};
+                step    <= 0;
+                initfc_step <= 0;
+            end else if (packet_avail) begin
                 if ( step != NUMBER_OF_STEPS ) begin
                     txdata  <= DLLP[DATA_WIDTH * step +: DATA_WIDTH];
                     txdatak <= DLLP_k[DATA_BYTES * step +: DATA_BYTES];
