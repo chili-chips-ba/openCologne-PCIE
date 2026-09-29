@@ -46,9 +46,11 @@ module virtual_channel #
     wire initfc2_en;
     wire [2:0] fsm_state;
     localparam [2:0] DL_INACTIVE = 3'b000;
+    localparam [2:0] DL_INITFC2  = 3'b010;
     localparam [2:0] DL_ACTIVE   = 3'b011;
     wire link_active = (fsm_state == DL_ACTIVE);
     wire link_inactive = (fsm_state == DL_INACTIVE);
+    wire tlp_rx_enable = (fsm_state == DL_ACTIVE) || (fsm_state == DL_INITFC2);
     // Tx side
     wire [DATA_WIDTH-1:0] txdata;
     wire [DATA_BYTES-1:0] txdatak;
@@ -135,7 +137,7 @@ module virtual_channel #
     ) vc_rx (
         .clk(clk),
         .reset(reset),
-        .link_active(link_active),
+        .link_active(tlp_rx_enable),
         .link_inactive(link_inactive),
 
         .DLLP_data(data_DLLP),
@@ -240,7 +242,7 @@ module virtual_channel #
             if (&initfc1_received_flag) begin
                 initfc1_seq_received <= 1'b1;
             end
-            if (&initfc2_received_flag) begin
+            if (&initfc2_received_flag || (initfc2_en && (STP_detected || (crc_valid && packet_type == 2'b10)))) begin
                 initfc2_seq_received <= 1'b1;
             end
         end

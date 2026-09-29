@@ -65,14 +65,14 @@ module tlp_rx_buffer #(
     reg [11:0] sequence_number_reg; // store sequence number for comparison
 
     lcrc_byte seq_0 (
-        .data_in (sequence_number[7:0]),
+        .data_in ({4'b0, sequence_number[11:8]}),
         .crc_en  (STP_detected && tlp_valid),
         .crcIn   (crc_state),
         .crcOut  (crc_seq_0)
     );
 
     lcrc_byte seq_1 (
-        .data_in ({4'b0, sequence_number[11:8]}),
+        .data_in (sequence_number[7:0]),
         .crc_en  (STP_detected && tlp_valid),
         .crcIn   (crc_seq_0),
         .crcOut  (crc_seq_1)
@@ -185,7 +185,7 @@ module tlp_rx_buffer #(
                             state         <= DISCARD_TLP;
                         end else begin
                             nak_scheduled <= 1'b1;
-                            nak_seq_num   <= NEXT_RCV_SEQ;
+                            nak_seq_num   <= NEXT_RCV_SEQ - 1'b1;
                             state         <= DISCARD_TLP;
                         end
                     end
@@ -195,7 +195,7 @@ module tlp_rx_buffer #(
                     if (STP_detected) begin // detect STP before END
                         nak_scheduled <= 1'b1;
                         //nak_seq_num <= sequence_number_reg;
-                        nak_seq_num   <= NEXT_RCV_SEQ;
+                        nak_seq_num   <= NEXT_RCV_SEQ - 1'b1;
                         write_ptr     <= 0;
                         word_cnt      <= 0;
                         crc_state     <= {LFSR_WIDTH{1'b1}};
@@ -228,7 +228,7 @@ module tlp_rx_buffer #(
                     end else begin // crc wrong
                         nak_scheduled <= 1'b1;
                         //nak_seq_num <= sequence_number_reg;
-                        nak_seq_num   <= NEXT_RCV_SEQ;
+                        nak_seq_num   <= NEXT_RCV_SEQ - 1'b1;
                         write_ptr     <= 0;
                         word_cnt      <= 0;
                         crc_state     <= {LFSR_WIDTH{1'b1}};

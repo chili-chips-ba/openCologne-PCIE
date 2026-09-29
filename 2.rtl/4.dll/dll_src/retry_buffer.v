@@ -69,14 +69,14 @@ module retry_buffer #(
     reg [LFSR_WIDTH-1:0] lcrc_reg; // stored but not used
 
     lcrc_byte seq_0 (
-        .data_in (current_seq_num[7:0]),
+        .data_in ({4'b0, current_seq_num[11:8]}),
         .crc_en  ((state == IDLE && tlp_first) && tlp_valid),
         .crcIn   (crc_state),
         .crcOut  (crc_seq_0)
     );
 
     lcrc_byte seq_1 (
-        .data_in ({4'b0, current_seq_num[11:8]}),
+        .data_in (current_seq_num[7:0]),
         .crc_en  ((state == IDLE && tlp_first) && tlp_valid),
         .crcIn   (crc_seq_0),
         .crcOut  (crc_seq_1)
