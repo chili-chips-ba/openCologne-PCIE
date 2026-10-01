@@ -190,4 +190,6 @@ The testbench drives the DLL from both sides. On the **upstream** side it plays 
 ## References
 - [PIPE Specs, Sept. 2025, v7.1](https://cdrdv2-public.intel.com/643108/643108_PIPE_Arch_Spec_Rev_7_1.pdf)
 - [Simon Southwell's Primer](https://www.linkedin.com/pulse/pci-express-primer-1-overview-physical-layer-simon-southwell/)
-- [DLL Overview](./Doc/DLL_draft_v2.pdf)
+- [DLL Overview](Doc/DLL_draft_v2.pdf)
+- [openPCIE Controller White Paper](Doc/opensource-PCIE-Controller.applsci-16-03409.pdf)
+- [openPCIE Controller repo](https://github.com/isomoye-msu/pcie_datalink_layer)
