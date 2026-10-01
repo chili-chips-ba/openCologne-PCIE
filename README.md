@@ -10,10 +10,12 @@ The project aims to take _openCologne_ to a new level, not only by introducing *
 </p>
 
 It aims to complement _openPCIE RootComplex_ with a layered EndPoint that's portable to other FPGA families, and even to [OpenROAD](https://github.com/The-OpenROAD-Project) ASICs, leaving only the PHY in the hard-macro (HM) domain. This is the only soft PCIE protocol stack in opensource at the moment.
+> dev track to put together an opensource SerDes for wafer.space GlobalFoundries GF180MCU process node is in full swing
 
 Our PCIE EP core comes with unique **Verification IP (VIP)** and two **PCIE cards for GateMate**. The new boards can host all three GateMate variants: A1, A2, A4 and are plug-and-play compatible with the vast assortment of 3rd-party carriers, including our opensource [PCIE Backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb/openpci2-backplane). 
 
 The project aims for integration with LiteX, by expanding [LitePCIE](https://github.com/enjoy-digital/litepcie) portfolio, thus creating a strong foundation for the complete, end-to-end, community maintained _openCompute_ PCIE ecosystem.
+
 
 ### Minimal, yet functional PCIE EP core
  
@@ -36,7 +38,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 ### References:
 
 - **[PCIE Primer](http://www.anita-simulators.org.uk/wyvernsemi/articles/pci_express.pdf) by Simon Southwell** ✔
-
+- [openPCIE Controller WhitePaper](https://www.mdpi.com/2076-3417/16/7/3409)
   
 ### Design Blueprint
 
@@ -48,7 +50,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 # PIPE (is not a dream)
 
 <p align="center">
-  <img width="60%" src="2.rtl.PHY/0.doc/images/PHY-Layers.jpg">
+  <img width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
 </p>
 
 The GateMate SerDes has thus far not been used in the PCIE context. It is therefore reasonable to expect issues with physical layer, which may falter for signal integrity, jitter, or some other reason. Luckily, we have teamed up with CologneChip developers, who will own the PHY layer up to and including **P**hysical **I**nterface for **P**CI **E**xpress (PIPE) 👍. This technology-specific work is clearly separated in a directory of their own, see **`2.rtl.PHY`**.
@@ -79,7 +81,7 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 
 - [ ] Design, debug and manufacture two flavors of EP cards
 > Given the high-speed nature of this design, we plan for two iterations:
->- [ ] M.2  **RevA**
+>- [x] ✔ M.2  **RevA**
 >- [ ] Edge RevA
 
 >- [ ] M.2  **RevB**
@@ -87,7 +89,7 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 
  
 - [ ] Develop opensource PHY with PIPE interface for GateMate SerDes
->- [ ] x1, **Gen1**
+>- [x] ✔ x1, **Gen1**
 >- [ ] x1, Gen2 (best-effort, consider it a bonus if we make it)
 
 - [ ] Develop opensource RTL for PCIE EP **DLL function**, with PIPE interface
@@ -382,6 +384,7 @@ We are fully open to consider additional venues -- Please reach out and send you
 
 
 ### Public posts:
+- [2026-09-17](https://www.linkedin.com/feed/update/urn:li:activity:7505843991876370432?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7505843991876370432%2C7505869378253578240%29&replyUrn=urn%3Ali%3Acomment%3A%28activity%3A7505843991876370432%2C7505896426162274304%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287505869378253578240%2Curn%3Ali%3Aactivity%3A7505843991876370432%29&dashReplyUrn=urn%3Ali%3Afsd_comment%3A%287505896426162274304%2Curn%3Ali%3Aactivity%3A7505843991876370432%29)
 - [2026-06-23](https://www.linkedin.com/posts/andrew-e-wilson_its-fun-bringing-all-the-fpga-vendors-together-share-7475267075234607104-j50-)
 - [2026-06-12](https://www.linkedin.com/feed/update/urn:li:activity:7471157152074694656?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7471157152074694656%2C7471308573994557441%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287471308573994557441%2Curn%3Ali%3Aactivity%3A7471157152074694656%29)
 - [2025-11-20](https://www.linkedin.com/feed/update/urn:li:activity:7394569666557366272?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7394569666557366272%2C7397466385519448064%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287397466385519448064%2Curn%3Ali%3Aactivity%3A7394569666557366272%29)
