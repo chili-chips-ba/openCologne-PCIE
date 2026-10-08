@@ -19,6 +19,8 @@ module virtual_channel_tx #
 
     input  wire                         initfc1_en, // Sending InitFC1 sequence
     input  wire                         initfc2_en, // Sending InitFC2 sequence
+    input  wire                         initfc1_req, // Request one InitFC1 set (pulse)
+    input  wire                         initfc2_req, // Request one InitFC2 set (pulse)
     //input  wire                  [11:0] nack_sequence_number, // Sequence number for NAK/ACK DLLP
 
     input  wire                         tlp_valid,
@@ -174,6 +176,8 @@ module virtual_channel_tx #
 
         .initfc1_en(initfc1_en),
         .initfc2_en(initfc2_en),
+        .initfc1_req(initfc1_req),
+        .initfc2_req(initfc2_req),
 
         .dllp_initfc1_sent(initfc1_sent),
         .dllp_initfc2_sent(initfc2_sent),

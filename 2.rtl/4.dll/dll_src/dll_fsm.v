@@ -19,6 +19,11 @@ module dll_fsm #(
    reg [2:0] s_state, s_next_state;
    assign o_fsm_state         = s_state;
 
+   reg       s_initfc1_sent;
+   reg       s_initfc2_sent;
+   wire      initfc1_tx_done = s_initfc1_sent | i_initfc1_tx_done;
+   wire      initfc2_tx_done = s_initfc2_sent | i_initfc2_tx_done;
+
    // FSM States
    localparam [2:0]  DL_INACTIVE      = 3'b000,
                      DL_INITFC1       = 3'b001,
@@ -33,6 +38,23 @@ module dll_fsm #(
          s_state <= s_next_state;
    end
 
+   always @(posedge i_clk, posedge reset) begin
+      if ( reset ) begin
+         s_initfc1_sent <= 1'b0;
+         s_initfc2_sent <= 1'b0;
+      end else begin
+         if ( s_state != DL_INITFC1 )
+            s_initfc1_sent <= 1'b0;
+         else if ( i_initfc1_tx_done == 1'b1 )
+            s_initfc1_sent <= 1'b1;
+
+         if ( s_state != DL_INITFC2 )
+            s_initfc2_sent <= 1'b0;
+         else if ( i_initfc2_tx_done == 1'b1 )
+            s_initfc2_sent <= 1'b1;
+      end
+   end
+
    //Transition logic
    always @(*) begin
       s_next_state = s_state;
@@ -44,7 +66,7 @@ module dll_fsm #(
                s_next_state = DL_INACTIVE;
          end
          DL_INITFC1 : begin
-            if ( i_initfc1_rx_done == 1'b1 && i_initfc1_tx_done == 1'b1 )
+            if ( i_initfc1_rx_done == 1'b1 && initfc1_tx_done == 1'b1 )
                s_next_state = DL_INITFC2;
             else if (i_LinkUp == 1'b0)
                s_next_state = DL_INACTIVE;
@@ -52,7 +74,7 @@ module dll_fsm #(
                s_next_state = DL_INITFC1;
          end
          DL_INITFC2 : begin
-            if ( i_initfc2_rx_done == 1'b1 && i_initfc2_tx_done == 1'b1 )
+            if ( i_initfc2_rx_done == 1'b1 && initfc2_tx_done == 1'b1 )
                s_next_state = DL_ACTIVE;
             else if (i_LinkUp == 1'b0)
                s_next_state = DL_INACTIVE;

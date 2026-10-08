@@ -105,10 +105,12 @@ module virtual_channel #
     // Define cycle time based on data width
     // TODO: Look at retry timer again
     localparam CYCLE_TIME     = DATA_BYTES == 8 ? 32 : DATA_BYTES == 4 ? 16 : DATA_BYTES == 2 ? 8 : DATA_BYTES == 1 ? 4 : 0; // in ns
-    localparam INIT_CYCLE_CNT = 34000 / CYCLE_TIME; // 34us in terms of cycles
+    localparam INIT_CYCLE_CNT = 34000 / CYCLE_TIME - 1; // 34us in terms of cycles
     wire       init_counter_flag;
-    reg        initfc1; // TODO: currently not used
-    reg        initfc2; // TODO: currently not used
+    reg        initfc1;
+    reg        initfc2;
+    reg  [2:0] fsm_state_d;
+    wire       fsm_state_changed = (fsm_state != fsm_state_d);
 
     wire END_lost;
 
@@ -161,7 +163,6 @@ module virtual_channel #
         .rx_tlp_first(rx_first_TL),
         .rx_tlp_last(rx_last_TL),
 
-        // TODO: To virtual_channel_tx
         .nak_trigger(nak_trigger),
         .nak_seq_num(nak_seq_num),
         .ack_trigger(ack_trigger),
@@ -248,21 +249,16 @@ module virtual_channel #
         end
     end
 
+    // repeat logic for initfc1 and initfc2
     always @(posedge clk or posedge reset) begin
         if (reset) begin
-            initfc1 <= 1'b0;
-            initfc2 <= 1'b0;
-        end else if (init_counter_flag) begin
-            if (initfc1_en) begin
-                initfc1 <= 1'b1;
-                initfc2 <= 1'b0;
-            end else if (initfc2_en) begin
-                initfc1 <= 1'b0;
-                initfc2 <= 1'b1;
-            end else begin
-                initfc1 <= 1'b0;
-                initfc2 <= 1'b0;
-            end
+            fsm_state_d <= DL_INACTIVE;
+            initfc1     <= 1'b0;
+            initfc2     <= 1'b0;
+        end else begin
+            fsm_state_d <= fsm_state;
+            initfc1     <= initfc1_en && (fsm_state_changed || init_counter_flag);
+            initfc2     <= initfc2_en && (fsm_state_changed || init_counter_flag);
         end
     end
 
@@ -343,6 +339,7 @@ module virtual_channel #
     ) init_counter_inst (
         .i_clk(clk),
         .i_reset(reset),
+        .i_clear(fsm_state_changed),
         .max_count(INIT_CYCLE_CNT),
         .o_flag(init_counter_flag)
     );
@@ -364,6 +361,8 @@ module virtual_channel #
 
         .initfc1_en(initfc1_en),
         .initfc2_en(initfc2_en),
+        .initfc1_req(initfc1),
+        .initfc2_req(initfc2),
         //.tlp_en(tlp_en),
         .tlp_valid(tx_tlp_valid),
         .tlp_first(tx_tlp_first),

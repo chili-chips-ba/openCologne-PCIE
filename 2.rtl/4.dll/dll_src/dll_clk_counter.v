@@ -11,6 +11,7 @@ module dll_clk_counter #(
    (
     input  wire                 i_clk,
     input  wire                 i_reset,              // Asynchronous Reset
+    input  wire                 i_clear,              // Synchronous Clear
     input  wire [BIT_WIDTH-1:0] max_count,            // Max Count
     output reg                  o_flag                // Output Flag when Count reaches max count
     );
@@ -19,6 +20,10 @@ reg [BIT_WIDTH-1:0] s_count;
 
 always@(posedge i_clk, posedge i_reset) begin
     if (i_reset == 1'b1) begin
+        o_flag  <= 1'b0;
+        s_count <= {BIT_WIDTH{1'b0}};
+    end
+    else if (i_clear == 1'b1) begin
         o_flag  <= 1'b0;
         s_count <= {BIT_WIDTH{1'b0}};
     end

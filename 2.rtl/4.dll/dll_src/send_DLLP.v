@@ -23,6 +23,8 @@ module send_DLLP #
 
     input  wire                         initfc1_en, // Sending InitFC1 sequence
     input  wire                         initfc2_en, // Sending InitFC2 sequence
+    input  wire                         initfc1_req, // Request one InitFC1 set (pulse)
+    input  wire                         initfc2_req, // Request one InitFC2 set (pulse)
 
     output reg                          dllp_initfc1_sent,
     output reg                          dllp_initfc2_sent,
@@ -51,6 +53,8 @@ module send_DLLP #
 
     reg  [$clog2(NUMBER_OF_STEPS) : 0] step;
     reg  [$clog2(INITFC_NUMBER_OF_STEPS) : 0] initfc_step;
+    reg                                      initfc1_pending;
+    reg                                      initfc2_pending;
 
     always @ (posedge clk or posedge reset) begin
         if ( reset ) begin
@@ -61,6 +65,8 @@ module send_DLLP #
             dllp_sent <= 1'b0;
             dllp_initfc1_sent <= 1'b0;
             dllp_initfc2_sent <= 1'b0;
+            initfc1_pending <= 1'b0;
+            initfc2_pending <= 1'b0;
         end else begin
             dllp_sent <= 1'b0;
             dllp_initfc1_sent <= 1'b0;
@@ -85,7 +91,7 @@ module send_DLLP #
                     step    <= 0;
                     initfc_step <= 0;
                 end
-            end else if (initfc1_en) begin
+            end else if (initfc1_pending) begin
                 if ( initfc_step != INITFC_NUMBER_OF_STEPS ) begin
                     txdata  <= DLLP_initfc1[DATA_WIDTH * initfc_step +: DATA_WIDTH];
                     txdatak <= DLLP_initfc1_k[DATA_BYTES * initfc_step +: DATA_BYTES];
@@ -95,10 +101,11 @@ module send_DLLP #
                     txdata  <= DLLP_initfc1[DATA_WIDTH * initfc_step +: DATA_WIDTH];
                     txdatak <= DLLP_initfc1_k[DATA_BYTES * initfc_step +: DATA_BYTES];
                     dllp_initfc1_sent <= 1'b1;
+                    initfc1_pending <= 1'b0;
                     initfc_step <= 0;
                     step    <= 0;
                 end
-            end else if (initfc2_en) begin
+            end else if (initfc2_pending) begin
                 if ( initfc_step != INITFC_NUMBER_OF_STEPS ) begin
                     txdata  <= DLLP_initfc2[DATA_WIDTH * initfc_step +: DATA_WIDTH];
                     txdatak <= DLLP_initfc2_k[DATA_BYTES * initfc_step +: DATA_BYTES];
@@ -108,6 +115,7 @@ module send_DLLP #
                     txdata  <= DLLP_initfc2[DATA_WIDTH * initfc_step +: DATA_WIDTH];
                     txdatak <= DLLP_initfc2_k[DATA_BYTES * initfc_step +: DATA_BYTES];
                     dllp_initfc2_sent <= 1'b1;
+                    initfc2_pending <= 1'b0;
                     initfc_step <= 0;
                     step    <= 0;
                 end
@@ -117,6 +125,16 @@ module send_DLLP #
                 step    <= 0;
                 initfc_step <= 0;
             end
+
+            if (!initfc1_en)
+                initfc1_pending <= 1'b0;
+            else if (initfc1_req)
+                initfc1_pending <= 1'b1;
+
+            if (!initfc2_en)
+                initfc2_pending <= 1'b0;
+            else if (initfc2_req)
+                initfc2_pending <= 1'b1;
         end
     end
 
