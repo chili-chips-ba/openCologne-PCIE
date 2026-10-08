@@ -157,13 +157,13 @@ module send_DLLP #
                                                 : {data3, data2, data1, dllp_type};
     assign DLLP  = {_END, calc_crc, data, SDP};
     assign DLLP_k = {1'b1, 6'b0, 1'b1};
-    assign DLLP_initfc1 = {_END, 8'hbc, 8'h35, 8'hf0, 8'h03, 8'h08, 8'h40, SDP,
+    assign DLLP_initfc1 = {_END, 8'h92, 8'hd8, 8'h00, 8'h00, 8'h00, 8'h60, SDP,
                            _END, 8'hf6, 8'hb1, 8'h01, 8'h00, 8'h08, 8'h50, SDP,
-                           _END, 8'h92, 8'hd8, 8'h00, 8'h00, 8'h00, 8'h60, SDP};
+                           _END, 8'hbc, 8'h35, 8'hf0, 8'h03, 8'h08, 8'h40, SDP};
     assign DLLP_initfc1_k = {1'b1, 6'b0, 1'b1, 1'b1, 6'b0, 1'b1, 1'b1, 6'b0, 1'b1};
-    assign DLLP_initfc2 = {_END, 8'hc3, 8'h4f, 8'hf0, 8'h03, 8'h08, 8'hc0, SDP,
+    assign DLLP_initfc2 = {_END, 8'hed, 8'ha2, 8'h00, 8'h00, 8'h00, 8'he0, SDP,
                            _END, 8'h89, 8'hcb, 8'h01, 8'h00, 8'h08, 8'hd0, SDP,
-                           _END, 8'hed, 8'ha2, 8'h00, 8'h00, 8'h00, 8'he0, SDP};
+                           _END, 8'hc3, 8'h4f, 8'hf0, 8'h03, 8'h08, 8'hc0, SDP};
     assign DLLP_initfc2_k = {1'b1, 6'b0, 1'b1, 1'b1, 6'b0, 1'b1, 1'b1, 6'b0, 1'b1};
 
 endmodule
