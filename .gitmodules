@@ -1,0 +1,8 @@
+[submodule "2.rtl/2.pipe/pipe_src"]
+	path = 2.rtl/2.pipe/pipe_src
+	url = https://github.com/colognechip/gatemate-pipe.git
+	branch = dll_test
+[submodule "2.rtl/3.mac/mac_src"]
+	path = 2.rtl/3.mac/mac_src
+	url = https://github.com/colognechip/gatemate-pipe.git
+	branch = dll_test

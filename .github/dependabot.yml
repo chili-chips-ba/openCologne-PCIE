@@ -1,0 +1,14 @@
+# Keep the gatemate-pipe submodules (2.rtl/2.pipe/pipe_src, 2.rtl/3.mac/mac_src)
+# on the latest commit of the branch set in .gitmodules (dll_test).
+version: 2
+updates:
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      gatemate-pipe:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "submodules"
