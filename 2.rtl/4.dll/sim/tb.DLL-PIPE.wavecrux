@@ -1,0 +1,169 @@
+{
+  "version": 4,
+  "sourceFilePath": "dll_wavecrux.fst",
+  "signals": [
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-18",
+      "ref": "566",
+      "path": "tb_dll_wavecrux.wavecrux.TxPclk",
+      "name": "TxPclk",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-19",
+      "ref": "569",
+      "path": "tb_dll_wavecrux.wavecrux.TxDataK",
+      "name": "TxDataK",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-20",
+      "ref": "568",
+      "path": "tb_dll_wavecrux.wavecrux.TxData",
+      "name": "TxData",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-21",
+      "ref": "567",
+      "path": "tb_dll_wavecrux.wavecrux.RxPclk",
+      "name": "RxPclk",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-22",
+      "ref": "571",
+      "path": "tb_dll_wavecrux.wavecrux.RxDataK",
+      "name": "RxDataK",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "8f7ce66f-23",
+      "ref": "570",
+      "path": "tb_dll_wavecrux.wavecrux.RxData",
+      "name": "RxData",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    }
+  ],
+  "cursor": {
+    "primary": null,
+    "secondary": null
+  },
+  "markers": {},
+  "view": {
+    "ticksPerPixel": 25757.22808627811,
+    "panOffsetTicks": 0.0,
+    "scrollOffset": 0.0
+  },
+  "panels": {
+    "signalTree": true,
+    "valueColumn": true,
+    "transactionView": false,
+    "stageView": false,
+    "statisticsStrip": false,
+    "cocotbLogPanel": false,
+    "rtlSource": false,
+    "bottomDockTab": "transactions",
+    "sizes": {
+      "left": 247.99999999999994
+    }
+  },
+  "signalTreeState": {
+    "expanded": [
+      "tb_dll_logic",
+      "tb_dll_logic.wavecrux"
+    ],
+    "selected": [
+      "tb_dll_logic.wavecrux.TxPclk"
+    ]
+  },
+  "translateFilters": {},
+  "stage": {
+    "panels": []
+  },
+  "activeTheme": "wavecrux-dark",
+  "decoders": [
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "566",
+          "data": "568",
+          "datak": "569"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 3,
+      "config": {
+        "bindings": {
+          "pclk": "567",
+          "data": "570",
+          "datak": "571"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "566",
+          "data": "568",
+          "datak": "569"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "567",
+          "data": "570",
+          "datak": "571"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    }
+  ]
+}

@@ -187,6 +187,74 @@ The simulation can be run using the pcieVHost model … *TODO*
 ## Testbench description
 The testbench drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers.-->
 
+## Viewing the DLL in WaveCrux
+
+The pictures below decode the DLL's PHY-side stream with Ferrite's
+[PCIe PIPE and Data Link Layer decoders](https://github.com/Ferrite-Engineering/wavecrux-decoders)
+(`wcx-pcie` 0.1.0) in [WaveCrux](https://wavecrux.app). They come from
+`sim/tb_dll_wavecrux.v`, a copy of `tb_dll_logic.v` whose TLPs carry real
+headers (MWr32, MWr64, CplD) so the decoders can name them; the test steps
+are the same.
+
+To reproduce, from `2.rtl/4.dll`:
+
+```
+verilator --binary --timing --trace-fst --trace-structs -O0 --top-module tb_dll_wavecrux           sim/tb_dll_wavecrux.v sim/dll_wavecrux_view.sv dll_src/*.v
+./obj_dir/Vtb_dll_wavecrux          # writes sim/dll_wavecrux.fst
+```
+
+then, once per machine, add the unzipped `wcx-pcie` release under
+**Settings -> Extensions -> Decoder Plugins** in WaveCrux (1.0.1 or later), and
+open [`sim/tb.DLL-PIPE.wavecrux`](sim/tb.DLL-PIPE.wavecrux). It loads
+`dll_wavecrux.fst` from the same directory with all four decoders bound.
+
+[`sim/dll_wavecrux_view.sv`](sim/dll_wavecrux_view.sv) is attached to the
+testbench with `bind` and presents the stream under the names the decoders
+auto-bind to: **Tx** (orange) is DLL -> PHY, **Rx** (blue) is PHY -> DLL. The
+testbench loops Tx back into Rx through one register, so Rx runs one clock
+behind, and `RxDataK` is rebuilt from `TxDataK` because the DLL has no RX K
+input. `-O0` matters: without it Verilator traces these copies as aliases of
+the original signals, and WaveCrux's signal pickers hide them. The four
+decoder rows are, top to bottom: Data Link Layer Tx, Data Link Layer Rx,
+PIPE Tx, PIPE Rx.
+
+**The whole run.** Flow-control initialization, three TLPs each followed by an
+Ack, the TLP whose LCRC is corrupted on the way back (red), its Nak and
+replay, and a final UpdateFC:
+
+<img alt="WaveCrux view of the whole DLL testbench run" src="./images/wavecrux-dll-overview.png" width=900 />
+
+**Flow-control initialization.** One DLLP per clock, each framed by SDP on
+lane 0 and END on lane 7 (`TxDataK` = `81`). The DLL advertises its receive
+credits for Posted, Non-Posted and Completion traffic: `InitFC1-P H=32
+D=1008`, `InitFC1-NP H=32 D=1`, `InitFC1-Cpl H=0 D=0` (0 means infinite). The
+PIPE decoder counts the 6 symbols between SDP and END:
+
+<img alt="WaveCrux view: InitFC1 DLLPs" src="./images/wavecrux-dll-fc-init.png" width=900 />
+
+**A TLP.** `MWr32` with sequence number 0 and a 3-DW payload: STP on lane 0
+(`TxDataK` = `01`), the sequence number, the 3-DW header, the payload, the
+LCRC and END on lane 7 (`80`). The 30 symbols are the 2 sequence bytes, 24
+TLP bytes and 4 LCRC bytes:
+
+<img alt="WaveCrux view: an MWr32 TLP" src="./images/wavecrux-dll-tlp.png" width=900 />
+
+**A corrupted LCRC.** The testbench flips bit 40 of the last word on the way
+back (`fd2eb881...` sent, `fd2eb981...` received). The Rx Data Link Layer
+decoder reports `LCRC mismatch`, and so does the DLL: it answers with
+`Nak seq=2`, naming the last TLP it received intact (at 1.72 us in the
+overview):
+
+<img alt="WaveCrux view: TLP with a corrupted LCRC" src="./images/wavecrux-dll-lcrc-error.png" width=900 />
+
+**The replay.** The retry buffer sends the same TLP again with the same
+sequence number; the Tx decoder marks it `(replay)`, and this time Rx
+receives it intact and acknowledges it with `Ack seq=3` (at 2.0 us). The Rx
+row does not say `(replay)` because the first copy never arrived in good
+shape:
+
+<img alt="WaveCrux view: the replayed TLP" src="./images/wavecrux-dll-replay.png" width=900 />
+
 ## References
 - [PIPE Specs, Sept. 2025, v7.1](https://cdrdv2-public.intel.com/643108/643108_PIPE_Arch_Spec_Rev_7_1.pdf)
 - [Simon Southwell's Primer](https://www.linkedin.com/pulse/pci-express-primer-1-overview-physical-layer-simon-southwell/)
