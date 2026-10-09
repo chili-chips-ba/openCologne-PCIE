@@ -1,8 +1,8 @@
 # _openpcie2-rc_ DUT stub
 
-This folder contains a stub in lie of the DUT RTL in order to get the top level test bench running. Once the DUT is available this mdel may be discarded.
+This folder contains a stub in lieu of the DUT RTL in order to get the top level test bench running. Once the DUT is available this model may be discarded.
 
-It has the folloing features
+It has the following features
 
   * Ports
     * A differential system clock input

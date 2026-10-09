@@ -7,11 +7,11 @@ At the moment, this section is merely a scratchpad of our thoughts and ideas, te
 **This is also an open, community-wide invite to contribute to this creation process.**
 
 <p align="center">
-  <img width="50%" src="../0.doc/diagrams/pcie-ep-top-stack.png">
+  <img alt="PCIe EndPoint top-level stack" width="50%" src="../0.doc/diagrams/pcie-ep-top-stack.png">
 </p>
 
 #### References:
-- [PCIE Primer](https://drive.google.com/file/d/1CECftcznLwcKDADtjpHhW13-IBHTZVXx/view) by Simon Southwell ✔
+- [PCIE Primer](../0.doc/pcie-primer.Simon-Southwell.pdf) by Simon Southwell ✔
 - [PCIE Technology Rev3.0 (MindSharePress2012)](https://github.com/chili-chips-ba/openCologne-PCIE/blob/main/0.doc/PCIE-Technology3-0---MindSharePress2012.pdf)
 - [PCIE Base Spec Rev2.1](https://github.com/chili-chips-ba/openCologne-PCIE/blob/main/0.doc/PCIE-base-spec.Rev2-1.pdf)
 
@@ -234,7 +234,7 @@ From the top level README.md it seems that power management isn't to be initiall
 
 
 ## 4) PIPE
-See [2.rtl.PHY](../2.rtl.PHY/README.md)
+See [2.rtl/1.phy](1.phy/README.md)
 
 ## 5) Type 0 Configuration Space
 

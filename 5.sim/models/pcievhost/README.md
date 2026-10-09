@@ -36,7 +36,7 @@ More details of the model can be found in the [_Pcievhost_ manual](https://githu
 A Verilog module for the _pcievhost_ model is provided in a `pcieVHost.v` file in the `5.sim/models/pcievhost/verilog/pcieVHost` directory. This is wrapped in some BFM Verilog, `pcieVHostPipex1.v`, in the same directory, which presents a single Link port, as PIPE TX and RX data signals. The diagram below shows the module's ports and parameters.
 
 <p align=center>
-<img width=800 src="images/pcievhost_module.png">
+<img alt="pcieVHost module ports" width=800 src="images/pcievhost_module.png">
 </p>
 
 The module's `pcieclk` clock and reset must be synchronous (i.e. the reset originate from the same clock domain) and the clock run at the PCIe raw bit rate $\div$ 10. So for GEN1 this is 250MHz (4000ps period) and GEN2 this is 500MHz (2000ps period). The module can convert from a sybol stream to wider PIPE widths of 16, 32 or 64, and these are converted between these widths and the symbol stream with internal logic and using a PIPE clock (`pclk`), which needs to be the `pcieclk` divided by the PIPE data width over 8. E.g. If a 64 bit PIPE data width, then the `pclk` frequency must be `pcieclk` / 8, or 31.25MHz (GEN1) or 62.5MHz (GEN2).
@@ -67,14 +67,14 @@ The _pcievhost_ model has the capability to display link traffic to the console 
 ```
 The file has two numbers on each active line, with the first hex number being the control values and the second a <u>decimal</u> value timestamp (in clock cycles) when the control should become active. For the controls, the top nibble controls enabling output for Endpoint and Root Complex links separately to allow for co-existence with other extenal link displays. So, bit 11 controls the colour formatting by enabling (when 0) or disabling (when 1). Disabling the formatting is useful if the output is sent to a simulator's GUI console which may not support the colour encoding and messes up the output. Bits 10 and 9 enable display if an endpoint end or root-complex end model respectively. By default, only received traffic is displayed but, if no other external traffic display is available, then transmitted data can be displayed if bit 8 is set.
 
-The level of detail to display is controlled by bits 4 to 7. The bit 7 can enable display of raw data link data, without any processing, though generates a lot of output and is hard to interpret. Bits 6 dow to 4 control formatted output for the three main levels of PCIe traffic; namely physical, data link and transactions layers, bits 6 down to 4 controlling these respectively. The display will automatically indent higher layers if lower layers are enabled to allow easy distinguishing of the output.
+The level of detail to display is controlled by bits 4 to 7. The bit 7 can enable display of raw data link data, without any processing, though generates a lot of output and is hard to interpret. Bits 6 down to 4 control formatted output for the three main levels of PCIe traffic; namely physical, data link and transactions layers, bits 6 down to 4 controlling these respectively. The display will automatically indent higher layers if lower layers are enabled to allow easy distinguishing of the output.
 
 The lowest nibble has some simulator control in bits 1 and 2, to either stop the simulation (without exiting) or finish the simulation (end and close). Bit 0 is a 'force all' control to display all layers of the link traffic, regardless of the other settings.
 
 A fragment of some link display output, using the `ContDisps.hex` file example above, is shown in the diagram below:
 
 <p align=center>
-<img  width=750 src="images/pcie_disp_terminal.png" style="box-shadow: 5px 5px 5px gray;">
+<img alt="pcieVHost link display terminal output"  width=750 src="images/pcie_disp_terminal.png" style="box-shadow: 5px 5px 5px gray;">
 </p>
 
 More details on the link display can be found in the [_pcievhost_ manual](https://github.com/wyvernSemi/pcievhost/blob/master/doc/pcieVHost.pdf).
@@ -86,7 +86,7 @@ More details on the link display can be found in the [_pcievhost_ manual](https:
 The diagram below summarises the core PCIe model functionality, along with the connection to a logic simulation via the _VProc_ co-simulation component.
 
 <p align=center>
-<img width=1000 src="images/pcievhost_architecture.png">
+<img alt="pcieVHost internal architecture" width=1000 src="images/pcievhost_architecture.png">
 </p>
 
 On the left of the diagram are the two user supplied functions. The `VUserMain`<i>n</i> function is the main entry point for user code and this has access to the [model's API](#user-api-summary). Optionally, a user callback function can be registered (`VUserInput` in the diagram) that gets called to with non-handled packets (e.g. read completions) that are received over the link.
@@ -262,7 +262,7 @@ typedef struct  pkt_struct {
     uint32_t    ByteCount;
 } sPkt_t;
 ```
-The `NextPtr` can be ignored by the callback, but the `data` argument is a pointer to a set of byte values representing the whole raw packet. Each byte value is of `PktData_t` type, which is not an 8-bit type, so cannot be overlaid as an array of `char`, for instance. The last byte in teh packet is followed by a -1 to mark the end of the data. The `seq` field gives the sequence number of the received packet and the `Retry` field is a count ofthe number of retries for the packet that have already occured. A `Timestamp` field provides a clock cycle count for the time the packet was fuly received and passed to the callback. Finally, a `ByteCount` gives the size of the payload for the packet (in bytes), which can be 0.
+The `NextPtr` can be ignored by the callback, but the `data` argument is a pointer to a set of byte values representing the whole raw packet. Each byte value is of `PktData_t` type, which is not an 8-bit type, so cannot be overlaid as an array of `char`, for instance. The last byte in the packet is followed by a -1 to mark the end of the data. The `seq` field gives the sequence number of the received packet and the `Retry` field is a count ofthe number of retries for the packet that have already occurred. A `Timestamp` field provides a clock cycle count for the time the packet was fuly received and passed to the callback. Finally, a `ByteCount` gives the size of the payload for the packet (in bytes), which can be 0.
 
 A set of helper macros are avilable to process the raw packet data. To extract the payload data, for example the `GET_TLP_PAYLOAD_PTR(pkt)` returns a pointer to the beginning of the payload data (if any), taking care of whether the packet has a 3 or 4 word header. Using this, along with the `ByteCount` value, the data can be extracted from the packet. Some highlights from the set of available macros are given below :
 
@@ -546,7 +546,7 @@ The individual fields of the structure can be filled in and then the word buffer
 
 #### Setting Up the Configuration Space
 
-In the previous example for an endpoint program the `ConfigureType0PcieCfg` function was left blank for brevity purposes. By default, the configuration space acts just like a 4K &times; 32bit memory space initilaised to 0. Configurations writes will have all bits written to the word addressed and subsequent reads will read back the value written. In order to configure for a model of a real configuration space the pcie model's API provides the aforementions methods and some structures to aid constructing capabilities. The use of thmode's features does require understanding of PCIe configuration space requirements but an example is given below for a <u>minimal</u> Type 0 configuration space for a proprietary network card with no PCIe extended capabilities. For more information about PCIe configurations spaces see the [PCIe Primer](https://drive.google.com/file/d/1CECftcznLwcKDADtjpHhW13-IBHTZVXx) Part 4).
+In the previous example for an endpoint program the `ConfigureType0PcieCfg` function was left blank for brevity purposes. By default, the configuration space acts just like a 4K &times; 32bit memory space initialised to 0. Configurations writes will have all bits written to the word addressed and subsequent reads will read back the value written. In order to configure for a model of a real configuration space the pcie model's API provides the aforementioned methods and some structures to aid constructing capabilities. The use of the model's features does require understanding of PCIe configuration space requirements but an example is given below for a <u>minimal</u> Type 0 configuration space for a proprietary network card with no PCIe extended capabilities. For more information about PCIe configuration spaces see the [PCIe Primer](../../../0.doc/pcie-primer.Simon-Southwell.pdf) Part 4).
 
 ```C
 static void ConfigureType0PcieCfg (pcieModelClass *pcie)

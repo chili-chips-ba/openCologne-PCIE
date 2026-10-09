@@ -5,12 +5,12 @@ The **Media Access Control (MAC)** is the logical sub-block of the PCIe **Physic
 
 In this design the MAC is implemented as soft-core RTL in the FPGA fabric. The PHY-specific work — **8b/10b** encode/decode, the **elastic buffer**, and **word alignment** — is performed by the GateMate SerDes and reached through the PIPE interface. See the PIPE interface documentation for the details of that boundary.
 
-<img src="./images/MAC_Position.png" width=300 height=330 />
+<img alt="Position of the MAC layer in the PCIe stack" src="./images/MAC_Position.png" width=300 height=330 />
 
 ## Architecture
 The MAC is split into a transmit datapath, a receive datapath, and the control plane that binds them together.
 
-<img src="./images/MAC_Block_Diagram.png" width=700 height=457 />
+<img alt="MAC block diagram" src="./images/MAC_Block_Diagram.png" width=700 height=457 />
 
 - **TX datapath**: receive framed packets from DLL → scrambling → `TxData`/`TxDataK` to the PIPE interface.
 - **RX datapath**: `RxData`/`RxDataK` from the PIPE interface → descrambling → packet detection → packet stream to the DLL.
@@ -43,7 +43,7 @@ The LTSSM is the heart of the MAC control plane. The top-level states relevant t
 | Configuration   | Assign link and lane numbers and configure link width; TS1/TS2 carry the assigned numbers. |
 | L0              | Fully active operational state; TLPs and DLLPs flow. |
 
-<img src="./images/MAC_LTSSM.png" width=300 height=400 />
+<img alt="LTSSM state diagram" src="./images/MAC_LTSSM.png" width=300 height=400 />
 
 ## Symbols and Ordered Sets
 The MAC works with the PHY's control-symbol flags (`TxDataK`/`RxDataK`); the 8b/10b encoding itself lives in the SerDes. The control symbols (K-codes) it emits and recognises:

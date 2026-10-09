@@ -1,12 +1,12 @@
 [![NLnet Foundation](https://img.shields.io/badge/funded%20by-NLnet%20Foundation-74AA00)](https://nlnet.nl/)
-[![GitHub stars](https://img.shields.io/github/stars/chili-chips-ba/openCologne-PCIE?style=social)](https://github.com/chili-chips-ba/uberCologne-PCIE/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/chili-chips-ba/openCologne-PCIE?style=social)](https://github.com/chili-chips-ba/openCologne-PCIE/stargazers)
 
 This project is the direct continuation of [openCologne](https://github.com/chili-chips-ba/openCologne), and it also firmly ties into [openPCIE](https://github.com/chili-chips-ba/openpcie).
 
 The project aims to take _openCologne_ to a new level, not only by introducing **soft PCIE EndPoint core** to GateMate portfolio, but also by challenging and validating the new, fully opensource [nextPNR](https://github.com/YosysHQ/prjpeppercorn) tool suite.
 
 <p align="center">
-  <img width="30%" src="0.doc/artwork/openCologne-PCIE.hex.png">
+  <img alt="openCologne-PCIE logo" width="30%" src="0.doc/artwork/openCologne-PCIE.hex.png">
 </p>
 
 It aims to complement _openPCIE RootComplex_ with a layered EndPoint that's portable to other FPGA families, and even to [OpenROAD](https://github.com/The-OpenROAD-Project) ASICs, leaving only the PHY in the hard-macro (HM) domain. This is the only soft PCIE protocol stack in opensource at the moment.
@@ -23,7 +23,7 @@ The PCIE protocol is complex. It is also bloated -- Most of the real-life users 
 
 Its scope is therefore limited to a demonstration of the **PIO writes and reads** only. Other applications, such as DMA, are not in our deliverables. They can later on be added on top of the protocol stack (i.e. PCIE "core") that this project is about.
 
-The power states and transitions are supported only to the least extent possible, and primarily in relation to the mixed-signal SerDes, which is by definition the largest consumer. Our [PHY section](2.rtl.PHY/README.md) delves into that topic.
+The power states and transitions are supported only to the least extent possible, and primarily in relation to the mixed-signal SerDes, which is by definition the largest consumer. Our [PHY section](2.rtl/1.phy/README.md) delves into that topic.
 
 While our commitment is to produce a **`Gen1`** EP, the design will from the get-go support the Gen2 throughput -- We intend to, on the best-effort bases, as a bonus, try to bring up 5Gbps links. However, the procedures for automatic up- and down- training of the link speed will not be implemented.
 
@@ -43,17 +43,17 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 ### Design Blueprint
 
 <p align="center">
-  <img width="50%" src="0.doc/diagrams/pcie-ep-top-stack.png">
+  <img alt="PCIe EndPoint top-level stack" width="50%" src="0.doc/diagrams/pcie-ep-top-stack.png">
 </p>
 
 --------------------
 # PIPE (is not a dream)
 
 <p align="center">
-  <img width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
+  <img alt="PCIe physical layer sub-blocks" width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
 </p>
 
-The GateMate SerDes has thus far not been used in the PCIE context. It is therefore reasonable to expect issues with physical layer, which may falter for signal integrity, jitter, or some other reason. Luckily, we have teamed up with CologneChip developers, who will own the PHY layer up to and including **P**hysical **I**nterface for **P**CI **E**xpress (PIPE) 👍. This technology-specific work is clearly separated in a directory of their own, see **`2.rtl.PHY`**.
+The GateMate SerDes has thus far not been used in the PCIE context. It is therefore reasonable to expect issues with physical layer, which may falter for signal integrity, jitter, or some other reason. Luckily, we have teamed up with CologneChip developers, who will own the PHY layer up to and including **P**hysical **I**nterface for **P**CI **E**xpress (PIPE) 👍. This technology-specific work is clearly separated in a directory of their own, see **`2.rtl/1.phy`**.
 
 > By adhering to PIPE architecture, we avoid mixing the generic (i.e. "logic" only) design part with FPGA-specific RTL. This does not mean that all of our RTL is portable to other vendors, but rather that it is structured in a way that facilitates future ports, with only a thin layer of code behind PIPE interface that needs to be revisited. That's a small subsection of the overall design, thereby saving a good amount of porting effort.
 
@@ -126,21 +126,21 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 
 The PCB part of the project shall deliver two cards: GateMate in **(i) PCIE "Slot"** and **(ii) M.2** form-factors
 <p align="center">
-  <img width="20%" src="0.doc/images/PCIE-Slot-Connector.JPG">
-  <img width="35%" src="0.doc/images/NiteFury-PCIE-M2.JPG">
+  <img alt="PCIe slot connector" width="20%" src="0.doc/images/PCIE-Slot-Connector.JPG">
+  <img alt="NiteFury M.2 PCIe FPGA card" width="35%" src="0.doc/images/NiteFury-PCIE-M2.JPG">
 </p>
 
 While the "Slot" variant is not critical, and could have been suplanted by one of the ready-made M.2-to-Slot adapters, 
 
 <p align="center">
-  <img width="40%" src="0.doc/images/PCIE-Slot-to-M2-adapter.JPG">
+  <img alt="PCIe slot to M.2 adapter" width="40%" src="0.doc/images/PCIE-Slot-to-M2-adapter.JPG">
 </p>
 
 it is more practical not to have an interposer. "Slot" is still the dominant PCIE form-factor for desktops and servers. The M.2 is typically found in the laptops. Initially, we will use the existing [CM4 ULX4M](https://github.com/intergalaktik/ULX4M) with off-the-shelf I/O boards:
 
 <p align="center">
-  <img width="40%" src="0.doc/images/CM4-IO-with-PCIE-Slot.jpg">
-  <img width="40%" src="0.doc/images/CM4-IO-with-PCIE-M2.jpg">
+  <img alt="Raspberry Pi CM4 IO board with PCIe slot" width="40%" src="0.doc/images/CM4-IO-with-PCIE-Slot.jpg">
+  <img alt="Raspberry Pi CM4 IO board with PCIe M.2" width="40%" src="0.doc/images/CM4-IO-with-PCIE-M2.jpg">
 </p>
 
 When our two new plug-in boards become available, the plan is to gradually switch thedev platform to our openPCIE backplane, which features:
@@ -150,7 +150,7 @@ When our two new plug-in boards become available, the plan is to gradually switc
 - on-board (soldered-down) PCIE Switch for interoperability testing of the most typical EP deployment scenario, which is when RootPort is not directly connected to EndPoints, but goes through a Switch.
 
 <p align="center">
-  <img width="40%" src="0.doc/images/PCIE-interop-with-RPI5.png">
+  <img alt="PCIe interoperability with Raspberry Pi 5" width="40%" src="0.doc/images/PCIE-interop-with-RPI5.png">
 </p>
 
 In the final step, we intend to test them inside a Linux PC, using both "Slot" and M.2 connectivity options. For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
@@ -196,10 +196,10 @@ For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 
 The [test bench](5.sim/README.md) aims to have a flexible approach to simulation which allows a common test environment to be used whilst selecting between alternative CPU components, one of which uses the [_VProc_ virtual processor](https://github.com/wyvernSemi/vproc) co-simulation element. This allows simulations to be fully HDL, with a RISC-V processor RTL implementation such as picoRV32, Ibex or eduBOS5, or to co-simulate software using the virtual processor, with a significant speed up in simulation times. The test bench has the following features:
 
-* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc-cpu-vproc) component
+* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component
   * [Selectable](5.sim/README.md#auto-selection-of-soc_cpu-component) between this or an RTL softcore
   * Can run natively compiled test code
-  * Can run the application compiled natively with the [auto-generated co-sim HAL](4.build/README.md#co-simulation-hal)
+  * Can run the application compiled natively with the [auto-generated co-sim HAL](5.sim/README.md#co-simulation-hal)
   * Can run RISC-V compiled code using the [rv32 RISC-V ISS model](5.sim/models/rv32/README.md)
 * The [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) is used to drive the logic's PCIe link
 * Uses a C [sparse memory model](https://github.com/wyvernSemi/mem_model)
@@ -209,14 +209,14 @@ The [test bench](5.sim/README.md) aims to have a flexible approach to simulation
 The figure below shows an overview block diagram of the test bench HDL.
 
 <p align="center">
-    <img width="75%" src="5.sim/images/opencologne-pcie-tb.png">
+    <img alt="openCologne-PCIE test bench architecture" width="75%" src="5.sim/images/opencologne-pcie-tb.png">
 </p>
 
 More details on the architecture and usage of the test bench can be found in the [README.md](5.sim/README.md) in the `5.sim` directory.
 
 ## Co-simulation HAL
 
-The PCIE EP control and status register harware abstraction layer (HAL) software is [auto-generated](4.build/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/). For co-simulation purposes an additional layer is auto-generated from the same SystemRDL specification using [`systemrdl-compiler`](https://systemrdl-compiler.readthedocs.io/en/stable/) that accompanies the `peakrdl` tools. This produces two header files that define a common API to the application layer for both the RISC-V platform and the *VProc* based co-simulation verification environment. The details of the HAL generation can be found in the [README.md](./4.build/README.md#co-simulation-hal) in the `4.build/` directory.
+The PCIE EP control and status register harware abstraction layer (HAL) software is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/). For co-simulation purposes an additional layer is auto-generated from the same SystemRDL specification using [`systemrdl-compiler`](https://systemrdl-compiler.readthedocs.io/en/stable/) that accompanies the `peakrdl` tools. This produces two header files that define a common API to the application layer for both the RISC-V platform and the *VProc* based co-simulation verification environment. The details of the HAL generation can be found in the [README.md](5.sim/README.md#co-simulation-hal) in the `4.build/` directory.
 
 More details of the test bench, the _pcievhost_ component and its usage can be found in the [5.sim/README.md](5.sim/README.md) file.
   
@@ -244,11 +244,11 @@ The first and most fundamental test was to confirm that the host operating syste
   <tr>
     <td align="center" width="50%">
       <b>Device detected in Windows Device Manager</b><br>
-      <img src="0.doc/images/device-detected-in-WinDevManager.png" style="max-width:90%; height:auto;">
+      <img alt="Device detected in Windows Device Manager" src="0.doc/images/device-detected-in-WinDevManager.png" style="max-width:90%; height:auto;">
     </td>
     <td align="center" width="50%">
       <b>`lspci` output on Linux, identifying the device.</b><br>
-      <img src="0.doc/images/lspci-output-on-Linux.png" style="width:100%; height:100%;">
+      <img alt="lspci output on Linux" src="0.doc/images/lspci-output-on-Linux.png" style="width:100%; height:100%;">
     </td>
   </tr>
 </table>
@@ -293,7 +293,7 @@ To find this address, you can use the `lspci -v` command. The image below shows 
 In this example, the assigned base address is 0xfc500000.
 
 <p align="center">
-  <img src="0.doc/images/Physical Address fc500000 Assigned to PCIe Device.png" style="width:60%; height:60%;">
+  <img alt="Physical address fc500000 assigned to the PCIe device" src="0.doc/images/Physical Address fc500000 Assigned to PCIe Device.png" style="width:60%; height:60%;">
   <br><em>Physical Address fc500000 Assigned to PCIe Device.</em>
 </p>
 
@@ -311,7 +311,7 @@ The image below demonstrates this process.
 *  Next, the value is changed to 0xB. A final read confirms that 0x0000000B is returned, proving the write operation was successful.
 
 <p align="center">
-  <img src="0.doc/images/Data Read and Write Test Using devmem.png" style="width:60%; height:60%;">
+  <img alt="Data read and write test using devmem" src="0.doc/images/Data Read and Write Test Using devmem.png" style="width:60%; height:60%;">
   <br><em>Data Read and Write Test Using devmem.png</em>
 </p>
 
@@ -331,7 +331,7 @@ This test confirms that the entire communication chain is functional: from the u
 - [LiteX PCIE Analyzer](https://github.com/enjoy-digital/pcie_analyzer)
 - [Wireshark PCIe Dissector](https://github.com/antmicro/wireshark-pcie-dissector)
 - [PCIe Tool Hunt](https://scolton.blogspot.com/2023/05/pcie-deep-dive-part-1-tool-hunt.html)
-- [An interesting PCIE tidbit: Peer-to-Peer communicaton](https://xilinx.github.io/XRT/master/html/p2p.html). Also see [this](https://xillybus.com/tutorials/pci-express-tlp-pcie-primer-tutorial-guide-1)
+- [An interesting PCIE tidbit: Peer-to-Peer communication](https://github.com/Xilinx/XRT/blob/master/src/runtime_src/doc/toc/p2p.rst). Also see [this](https://xillybus.com/tutorials/pci-express-tlp-pcie-primer-tutorial-guide-1)
 - [NetTLP - An invasive method for intercepting PCIE TLPs](https://haeena.dev/nettlp)
 
 
@@ -360,38 +360,38 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
  - [openPCIE project and backplane](https://www.chili-chips.xyz/openpcie-backplane-put-your-fpga-in-control), [Intro Video](https://www.canva.com/design/DAHXSTcjxEc/odZj_VbgU20EEeZ1zuJlJA/watch?utm_content=DAHXSTcjxEc&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8306e0024f)
 
 <p align="center">
-  <a href="https://intergalaktik.eu"><img width="50%" src="0.doc/artwork/Intergalaktik.logo.png"></a>
-  <a href="https://radiona.org"><img width="20%" src="0.doc/artwork/Radiona.logo.png"></a>
+  <a href="https://intergalaktik.eu"><img width="50%" alt="Intergalaktik logo" src="0.doc/artwork/Intergalaktik.logo.png"></a>
+  <a href="https://radiona.org"><img width="20%" alt="Radiona logo" src="0.doc/artwork/Radiona.logo.png"></a>
 </p>   
 
 <p align="center">
-  <a href="https://colognechip.com"><img width="45%" src="0.doc/artwork/Cologne-Chip.logo.png"></a>
-  <a href="https://colognechip.com/programmable-logic/gatemate"><img width="20%" src="0.doc/artwork/GateMate.png"></a>
+  <a href="https://colognechip.com"><img width="45%" alt="Cologne Chip logo" src="0.doc/artwork/Cologne-Chip.logo.png"></a>
+  <a href="https://colognechip.com/programmable-logic/gatemate"><img width="20%" alt="GateMate FPGA logo" src="0.doc/artwork/GateMate.png"></a>
 </p>
 
 **wyvernSemi**'s wisdom and contribution meant a world of difference -- Thank you, we are honored to have had you on the project!
 
 <p align="center">
-  <a href="https://github.com/wyvernSemi"><img width="15%" alt="wyvernSemi-Logo" src="0.doc/artwork/wyvernSemi-logo-rounded.png"></a>
+  <a href="https://github.com/wyvernSemi"><img width="15%" alt="wyvernSemi logo" src="0.doc/artwork/wyvernSemi-logo-rounded.png"></a>
 </p>
 
 <p align="center">
-   <a href="https://www.oshwa.org"><img width="20%" src="0.doc/artwork/oshw-logo-filled-black.png"></a>
-   <a href="https://www.kicad.org"><img width="25%" src="0.doc/artwork/kicad_logo.png"></a>
-   <a href="https://www.openems.de"><img width="15%" src="0.doc/artwork/openEMS.logo.short.noBG.png"></a>
+   <a href="https://oshwa.org"><img width="20%" alt="Open Source Hardware Association logo" src="0.doc/artwork/oshw-logo-filled-black.png"></a>
+   <a href="https://www.kicad.org"><img width="25%" alt="KiCad logo" src="0.doc/artwork/kicad_logo.png"></a>
+   <a href="https://www.openems.de"><img width="15%" alt="openEMS logo" src="0.doc/artwork/openEMS.logo.short.noBG.png"></a>
 </p>  
 
 
 <p align="center">
-  <a href="https://wavecrux.app"><img width="30%" src="0.doc/artwork/WaveCrux.logo.png"></a>
-  <a href="https://github.com/steveicarus/iverilog"><img width="20%" src="0.doc/artwork/Icarus-Verilog.logo.png"></a>
-  <a href="https://verilator.org"><img width="20%" src="0.doc/artwork/Verilator.logo.png"></a>
+  <a href="https://wavecrux.app"><img width="30%" alt="WaveCrux logo" src="0.doc/artwork/WaveCrux.logo.png"></a>
+  <a href="https://github.com/steveicarus/iverilog"><img width="20%" alt="Icarus Verilog logo" src="0.doc/artwork/Icarus-Verilog.logo.png"></a>
+  <a href="https://www.veripool.org/verilator"><img width="20%" alt="Verilator logo" src="0.doc/artwork/Verilator.logo.png"></a>
 </p>
 
 
 ### Community outreach
 
-It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exists in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
+It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exist in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
 
 We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
 

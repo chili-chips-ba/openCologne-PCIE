@@ -13,11 +13,11 @@ This is work area for the CologneChip PHY PIPE developers.
 - [Yumewatari (whitequark) PHY segments with rudimentary LTSSM](https://github.com/whitequark/Yumewatari/tree/master/yumewatari/gateware)
 
 <p align="center">
-  <img width="60%" src="0.doc/images/PHY-Layers.jpg">
+  <img alt="PCIe physical layer sub-blocks" width="60%" src="0.doc/images/PHY-Layers.jpg">
 </p>
 
 <p align="center">
-  <img width="60%" src="0.doc/images/PHY-Layers-GateMate.png">
+  <img alt="PCIe physical layer mapped onto GateMate" width="60%" src="0.doc/images/PHY-Layers-GateMate.png">
 </p>
 
 
@@ -28,11 +28,11 @@ See [block diagram](0.doc/Physical_layer_block_diagram.pdf).
 
 ### SerDes
 <p align="center">
-  <img width="60%" src="0.doc/images/SerDes-BlockDiagram.png">
+  <img alt="GateMate SerDes block diagram" width="60%" src="0.doc/images/SerDes-BlockDiagram.png">
 </p>
 
 <p align="center">
-  <img width="60%" src="0.doc/images/optimizing-pcie-pipe-pwr-mgmt.png">
+  <img alt="PCIe PIPE power management states" width="60%" src="0.doc/images/optimizing-pcie-pipe-pwr-mgmt.png">
 </p>
 
 

@@ -4,8 +4,8 @@ This is work area for the PCB-related thoughts and explanations, including the s
 
 ### M2 card
 <p align="center">
-  <img width="36%" src="0.doc/images/ulx5m-m2.1--Top.jpg">
-  <img width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
+  <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/images/ulx5m-m2.1--Top.jpg">
+  <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
 </p>
 
 For additional detail, check the source repo:
@@ -13,10 +13,10 @@ For additional detail, check the source repo:
 
   
 ### Edge card
-Just for illustration, and to get the ball rolling, here is an earlier attemp at PCIE "Slot" EndPoint card. Stay tuned for more...
+Just for illustration, and to get the ball rolling, here is an earlier attempt at PCIE "Slot" EndPoint card. Stay tuned for more...
 
 <p align="center">
-  <img width="45%" src="0.doc/images/ULX4M-PCIe-IO.beta_v2.png">
+  <img alt="Earlier ULX4M PCIe slot edge card prototype" width="45%" src="0.doc/images/ULX4M-PCIe-IO.beta_v2.png">
 </p>
 
 

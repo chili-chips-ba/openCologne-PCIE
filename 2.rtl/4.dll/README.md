@@ -5,18 +5,18 @@ The **Data Link Layer (DLL)** sits between the **Transaction Layer (TL)** above 
 
 In this design the DLL is soft-core RTL in the FPGA fabric. Below it, the logical Physical Layer (MAC) and the GateMate SerDes handle the LTSSM, 8b/10b and the serial link; the DLL reaches them through the PHY interface. The supported `DATA_WIDTH` is **32 or 64 bits**.
 
-<img src="./images/DLL_Position.png" width=300 height=330 />
+<img alt="Position of the Data Link Layer in the PCIe stack" src="./images/DLL_Position.png" width=300 height=330 />
 
 ## Architecture
 The DLL is split into a transmit datapath, a receive datapath, and the control logic that binds them together.
 
 - **TX datapath**: takes TLP payload / DLLP fields from the TL, frames them (STP/SDP … END), appends the LCRC (TLP) or 16-bit CRC (DLLP), stores TLPs in the retry buffer, and streams the result to the PHY on `phy_tx_data`/`phy_tx_data_k`.
 
-<img src="./images/TX_flow.png" width=750 height=330 />
+<img alt="DLL transmit data flow" src="./images/TX_flow.png" width=750 height=330 />
 
 - **RX datapath**: shifts `phy_rx_data`/`phy_rx_data_k` into registers, detects STP/SDP, checks the CRC/LCRC, strips the framing, and forwards TLP payload / extracted DLLP fields to the TL.
 
-<img src="./images/RX_flow.png" width=750 height=330 />
+<img alt="DLL receive data flow" src="./images/RX_flow.png" width=750 height=330 />
 
 - **TLP handler**: sequence-number assignment and checking, LCRC generation/validation, and the ACK/NAK scheduling logic (`NEXT_RCV_SEQ`, `NAK_SCHEDULED`, `AckNak_LATENCY_TIMER`).
 - **DLLP handler**: builds and parses ACK/NAK and flow-control DLLPs; on ACK it retires TLPs from the retry buffer, on NAK it triggers a replay.
@@ -64,7 +64,7 @@ The DLL exposes an **upstream** interface to the Transaction Layer and a **downs
 ## DLL Init FSM
 The DLL Init FSM tracks whether the link is usable. It is held in `DL_Inactive` out of reset and only reaches `DL_Active` once flow-control has been initialized.
 
-<img src="./images/DLL_Init_FSM.png" width=360 height=360 />
+<img alt="DLL initialization state machine" src="./images/DLL_Init_FSM.png" width=360 height=360 />
 
 | State         | Meaning / transition |
 | ------------- |:-------------------- |
@@ -90,14 +90,14 @@ While in `DL_Init`, **all TLPs are blocked**. `DL_Init` has two sub-states:
 
 ### TLP
 
-<img src="./images/TLP_structure.png" width=632 height=300 />
+<img alt="TLP packet structure" src="./images/TLP_structure.png" width=632 height=300 />
 
 - Framing tokens: `STP = 1111_1011`, `END = 1111_1101`, `EDB = 1111_1110`.
 - **LCRC**: `G(x) = x³² + x²⁶ + x²³ + x²² + x¹⁶ + x¹² + x¹¹ + x¹⁰ + x⁸ + x⁷ + x⁵ + x⁴ + x² + x + 1`, initial value `FFFF_FFFFh`, bytes fed in LSb first, result inverted and bit-reversed.
 
 ### DLLP
 
-<img src="./images/DLLP_structure.png" width=700 height=300 />
+<img alt="DLLP packet structure" src="./images/DLLP_structure.png" width=700 height=300 />
 
 `DLLP Type = {packet_type[1:0], update_type[1:0], 1'b0, VC[2:0]}`. `HdrFC` is forwarded to the TL via `tl_tx_hdr_credit` and `DataFC` via `tl_tx_data_credit`; the `R` (reserved) bytes are not considered.
 
@@ -127,7 +127,7 @@ While in `DL_Init`, **all TLPs are blocked**. `DL_Init` has two sub-states:
 ### ACK/NAK
 Field layout: `type | Reserved | AckNak_Seq_Num | 16-bit CRC`.
 
-<img src="./images/AckNak_structure.png" width=700 height=175 />
+<img alt="Ack/Nak DLLP structure" src="./images/AckNak_structure.png" width=700 height=175 />
 
 | `type`       | Meaning |
 | ------------ |:------- |
