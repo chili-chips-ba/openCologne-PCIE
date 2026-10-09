@@ -349,30 +349,30 @@ See [6.litex/README.md](6.litex/README.md)
 We are thankful to **NLnet Foundation** for unreserved sponsorship of this development activity.
 
 <p align="center">
-   <a href="https://nlnet.nl/project/OpenCologne-PCIe"><img width="15%" alt="NLnet logo" src="0.doc/artwork/NLnet-logo.png"></a>
+   <a href="https://nlnet.nl/project/OpenCologne-PCIe"><img width="30%" alt="NLnet logo" src="0.doc/artwork/NLnet-logo.png"></a>
    <a href="https://nlnet.nl/core"><img width="15%" alt="NGI Zero, Next Gen Internet" src="0.doc/artwork/NGI0-logo.png"></a>
 </p>
 
 This project was funded through the NGI0 Commons Fund, a fund established by NLnet with financial support from the European Commission's Next Generation Internet programme, under the aegis of DG Communications Networks, Content and Technology under grant agreement No 101135429. Additional funding is made available by the Swiss State Secretariat for Education, Research and Innovation (SERI).
 
 
-### Partners
+### Partners and Contributors
  - [openPCIE project and backplane](https://www.chili-chips.xyz/openpcie-backplane-put-your-fpga-in-control), [Intro Video](https://www.canva.com/design/DAHXSTcjxEc/odZj_VbgU20EEeZ1zuJlJA/watch?utm_content=DAHXSTcjxEc&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8306e0024f)
 
 <p align="center">
-  <a href="https://intergalaktik.eu"><img width="25%" src="0.doc/artwork/Intergalaktik.logo.png"></a>
-  <a href="https://radiona.org"><img width="10%" src="0.doc/artwork/Radiona.logo.png"></a>
+  <a href="https://intergalaktik.eu"><img width="50%" src="0.doc/artwork/Intergalaktik.logo.png"></a>
+  <a href="https://radiona.org"><img width="20%" src="0.doc/artwork/Radiona.logo.png"></a>
 </p>   
 
 <p align="center">
   <a href="https://colognechip.com"><img width="45%" src="0.doc/artwork/Cologne-Chip.logo.png"></a>
-  <a href="https://colognechip.com/programmable-logic/gatemate"><img width="15%" src="0.doc/artwork/GateMate.png"></a>
+  <a href="https://colognechip.com/programmable-logic/gatemate"><img width="20%" src="0.doc/artwork/GateMate.png"></a>
 </p>
 
-The **wyvernSemi**'s wisdom and contribution mean a world of difference -- Thank you, we are honored to have you on the project!
+**wyvernSemi**'s wisdom and contribution meant a world of difference -- Thank you, we are honored to have had you on the project!
 
 <p align="center">
- <a href="https://github.com/wyvernSemi"><img width="15%" alt="wyvernSemi-Logo" src="0.doc/artwork/wyvernSemi-logo-rounded.png"></a>
+  <a href="https://github.com/wyvernSemi"><img width="15%" alt="wyvernSemi-Logo" src="0.doc/artwork/wyvernSemi-logo-rounded.png"></a>
 </p>
 
 <p align="center">
@@ -383,9 +383,9 @@ The **wyvernSemi**'s wisdom and contribution mean a world of difference -- Thank
 
 
 <p align="center">
-  <a href="https://wavecrux.app"><img width="25%" src="0.doc/artwork/WaveCrux.logo.png"></a>
-  <a href="https://github.com/steveicarus/iverilog"><img width="25%" src="0.doc/artwork/Icarus-Verilog.logo.png"></a>
-  <a href="https://verilator.org"><img width="25%" src="0.doc/artwork/Verilator.logo.png"></a>
+  <a href="https://wavecrux.app"><img width="30%" src="0.doc/artwork/WaveCrux.logo.png"></a>
+  <a href="https://github.com/steveicarus/iverilog"><img width="20%" src="0.doc/artwork/Icarus-Verilog.logo.png"></a>
+  <a href="https://verilator.org"><img width="20%" src="0.doc/artwork/Verilator.logo.png"></a>
 </p>
 
 
