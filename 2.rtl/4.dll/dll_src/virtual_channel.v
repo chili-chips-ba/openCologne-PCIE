@@ -106,7 +106,9 @@ module virtual_channel #
     // TODO: Look at retry timer again
     localparam CYCLE_TIME     = DATA_BYTES == 8 ? 32 : DATA_BYTES == 4 ? 16 : DATA_BYTES == 2 ? 8 : DATA_BYTES == 1 ? 4 : 0; // in ns
     localparam INIT_CYCLE_CNT = 34000 / CYCLE_TIME - 1; // 34us in terms of cycles
+    localparam UPDATEFC_CYCLE_CNT = 30000 / CYCLE_TIME - 1; // 30us in terms of cycles
     wire       init_counter_flag;
+    wire       updatefc_counter_flag;
     reg        initfc1;
     reg        initfc2;
     reg  [2:0] fsm_state_d;
@@ -286,7 +288,6 @@ module virtual_channel #
     end
 
     // Release and retransmit handling
-    // TODO: To virtual_channel_tx
     always @(posedge clk or posedge reset) begin
         if (reset) begin
             ACKD_SEQ <= 12'hFFF;
@@ -333,7 +334,6 @@ module virtual_channel #
         end
     end*/
 
-    // TODO: Check timer
     dll_clk_counter #(
         .BIT_WIDTH(14)        // Width of Count Register
     ) init_counter_inst (
@@ -342,6 +342,16 @@ module virtual_channel #
         .i_clear(fsm_state_changed),
         .max_count(INIT_CYCLE_CNT),
         .o_flag(init_counter_flag)
+    );
+
+    dll_clk_counter #(
+        .BIT_WIDTH(14)        // Width of Count Register
+    ) updatefc_counter_inst (
+        .i_clk(clk),
+        .i_reset(reset),
+        .i_clear(!link_active), // only works when link is active
+        .max_count(UPDATEFC_CYCLE_CNT),
+        .o_flag(updatefc_counter_flag)
     );
 
     virtual_channel_tx #(
@@ -358,6 +368,7 @@ module virtual_channel #
         .update_type(tx_update_type),
         .packet_type(tx_packet_type),
         .packet_avail(tx_dllp_valid),
+        .updatefc_req(updatefc_counter_flag && link_active),
 
         .initfc1_en(initfc1_en),
         .initfc2_en(initfc2_en),
