@@ -15,6 +15,7 @@ module tlp_rx_buffer #(
     input  wire            [15:0] sequence_number,
     input  wire            [31:0] lcrc,
     input  wire                   tlp_valid,
+    input  wire                   tlp_half,
 
     input  wire            [11:0] NEXT_RCV_SEQ,
 
@@ -82,7 +83,13 @@ module tlp_rx_buffer #(
     wire [DATA_BYTES*LFSR_WIDTH-1:0] lfsr_in;
     wire [DATA_BYTES*LFSR_WIDTH-1:0] lfsr_out;
 
-    assign lfsr_in = {lfsr_out[(DATA_BYTES-1)*LFSR_WIDTH-1:0], crc_tlp_in};
+    generate
+        if (DATA_BYTES == 1) begin : lfsr_chain_1
+            assign lfsr_in = crc_tlp_in;
+        end else begin : lfsr_chain
+            assign lfsr_in = {lfsr_out[(DATA_BYTES-1)*LFSR_WIDTH-1:0], crc_tlp_in};
+        end
+    endgenerate
 
     wire [LFSR_WIDTH-1:0] crc_next = lfsr_out[DATA_BYTES*LFSR_WIDTH-1 -: LFSR_WIDTH];
 
@@ -91,7 +98,7 @@ module tlp_rx_buffer #(
         for (i = 0; i < DATA_BYTES; i = i + 1) begin : crc_bytes
             lcrc_byte crc_b (
                 .data_in (data_TL_in[i*8 +: 8]),
-                .crc_en  (crc_en),
+                .crc_en  (crc_en && (i < DATA_BYTES/2 || !tlp_half)), // other half word should not be used for CRC calculation
                 .crcIn   (lfsr_in [i*LFSR_WIDTH +: LFSR_WIDTH]),
                 .crcOut  (lfsr_out[i*LFSR_WIDTH +: LFSR_WIDTH])
             );

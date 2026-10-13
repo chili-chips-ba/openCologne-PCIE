@@ -19,6 +19,7 @@ module virtual_channel_rx #
     input  wire                  [15:0] sequence_number,
     input  wire                  [31:0] lcrc,
     input  wire                         tlp_valid,
+    input  wire                         tlp_half,
 
     output reg                    [1:0] update_type,
     output reg                    [1:0] packet_type,
@@ -124,6 +125,7 @@ module virtual_channel_rx #
         .sequence_number(sequence_number),
         .lcrc(lcrc),
         .tlp_valid(tlp_valid),
+        .tlp_half(tlp_half),
 
         .NEXT_RCV_SEQ(NEXT_RCV_SEQ),
 

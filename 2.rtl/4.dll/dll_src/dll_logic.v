@@ -3,7 +3,8 @@ module dll_logic #
     parameter DATA_BYTES = 8,
     parameter DATA_WIDTH = DATA_BYTES * 8,
     parameter NUMBER_OF_VIRTUAL_CHANNELS = 1,
-    parameter PATTERN_WIDTH = 64
+    parameter PATTERN_WIDTH = 64,
+    parameter RETRY_ADDR_WIDTH = 9
 )
 (
     input  wire                         phy_clk, // Clock from Physical layer
@@ -39,15 +40,20 @@ module dll_logic #
     output wire                  [11:0] tl_rx_data_credit, // Received data credit
     output wire                   [1:0] tl_rx_update_type, // Received update type
     output wire                   [1:0] tl_rx_packet_type, // Received packet type
-    output wire                         tl_rx_dllp_valid // DLLP RX valid flag
+    output wire                         tl_rx_dllp_valid, // DLLP RX valid flag
+
+    output wire                   [2:0] o_DL_State // DL state of VC0 (debug)
 );
+
+    wire [2:0] vc_state [0:NUMBER_OF_VIRTUAL_CHANNELS-1];
 
     generate
         genvar i;
         for ( i = 0; i < NUMBER_OF_VIRTUAL_CHANNELS; i = i + 1 ) begin
             virtual_channel #(
                 .DATA_BYTES(DATA_BYTES),
-                .PATTERN_WIDTH(PATTERN_WIDTH)
+                .PATTERN_WIDTH(PATTERN_WIDTH),
+                .RETRY_ADDR_WIDTH(RETRY_ADDR_WIDTH)
             ) vc_inst (
                 .clk(phy_clk),
                 .reset(phy_reset),
@@ -83,10 +89,13 @@ module dll_logic #
                 //.rx_data_TL_k(tl_rx_data_k),
                 .rx_tlp_valid(tl_rx_tlp_valid),
                 .rx_tlp_first(tl_rx_tlp_first),
-                .rx_tlp_last(tl_rx_tlp_last)
+                .rx_tlp_last(tl_rx_tlp_last),
+                .o_fsm_state(vc_state[i])
             );
         end
     endgenerate
+
+    assign o_DL_State = vc_state[0];
 
     // TODO: Add arbiter logic for multiple virtual channels
 

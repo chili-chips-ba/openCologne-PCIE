@@ -9,7 +9,8 @@ module virtual_channel_tx #
     parameter INIT_NPH      = 8'd32,
     parameter INIT_NPD      = 12'd1,
     parameter INIT_CPLH     = 8'd0,
-    parameter INIT_CPLD     = 12'd0
+    parameter INIT_CPLD     = 12'd0,
+    parameter RETRY_ADDR_WIDTH = 9
 )
 (
     input  wire                         clk,
@@ -294,7 +295,7 @@ module virtual_channel_tx #
 
     retry_buffer #(
         .DATA_BYTES(DATA_BYTES),
-        .BRAM_ADDR_WIDTH(9)
+        .BRAM_ADDR_WIDTH(RETRY_ADDR_WIDTH)
     ) retry_buffer_inst (
         .clk(clk),
         .reset(reset),

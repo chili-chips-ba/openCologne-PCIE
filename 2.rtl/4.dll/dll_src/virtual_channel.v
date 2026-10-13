@@ -2,7 +2,8 @@ module virtual_channel #
 (
     parameter DATA_BYTES = 8,
     parameter DATA_WIDTH = DATA_BYTES * 8,
-    parameter PATTERN_WIDTH = 64
+    parameter PATTERN_WIDTH = 64,
+    parameter RETRY_ADDR_WIDTH = 9
 )
 (
     input  wire                         clk,
@@ -39,7 +40,8 @@ module virtual_channel #
     //output reg         [DATA_BYTES-1:0] rx_data_TL_k,
     output reg                          rx_tlp_valid,
     output reg                          rx_tlp_first,
-    output reg                          rx_tlp_last
+    output reg                          rx_tlp_last,
+    output wire                   [2:0] o_fsm_state
 );
     // FSM
     wire initfc1_en;
@@ -49,6 +51,7 @@ module virtual_channel #
     localparam [2:0] DL_INITFC2  = 3'b010;
     localparam [2:0] DL_ACTIVE   = 3'b011;
     wire link_active = (fsm_state == DL_ACTIVE);
+    assign o_fsm_state = fsm_state;
     wire link_inactive = (fsm_state == DL_INACTIVE);
     wire tlp_rx_enable = (fsm_state == DL_ACTIVE) || (fsm_state == DL_INITFC2);
     // Tx side
@@ -80,6 +83,7 @@ module virtual_channel #
     wire [15:0] sequence_number;
     wire [31:0] lcrc;
     wire tlp_valid;
+    wire tlp_half;
 
     wire nak_trigger;
     wire [11:0] nak_seq_num;
@@ -132,7 +136,8 @@ module virtual_channel #
         .data_TL(data_TL),
         .sequence_number(sequence_number),
         .lcrc(lcrc),
-        .tlp_valid(tlp_valid)
+        .tlp_valid(tlp_valid),
+        .tlp_half(tlp_half)
     );
 
     virtual_channel_rx #(
@@ -153,6 +158,7 @@ module virtual_channel #
         .sequence_number(sequence_number),
         .lcrc(lcrc),
         .tlp_valid(tlp_valid),
+        .tlp_half(tlp_half),
 
         .update_type(update_type),
         .packet_type(packet_type),
@@ -215,11 +221,11 @@ module virtual_channel #
             initfc2_received_flag <= 3'b000;
         end else if (crc_valid) begin
             if (initfc1_en) begin
-                if ({packet_type, update_type} == 4'b0100) begin
+                if ({packet_type, update_type} == 4'b0100 || {packet_type, update_type} == 4'b1100) begin
                     initfc1_received_flag[0] <= 1'b1;
-                end else if ({packet_type, update_type} == 4'b0101) begin
+                end else if ({packet_type, update_type} == 4'b0101 || {packet_type, update_type} == 4'b1101) begin
                     initfc1_received_flag[1] <= 1'b1;
-                end else if ({packet_type, update_type} == 4'b0110) begin
+                end else if ({packet_type, update_type} == 4'b0110 || {packet_type, update_type} == 4'b1110) begin
                     initfc1_received_flag[2] <= 1'b1;
                 end
             end else if (initfc2_en) begin
@@ -356,7 +362,8 @@ module virtual_channel #
 
     virtual_channel_tx #(
         .DATA_BYTES(DATA_BYTES),
-        .PATTERN_WIDTH(PATTERN_WIDTH)
+        .PATTERN_WIDTH(PATTERN_WIDTH),
+        .RETRY_ADDR_WIDTH(RETRY_ADDR_WIDTH)
     ) vc_tx (
         .clk(clk),
         .reset(reset),
