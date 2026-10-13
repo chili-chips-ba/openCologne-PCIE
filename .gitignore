@@ -13,6 +13,28 @@
 # Sim
 #--------
 *.fst
+*.vvp
+
+
+#--------
+# Proprietary SerDes model (NDA)
+#--------
+**/serdes_src/
+**/serdes_ref/
+**/ccfpga_serdes/src/
+ccfpga_serdes_regfile.v
+ccfpga_serdes_pd.v
+ccfpga_serdes_pads.v
+ccfpga_serdes_core_ctrl.v
+ccfpga_serdes_rx*.v
+ccfpga_serdes_tx*.v
+ccfpga_serdes_encode_8b10b*.v
+ccfpga_serdes_decode_8b10b*.v
+ccfpga_serdes_cptr_bisc.v
+ccfpga_serdes_rterm_calib.v
+**/adpll/
+**/resources/RI_SERDES_*.v
+**/fifo/SRAM_2P_behavioral.v
 
 
 #--------

@@ -56,4 +56,22 @@ Hai: Simon has provided x1 PIPE model. All I had to do was to modify the C++ mod
 https://github.com/colognechip/gatemate-pipe/tree/dll_test/sim
 
 --------------------
+## Open-source SerDes simulation model
+
+`2.serdes-model/` holds an open-source **behavioural model of the GateMate
+SerDes hard macro**, a drop-in replacement for the CologneChip simulation model
+(same module name, port list and parameters). It lets the PIPE, MAC and DLL be
+simulated without the vendor model, which is under NDA.
+
+| flow | vendor model | open model |
+|---|---|---|
+| PIPE testcase `5.sim/testcase_pipe.v`, unmodified | 5 min 16 s, PASSED | ~14 s, PASSED |
+| DLL, MAC, PIPE and SerDes, two link partners (`5.sim/serdesflow_dll`) | | ~15 s, PASSED |
+
+Equivalence against the vendor model, including cross-linked interoperability,
+and formal proofs of the 8b/10b codec are described in
+[2.serdes-model/0.doc/equivalence-checking.md](2.serdes-model/0.doc/equivalence-checking.md).
+The simulation flows are described in [5.sim/README.md](../../5.sim/README.md).
+
+--------------------
 #### End of Document

@@ -255,6 +255,19 @@ shape:
 
 <img alt="WaveCrux view: the replayed TLP" src="./images/wavecrux-dll-replay.png" width=900 />
 
+## Simulation over MAC, PIPE and SerDes
+
+`5.sim/serdesflow_dll` runs this DLL over the MAC/LTSSM, the PIPE
+logic and the open SerDes model, with two link partners over a bit-level serial
+link: LTSSM training to L0, InitFC, TLPs in both directions, NAK and replay of a
+TLP corrupted on the wire, and an UpdateFC DLLP. See
+[5.sim/README.md](../../5.sim/README.md#full-stack-serdesflow_dll).
+
+```sh
+cd 5.sim
+./serdesflow_dll
+```
+
 ## References
 - [PIPE Specs, Sept. 2025, v7.1](https://cdrdv2-public.intel.com/643108/643108_PIPE_Arch_Spec_Rev_7_1.pdf)
 - [Simon Southwell's Primer](https://www.linkedin.com/pulse/pci-express-primer-1-overview-physical-layer-simon-southwell/)

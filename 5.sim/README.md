@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+* [Icarus Flows: DLL, MAC, PIPE and the Open SerDes Model](#icarus-flows-dll-mac-pipe-and-the-open-serdes-model)
 * [Introduction](#introduction)
 * [Auto-selection of soc_cpu Component](#auto-selection-of-soc_cpu-component)
 * [_VProc_ Software](#vproc-software)
@@ -20,6 +21,121 @@
 * [Co-simulation HAL](#co-simulation-hal)
 * [References](#references)
 
+
+## Icarus Flows: DLL, MAC, PIPE and the Open SerDes Model
+
+Besides the top level test bench described in the rest of this document, this
+directory holds three Icarus Verilog flows that run the PCIe layers below the TL
+on top of the open-source behavioural model of the GateMate SerDes
+([2.rtl/1.phy/2.serdes-model](../2.rtl/1.phy/2.serdes-model/)). None of them
+needs the proprietary SerDes sources.
+
+| script | testbench | what it exercises | run time |
+|---|---|---|---|
+| `serdesflow_dll` | `tb_dll_phy.v`, `pcie_stack.v`, `phy_pipe_serdes.v` | DLL, MAC/LTSSM, PIPE and SerDes, two link partners over a serial link | ~15 s |
+| `serdesflow_mod` | `tb_ccfpga_serdes.v`, `testcase_pipe.v` | the PIPE testcase, PIPE and SerDes | ~14 s |
+| `serdesflow_equiv` | `tb_serdes_equiv.v` | the open SerDes model against the vendor model | ~2 s, ~30 s with `--ref` |
+
+```sh
+git submodule update --init      # MAC and PIPE sources are submodules
+cd 5.sim
+./serdesflow_dll                 # full stack
+./serdesflow_dll --dump          # full stack, with a waveform
+echo 2 | SERDES_MODEL=open ./serdesflow_mod
+./serdesflow_equiv               # open model self-check
+./serdesflow_equiv --ref         # against the vendor model, needs $CCFPGA_SERDES_SRC
+./serdesflow_equiv --ref --cross # the two models linked to each other
+```
+
+Build products and waveforms go to `$SERDES_BUILD_DIR` (default
+`$HOME/.cache/opencologne-pcie`), outside the repository. Tested with Icarus
+Verilog 12.
+
+### Full stack: `serdesflow_dll`
+
+Two complete stacks, an Endpoint and a Root Complex, connected by a bit-level
+serial link in both directions:
+
+```
+       EP                                                    RC
+  TL stimulus           tb_dll_phy.v                    TL stimulus
+       |                                                     |
+  dll_logic             2.rtl/4.dll/dll_src             dll_logic
+       |                                                     |
+  ccfpga_LTSSM_logic    2.rtl/3.mac/mac_src             ccfpga_LTSSM_logic
+       |                                                     |
+  ccfpga_pipe_logic     2.rtl/2.pipe/pipe_src           ccfpga_pipe_logic
+       |                                                     |
+  ccfpga_serdes         2.rtl/1.phy/2.serdes-model      ccfpga_serdes
+       |                                                     |
+       +--------------- serial link, 2.5 Gb/s ---------------+
+```
+
+`pcie_stack.v` is one side: the DLL, the MAC and `phy_pipe_serdes.v`.
+`phy_pipe_serdes.v` is the PIPE logic, the SerDes model and the SerDes bring-up
+sequence (the `writeCfg` / `writeRegfile` accesses of `testcase_pipe.v`) as a
+small FSM, so the layers above see a plain PIPE interface.
+
+The test:
+
+1. both LTSSMs train from Detect.Quiet to L0, every state change is printed
+2. both DLLs go through InitFC1/InitFC2 to DL_Active
+3. three TLPs EP to RC and two TLPs RC to EP, every word is checked
+4. bits of a TLP are flipped on the EP to RC wire, the RC NAKs it and the EP
+   replays it
+5. an UpdateFC-P DLLP EP to RC
+
+```
+[  141124.0 ns] EP LTSSM : Config.Linkwidth.Start (link#)
+  ...
+[  152900.0 ns] EP LTSSM : L0
+[  153988.0 ns] RC LTSSM : L0
+=== Step 1: DLL initialisation, InitFC1/InitFC2 across the link ===
+[  158788.0 ns]   both DLLs DL_Active
+  ...
+=== Step 4: TLP corrupted on the EP -> RC wire, expect NAK and replay ===
+[  187524.0 ns]   RC received 3 words, checked
+[  189508.0 ns]   EP sent the TLP 2 times, NAK and replay worked
+  ...
+  SUMMARY: 0 errors
+  TEST PASSED
+```
+
+#### The Root Complex side
+
+The MAC implements the upstream port. The Root Complex is a second instance of
+the same MAC, which the testbench gives the downstream port role with `force`:
+
+* in Configuration it transmits link number 0, and from
+  Config.Linkwidth.Accept on lane number 0 (`expected_Link`, `expected_Lane`)
+* in Config.Linkwidth.Accept and Config.Lanenum.Accept it accepts TS2 as well
+  as TS1 (`TS2_pattern_en`)
+
+#### Settings
+
+* scrambling is disabled in both MACs, as with `DISABLE_SCRAMBLING` in the MAC's
+  pcievhost test
+* the PIPE reset is released 256 `clk_reg` cycles after the global reset, the
+  MAC and DLL reset once the SerDes reports ready, synchronised to PCLK
+* the DLL gets `phy_linkup` when the MAC reports link up and the LTSSM is in L0
+* the bit errors in step 4 are short inversions of the serial pair, starting
+  320 ns after the STP leaves the EP's MAC
+
+### PIPE testcase: `serdesflow_mod`
+
+Runs `testcase_pipe.v` on the PIPE logic and a SerDes model, selected from a
+menu: `[1]` 16-bit PIPE, `[2]` 64-bit PIPE, `[3]` SerDes only
+(`testcase_serdes.v`, not in this repository).
+
+```sh
+echo 2 | SERDES_MODEL=open ./serdesflow_mod                     # open model
+export CCFPGA_SERDES_SRC=/path/to/ccfpga_serdes/src
+echo 2 | ./serdesflow_mod                                       # vendor model
+```
+
+The vendor sources are read from `$CCFPGA_SERDES_SRC`, outside the repository,
+through `serdes_nda_env.sh`. The waveform is written to
+`$SERDES_BUILD_DIR/serdesflow/sim/vlog_sim.vcd`.
 
 ## Introduction
 

@@ -30,14 +30,22 @@ fi
 #serdes file path
 SERDES_FILE_PATH=.
 
-#pipe file path 
-PIPE_FILE_PATH=../2.rtl/1.pipe
+#pipe file path
+PIPE_FILE_PATH=../2.rtl/2.pipe/pipe_src/src/pipe_src
 
 #serdes source path
-SERDES_SRC_PATH=./serdes_src
+. ./serdes_nda_env.sh
+if [ "${SERDES_MODEL}" = "open" ]; then
+ SERDES_SRC_PATH=../2.rtl/1.phy/2.serdes-model
+else
+ guard_repo_clean ..
+ SERDES_SRC_PATH=${SERDES_BUILD_DIR}/serdesflow/serdes_src
+ prepare_vendor_copy ${SERDES_SRC_PATH} || exit 1
+ trap "rm -rf ${SERDES_SRC_PATH}" EXIT
+fi
 
 #Simulation dump file 
-VCD=./sim
+VCD=${SERDES_BUILD_DIR}/serdesflow/sim
 
 #Verilog source
 VLOG_SRC=$(find ${PIPE_FILE_PATH} ${SERDES_SRC_PATH} -type f \( -iname \*.v -o -iname \*.sv \) ! -iname "ccfpga_pipe_wrapper.v")
@@ -46,10 +54,11 @@ VLOG_SRC=$(find ${PIPE_FILE_PATH} ${SERDES_SRC_PATH} -type f \( -iname \*.v -o -
 IVL=iverilog
 VVP=vvp
 
-mkdir -p sim/
+mkdir -p ${VCD}
 rm -f ${VCD}/vlog_sim.${VVP}
 
-${IVL} -g2012 -gspecify -Ttyp -o ${VCD}/vlog_sim.${VVP} ${VLOG_SRC} ./${SERDES_FILE_PATH}/tb_ccfpga_serdes.v \
-       -Ptb_ccfpga_serdes.DATA_BYTES=${BITWIDTH} -D${TESTCASE} -I${SERDES_FILE_PATH}
+${IVL} -g2012 -gspecify -Ttyp -Ptb_ccfpga_serdes.DATA_BYTES=${BITWIDTH} -D${TESTCASE} -I${SERDES_FILE_PATH} -I${SERDES_SRC_PATH} \
+       -o ${VCD}/vlog_sim.${VVP} ${VLOG_SRC} ./${SERDES_FILE_PATH}/tb_ccfpga_serdes.v
 
+cd ${VCD}/..
 ${VVP} -N ${VCD}/vlog_sim.${VVP} -fst
