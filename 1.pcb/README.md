@@ -8,8 +8,8 @@ This is work area for the PCB-related thoughts and explanations, including the s
   <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
 </p>
 
-<a href="https://www.youtube.com/watch?v=-nHi7P7oT04" target="_blank">
-  <img src="https://www.youtube.com/watch?v=-nHi7P7oT04" alt="M2 promo video" width="70%" height="auto" />
+<a href="https://canva.link/vyykwt6k7odhs3t" target="_blank">
+  <img src="https://canva.link/vyykwt6k7odhs3t" alt="ULX5M-M2 promo video" width="70%" height="auto" />
 </a>
 
 [![image (1)](https://github.com/chili-chips-ba/openCologne-PCIE/1.pbc/0.doc/images/Intergalaktik-ULX5M.png)](https://www.youtube.com/watch?v=-nHi7P7oT04)
