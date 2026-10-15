@@ -4,12 +4,13 @@ This is work area for the PCB-related thoughts and explanations, including the s
 
 ### M2 card
 <p align="center">
-  <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/images/ulx5m-m2.1--Top.jpg">
-  <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
-
    <a href="https://canva.link/vyykwt6k7odhs3t">
      <img width="70%" alt="ULX5M-M2 promo video (click to watch with sound)" src="0.doc/images/Intergalaktik-ULX5M.png">
   </a>
+
+  <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/images/ulx5m-m2.1--Top.jpg">
+  <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
+  
 </p>
 
 For additional detail, check the source repo:
