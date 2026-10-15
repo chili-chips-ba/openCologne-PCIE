@@ -12,7 +12,7 @@ This is work area for the PCB-related thoughts and explanations, including the s
   <img src="https://canva.link/vyykwt6k7odhs3t" alt="ULX5M-M2 promo video" width="70%" height="auto" />
 </a>
 
-[![image (1)](https://github.com/chili-chips-ba/openCologne-PCIE/1.pbc/0.doc/images/Intergalaktik-ULX5M.png)](https://www.youtube.com/watch?v=-nHi7P7oT04)
+[![image (1)](https://github.com/chili-chips-ba/openCologne-PCIE/1.pbc/0.doc/images/Intergalaktik-ULX5M.png)](https://canva.link/vyykwt6k7odhs3t)
 
 
 For additional detail, check the source repo:
