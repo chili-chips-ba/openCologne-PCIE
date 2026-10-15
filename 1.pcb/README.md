@@ -6,14 +6,11 @@ This is work area for the PCB-related thoughts and explanations, including the s
 <p align="center">
   <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/images/ulx5m-m2.1--Top.jpg">
   <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/images/ulx5m-m2.2--Bottom.jpg">
+
+   <a href="https://canva.link/vyykwt6k7odhs3t">
+     <img width="70%" alt="ULX5M-M2 promo video (click to watch with sound)" src="0.doc/images/Intergalaktik-ULX5M.png">
+  </a>
 </p>
-
-<a href="https://canva.link/vyykwt6k7odhs3t" target="_blank">
-  <img src="https://canva.link/vyykwt6k7odhs3t" alt="ULX5M-M2 promo video" width="70%" height="auto" />
-</a>
-
-[![image (1)](https://github.com/chili-chips-ba/openCologne-PCIE/1.pbc/0.doc/images/Intergalaktik-ULX5M.png)](https://canva.link/vyykwt6k7odhs3t)
-
 
 For additional detail, check the source repo:
  - [x] https://github.com/intergalaktik/ulx5m-m2
