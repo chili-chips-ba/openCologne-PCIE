@@ -255,6 +255,40 @@ shape:
 
 <img alt="WaveCrux view: the replayed TLP" src="./images/wavecrux-dll-replay.png" width=900 />
 
+## Simulation with pcieVHost
+
+> **pcieVHost is a Root Complex model written in C.** It has a **PIPE interface**, which is connected directly to our **MAC layer**. The traffic therefore passes through our MAC (LTSSM, ordered sets, packet framing) as well as through the DLL, so this simulation tests **both the MAC and the DLL** against an independent link partner.
+
+The test setup is available in the [`dll_test` branch of gatemate-pipe](https://github.com/colognechip/gatemate-pipe/tree/dll_test) and will be added to this repository later on. Scrambling is disabled on both sides in this run.
+
+The waveforms are decoded with the WaveCrux PCIe decoders described above. The signals are:
+- `LinkDownData`/`LinkDownDataK`: pcieVHost (Root Complex) -> our MAC.
+- `LinkUpData`/`LinkUpDataK`: our MAC -> pcieVHost.
+
+**Link number detection.** In Configuration, pcieVHost, as the downstream port, proposes a link number by sending TS1 with `link=0 lane=PAD`. Our MAC first sends TS1 with `link=PAD lane=PAD`, then echoes `link=0` back:
+
+<img alt="pcieVHost simulation: link number detection" src="./images/LinkNum_Detection.png" width=900 />
+
+**Lane number detection.** pcieVHost then assigns the lane number by sending TS1 with `link=0 lane=0`, while our MAC is still sending `link=0 lane=PAD`. Once the lane number is accepted, both sides complete Configuration and the LTSSM enters L0:
+
+<img alt="pcieVHost simulation: lane number detection" src="./images/LaneNum_Detection.png" width=900 />
+
+**InitFC1.** With the link up, the DLL enters `DL_FCINIT1` and sends `InitFC1-P`, `InitFC1-NP` and `InitFC1-Cpl`, one DLLP per clock with SDP on lane 0 and END on lane 7 (`LinkUpDataK` = `81`). pcieVHost answers with its own InitFC1 set. pcieVHost does not align its packets to a lane boundary: its first SDP sits on lane 6 (`LinkDownDataK` = `40`), so each DLLP spans two words. This also confirms that the DLL can detect DLLP on any SDP positions:
+
+<img alt="pcieVHost simulation: InitFC1 sequence" src="./images/INITFC1.png" width=900 />
+
+**InitFC2.** Both sides move on to `DL_FCINIT2` and exchange `InitFC2-P`, `InitFC2-NP` and `InitFC2-Cpl`, after which the DLL is in `DL_Active`:
+
+<img alt="pcieVHost simulation: InitFC2 sequence" src="./images/INITFC2.png" width=900 />
+
+**TLP received.** pcieVHost sends its first TLP, a `CfgWr0` with sequence number 0 and a 1-DW payload (22 symbols from STP to END). STP is on lane 6 (`LinkDownDataK` = `40`) and END on lane 5 of the last word (`20`):
+
+<img alt="pcieVHost simulation: CfgWr0 TLP received by the DLL" src="./images/TLP_received.png" width=900 />
+
+**Returned ACK.** The DLL checks the LCRC and the sequence number, forwards the TLP to the TL and returns `Ack seq=0` to pcieVHost:
+
+<img alt="pcieVHost simulation: Ack returned by the DLL" src="./images/Returned_ACK.png" width=900 />
+
 ## Simulation over MAC, PIPE and SerDes
 
 `5.sim/serdesflow_dll` runs this DLL over the MAC/LTSSM, the PIPE
