@@ -1,4 +1,4 @@
-# Verifying the open SerDes model against the vendor model
+# Verifying the opensource SerDes BFM against the vendor model
 
 How do you convince yourself that a hand-written behavioural model really behaves
 like the thing it replaces? This is the note that answers that question for the

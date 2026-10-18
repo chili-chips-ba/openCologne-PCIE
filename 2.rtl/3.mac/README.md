@@ -1,5 +1,7 @@
 # PCIe MAC Layer
 
+The sources are Cologne Chip's, in the gatemate-pipe submodule: [`2.pipe/pipe_src/src/mac_src`](../2.pipe/pipe_src/src/mac_src).
+
 ## Description
 The **Media Access Control (MAC)** is the logical sub-block of the PCIe **Physical Layer**. It sits between the **Data Link Layer (DLL)** above and the **PIPE interface / SerDes PHY** below. On transmit it turns the byte stream handed down by the DLL into a scrambled symbol stream for the PHY; on receive it does the reverse. In addition, the MAC owns link bring-up and maintenance through the **Link Training and Status State Machine (LTSSM)**.
 

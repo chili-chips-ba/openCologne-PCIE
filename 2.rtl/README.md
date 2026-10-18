@@ -7,7 +7,7 @@ At the moment, this section is merely a scratchpad of our thoughts and ideas, te
 **This is also an open, community-wide invite to contribute to this creation process.**
 
 <p align="center">
-  <img alt="PCIe EndPoint top-level stack" width="50%" src="../0.doc/diagrams/pcie-ep-top-stack.png">
+  <img alt="PCIe EndPoint top-level stack" width="50%" src="../0.doc/2.rtl/pcie-ep-top-stack.png">
 </p>
 
 ### HW/SW Architecture
@@ -35,6 +35,22 @@ To its user, our EP looks exactly like the AMD Artix-7 EP, the `PCIE_2_1` hard m
 | C firmware: the RC enumerates and tests the EP | C firmware: the EP answers the host's Memory requests |
 
 Only the C firmware changes in role; the user interface, the SOC and the VIP stay the same. Everything is open source, so there is no split between vendor and open RTL.
+
+### Simulation, layer by layer
+
+Three test benches cover the EP, each where its layer is checked best, against a link partner that does not share its code. The layers above build on the ones below. In depth, each one is described next to its sources.
+
+| Layer | Simulation | DUT | Checked against | Simulator | pcieVHost | Status (2026-10-18) |
+|---|---|---|---|---|---|---|
+| PIPE + PHY | [`1.phy/3.sim`](1.phy/3.sim) `run-phy.sh pipe64` | Cologne Chip's PIPE logic over the opensource SerDes BFM, 64-bit | the vendor's PIPE test case | Icarus | no | passes |
+| | `run-phy.sh equiv` | the opensource SerDes BFM | itself, looped back; the vendor model with `--ref` (NDA, not in the repo) | Icarus | no | passes: 400 words, 0 mismatches |
+| | `run-phy.sh pipe16` | the same, 16-bit | the vendor's PIPE test case | Icarus | no | fails: [#18](https://github.com/chili-chips-ba/openCologne-PCIE/issues/18) |
+| DLL over PIPE + PHY | [`4.dll/sim`](4.dll/sim) `run-dll-phy.sh` | DLL, MAC/LTSSM, PIPE and SerDes BFM, end to end on the serial line | a second copy of the same stack: training to L0, InitFC, TLPs both ways, Nak and replay, UpdateFC | Icarus | no | passes |
+| MAC + DLL + TL + firmware | [`5.sim`](../5.sim) | the EP at its PIPE; today the mock EP (`DUT=mock`) | `RCPIPEx1__pcieVHost`, the host: enumeration, BARs, PIO | Verilator or Icarus | 1.9.3: RC (host), EP (mock) | passes with the mock |
+
+How to read it: a failure is pinned to the layer that shows it, because every layer below has passed on its own. The PHY bench is permanent. `run-dll-phy.sh` drives TLPs into the DLL until our TL is in; then [`5.sim`](../5.sim) with `DUT=rtl` takes over that job, against an independent link partner ([why the split](../5.sim/README.md#scope-mac-dll-tl-and-firmware)).
+
+Also there, not counted above: [`4.dll/sim/tb_dll_wavecrux.v`](4.dll/sim) makes the [WaveCrux pictures](4.dll/README.md#viewing-the-dll-in-wavecrux) of the DLL; the gatemate-pipe submodule brings Cologne Chip's own test benches.
 
 #### References:
 - [PCIE Primer](../0.doc/pcie-primer.Simon-Southwell.pdf) by Simon Southwell ✔
@@ -329,7 +345,7 @@ I don't see where in the diagram a configuration space is located unless it's pa
 
 ### RTL coding rules
 
-IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/README.md#rtl-coding-rules). For our RTL and the models that stand in for it. Code mirrored from upstream (`4.dll/dll_src`, `4.dll/sim/tb_dll_logic.v`) and the Cologne Chip submodules (`2.pipe/pipe_src`, `3.mac/mac_src`) keep their own style. `run-lint`, `run-format` and `run-leq` are openPCIE's, linked there until they are in `4.build`.
+IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/README.md#rtl-coding-rules). For our RTL and the models that stand in for it. Code from the Cologne Chip submodule (`2.pipe/pipe_src`: PIPE, MAC/LTSSM, DLL) keeps its own style. `run-lint`, `run-format` and `run-leq` are openPCIE's, linked there until they are in `4.build`.
 
 - **One place for bit positions:** TLP header fields and sideband bits are packed structs in a `_pkg` (openPCIE: [`pcie_pkg.sv`](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/pcie/pcie_pkg.sv)). Use their members, never raw slices like `tdata[30:29]`. Reserved bits are `rsvd0`, `rsvd1`, ..., so each struct spans its full width.
 - **Declare and size once:** widths, constants and types live in a `_pkg` (e.g. `TRN_DATA_W` in openPCIE's `pcie_pkg.sv`); no module redeclares them.

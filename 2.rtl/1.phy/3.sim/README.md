@@ -1,18 +1,18 @@
 # PHY block-level simulation
 
-`tb_phy.sv` tests the PHY: the PIPE layer of [gatemate-pipe](https://github.com/colognechip/gatemate-pipe) on a GateMate SerDes model, or the open SerDes model ([2.serdes-model](../2.serdes-model/)) on its own. `run-phy.sh` compiles one of its tests with Icarus Verilog and runs it. None of them needs the proprietary SerDes sources. The layers above get their own block-level flows (the DLL over this PHY: [4.dll/sim](../../4.dll/sim/)); the top level is [5.sim](../../../5.sim/).
+`tb_phy.sv` tests the PHY: the PIPE layer of [gatemate-pipe](https://github.com/colognechip/gatemate-pipe) on a GateMate SerDes model, or the opensource SerDes BFM ([2.serdes-model](../2.serdes-model/)) on its own. `run-phy.sh` compiles one of its tests with Icarus Verilog and runs it. None of them needs the proprietary SerDes sources. The layers above get their own block-level flows (the DLL over this PHY: [4.dll/sim](../../4.dll/sim/)); the top level is [5.sim](../../../5.sim/).
 
 | test | what it exercises | run time |
 |---|---|---|
 | `pipe64` | 64-bit PIPE + SerDes: TS1 ordered sets, test data, error detection and RxStatus | ~14 s |
 | `pipe16` | the same with a 16-bit PIPE: **fails today**, see below | ~14 s |
-| `equiv` | the open SerDes model alone, looped back: training, alignment, a marker word through, its latency | ~2 s |
+| `equiv` | the opensource SerDes BFM alone, looped back: training, alignment, a marker word through, its latency | ~2 s |
 | `equiv --ref` | the open and the vendor model side by side, same stimulus, outputs and latency compared | ~30 s |
 | `equiv --ref --cross` | each model's TX into the other's RX: the two models talking to each other | ~30 s |
 
 ```sh
 git submodule update --init                # the PIPE sources are a submodule
-bash 2.rtl/1.phy/3.sim/run-phy.sh pipe64   # open SerDes model
+bash 2.rtl/1.phy/3.sim/run-phy.sh pipe64   # opensource SerDes BFM
 bash 2.rtl/1.phy/3.sim/run-phy.sh pipe64 --vendor
 bash 2.rtl/1.phy/3.sim/run-phy.sh equiv
 bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref --cross

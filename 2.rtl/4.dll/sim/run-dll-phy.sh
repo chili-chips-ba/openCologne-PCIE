@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # DLL over a real PHY (tb_dll_phy.sv), Icarus Verilog: an Endpoint and a Root
-# Complex, each DLL + MAC/LTSSM + PIPE + open SerDes model (pcie_stack.sv),
+# Complex, each DLL + MAC/LTSSM + PIPE + opensource SerDes BFM (pcie_stack.sv),
 # connected by a bit-level serial link in both directions.
 #
 # usage:  bash run-dll-phy.sh [--dump] [--scramble]
@@ -18,8 +18,8 @@ REPO_ROOT="$(cd "${HERE}/../../.." && pwd)"
 PHY_DIR="${REPO_ROOT}/2.rtl/1.phy"
 MODEL_DIR="${PHY_DIR}/2.serdes-model"
 PIPE_DIR="${REPO_ROOT}/2.rtl/2.pipe/pipe_src/src/pipe_src"
-MAC_DIR="${REPO_ROOT}/2.rtl/3.mac/mac_src/src/mac_src"
-DLL_DIR="${REPO_ROOT}/2.rtl/4.dll/dll_src"
+MAC_DIR="${REPO_ROOT}/2.rtl/2.pipe/pipe_src/src/mac_src"
+DLL_DIR="${REPO_ROOT}/2.rtl/2.pipe/pipe_src/src/dll_src"
 
 BUILD="${SERDES_BUILD_DIR:-$HOME/.cache/opencologne-pcie}/dll"
 

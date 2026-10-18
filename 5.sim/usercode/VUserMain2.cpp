@@ -1,19 +1,45 @@
-//==========================================================================
-// Copyright (c) 2025 Chili.CHIPS*ba
-//--------------------------------------------------------------------------
-//                      PROPRIETARY INFORMATION
+// SPDX-FileCopyrightText: 2026 Chili.CHIPS
 //
-// The information contained in this file is the property of CHILI CHIPS LLC.
-// Except as specifically authorized in writing by CHILI CHIPS LLC, the holder
-// of this file: (1) shall keep all information contained herein confidential;
-// and (2) shall protect the same in whole or in part from disclosure and
-// dissemination to all third parties; and (3) shall use the same for operation
-// and maintenance purposes only.
+// SPDX-License-Identifier: BSD-3-Clause
+
+//==========================================================================
+// openCologne-PCIE * NLnet-sponsored open-source implementation
+//--------------------------------------------------------------------------
+//                   Copyright (C) 2026 Chili.CHIPS
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its
+// contributors may be used to endorse or promote products derived
+// from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//              https://opensource.org/license/bsd-3-clause
 //--------------------------------------------------------------------------
 // Description:
-//   - User test program for pcievhost RC in stub DUT at node 2
-//   - *** this is just for TB initial verification. Replace with real ***
-//     *** DUT RTL once avilable                                       ***
+//   Program for the stand-in EP, EPPIPEx1__pcieVHost_DUT (a pcieVHost in EP
+//   mode, stubs/), selected with DUT=mock
+//   at VProc node 2, until the EP RTL takes its place.
 //==========================================================================
 
 //=============================================================
@@ -26,37 +52,13 @@
 #include "VProcClass.h"
 #include "pcieModelClass.h"
 
-extern "C"
-{
+extern "C" {
 #include "ltssm.h"
 }
 
 #define RST_DEASSERT_INT 4
 
-// Macro to idle until ip_byte_count is non-zero and then clear it.
-#define WaitForInput()  {while (!ip_byte_count) pcie->sendIdle(1); ip_byte_count = 0;}
-
-// Macro to put a 32-bit word in an PktData_t output buffer
-#define WordToBuf(_word, _byteoff) {buff[_byteoff + 0] =  (_word        & 0xff); \
-                                    buff[_byteoff + 1] = ((_word >>  8) & 0xff); \
-                                    buff[_byteoff + 2] = ((_word >> 16) & 0xff); \
-                                    buff[_byteoff + 3] = ((_word >> 24) & 0xff);}
-
-// Increment tag modulo 32
-#define GetNextTag(_tag){_tag = (_tag + 1)%32;}
-
-//-------------------------------------------------------------
-// STATICS
-//-------------------------------------------------------------
-
 static unsigned int Interrupt = 0;
-
-// Input buffer and counter. Updated from input callback.
-// Main program can wait for ip_byte_count to be non-zero,
-// (sending idles), use the buffer data and then clear the
-// count.
-static uint8_t      ipbuf[4096];
-static int          ip_byte_count = 0;
 
 //-------------------------------------------------------------
 // ResetDeasserted()
@@ -73,106 +75,211 @@ static int ResetDeasserted(int irq)
 }
 
 //-------------------------------------------------------------
-// VUserInput_2()
+// VUserInput_1()
 //
 // Consumes the unhandled input Packets
 //-------------------------------------------------------------
 
-static void VUserInput_2(pPkt_t pkt, int status, void* usrptr)
+static void VUserInput_1(pPkt_t pkt, int status, void* usrptr)
 {
     int idx;
 
     if (pkt->seq == DLLP_SEQ_ID)
     {
-        DebugVPrint("---> VUserInput_0 received DLLP\n");
-        free(pkt->data);
-        free(pkt);
+        DebugVPrint("---> VUserInput_1 received DLLP\n");
     }
     else
     {
-        DebugVPrint("---> VUserInput_0 received TLP sequence %d of %d bytes at %d\n", pkt->seq, GET_TLP_LENGTH(pkt->data), pkt->TimeStamp);
+        DebugVPrint("---> VUserInput_1 received TLP sequence %d of %d bytes at %d\n", pkt->seq, GET_TLP_LENGTH(pkt->data), pkt->TimeStamp);
+    }
 
-        // If a completion, extract the TPL payload data and display
-        if (pkt->ByteCount)
-        {
-            // Get a pointer to the start of the payload data
-            pPktData_t payload = GET_TLP_PAYLOAD_PTR(pkt->data);
+    // Once packet is finished with, the allocated space *must* be freed.
+    // All input packets have their own memory space to avoid overwrites
+    // which shared buffers.
+    DISCARD_PACKET(pkt);
+}
 
-            // Display the data
-            DebugVPrint("---> ");
-            for (idx = 0; idx < pkt->ByteCount; idx++)
-            {
-                DebugVPrint("%02x ", payload[idx]);
-                if ((idx % 16) == 15)
-                {
-                    DebugVPrint("\n---> ");
-                }
-                ipbuf[idx] = payload[idx];
-            }
-            ip_byte_count = pkt->ByteCount;
+//-------------------------------------------------------------
+// ConfigureType0PcieCfg()
+//
+// Configure the configuartion space buffer for an endpoint
+// (type 0) PCIe configuration space with PCI compatible header,
+// PCIe capabilities, MSI capabilities and Power managment
+// capabilities, along with some default values.
+//
+//-------------------------------------------------------------
 
-            if ((idx % 16) != 0)
-            {
-                DebugVPrint("\n");
-            }
-        }
+static void ConfigureType0PcieCfg (pcieModelClass *pcie)
+{
+    unsigned        next_cap_ptr = 0;
 
-        // Once packet is finished with, the allocated space *must* be freed.
-        // All input packets have their own memory space to avoid overwrites
-        // with shared buffers.
-        DISCARD_PACKET(pkt);
+    // -------------------------------------
+    // PPCI compatible header
+    // -------------------------------------
+
+    cfg_spc_type0_t     type0;
+    cfg_spc_type0_t     type0_mask;
+    cfg_spc_pcie_caps_t pcie_caps;
+    cfg_spc_pcie_caps_t pcie_caps_mask;
+    cfg_spc_msi_caps_t  msi_caps;
+    cfg_spc_msi_caps_t  msi_caps_mask;
+    pwr_mgmnt_caps_t    pwr_mgmnt_caps;
+    pwr_mgmnt_caps_t    pwr_mgmnt_caps_mask;
+
+    // Default to all zeros and read-only
+    for (int idx = 0; idx < (CFG_PCI_HDR_SIZE_BYTES/4); idx++)
+    {
+        type0.words[idx]      = 0x00000000;
+        type0_mask.words[idx] = 0xffffffff;
+    }
+
+    next_cap_ptr += CFG_PCI_HDR_SIZE_BYTES;
+
+    // Construct PCI compatible structure value, and set writable bits where appropriate
+    type0.type0_struct.vendor_id               = 0x14fc;
+    type0.type0_struct.device_id               = 0x0002;
+    type0.type0_struct.command                 = 0x0006;     type0_mask.type0_struct.command = 0xfab8;
+    type0.type0_struct.status                  = 0x0010;
+    type0.type0_struct.revision_id             = 0x01;
+    type0.type0_struct.prog_if                 = 0x00;       // don't care
+    type0.type0_struct.subclass                = 0x80;       // other
+    type0.type0_struct.class_code              = 0x02;       // network controller
+    type0.type0_struct.cache_line_size         = 0x00;       type0_mask.type0_struct.cache_line_size         = 0x00;
+    type0.type0_struct.bar[0]                  = 0x00000008; type0_mask.type0_struct.bar[0]                  = 0x00000fff; // 32-bit, prefetchable, 4K
+    type0.type0_struct.bar[1]                  = 0x00000008; type0_mask.type0_struct.bar[1]                  = 0x000003ff; // 32-bit, prefetchable, 1K
+    type0.type0_struct.bar[2]                  = 0x0000000c; type0_mask.type0_struct.bar[2]                  = 0xffffffff; // 64-bit, prefetchable
+    type0.type0_struct.bar[3]                  = 0x00000000; type0_mask.type0_struct.bar[3]                  = 0x00000001; // 8G
+    type0.type0_struct.bar[4]                  = 0x00000000; type0_mask.type0_struct.bar[4]                  = 0xffffffff; // Disabled
+    type0.type0_struct.bar[5]                  = 0x00000000; type0_mask.type0_struct.bar[5]                  = 0xffffffff; // Disabled
+    type0.type0_struct.expansion_rom_base_addr = 0x00000000; type0_mask.type0_struct.expansion_rom_base_addr = 0x000007fe;
+    type0.type0_struct.capabilities_ptr        = next_cap_ptr;
+
+    // Update config space and mask with values
+    for (int idx = 0; idx < (CFG_PCI_HDR_SIZE_BYTES/4); idx++)
+    {
+        pcie->writeConfigSpace     (next_cap_ptr - CFG_PCI_HDR_SIZE_BYTES + idx*4, type0.words[idx]);
+        pcie->writeConfigSpaceMask (next_cap_ptr - CFG_PCI_HDR_SIZE_BYTES + idx*4, type0_mask.words[idx]);
+    }
+
+    // -------------------------------------
+    // PCIe capability
+    // -------------------------------------
+
+    // Default to all zeros and read-only
+    for (int idx = 0; idx < (CFG_PCIE_CAPS_SIZE_BYTES/4); idx++)
+    {
+        pcie_caps.words[idx]      = 0x00000000;
+        pcie_caps_mask.words[idx] = 0xffffffff;
+    }
+
+    next_cap_ptr += CFG_PCIE_CAPS_SIZE_BYTES;
+
+    pcie_caps.pcie_caps_struct.cap_id         = 0x10;
+    pcie_caps.pcie_caps_struct.next_cap_ptr   = next_cap_ptr;
+    pcie_caps.pcie_caps_struct.device_caps    = 0x00000001;   // max payload = 256 bytes
+    pcie_caps.pcie_caps_struct.device_control = 0x2810;       pcie_caps_mask.pcie_caps_struct.device_control = 0x0000;
+    pcie_caps.pcie_caps_struct.link_caps      = 0x0003fc12;
+    pcie_caps.pcie_caps_struct.link_control   = 0x0000;       pcie_caps_mask.pcie_caps_struct.link_control   = 0xf004;
+    pcie_caps.pcie_caps_struct.link_status    = 0x0091;
+    pcie_caps.pcie_caps_struct.link_control2  = 0x0002;       pcie_caps_mask.pcie_caps_struct.link_control2  = 0xe06f;
+
+    for (int idx = 0; idx < (CFG_PCIE_CAPS_SIZE_BYTES/4); idx++)
+    {
+        pcie->writeConfigSpace     (next_cap_ptr - CFG_PCIE_CAPS_SIZE_BYTES + idx*4, pcie_caps.words[idx]);
+        pcie->writeConfigSpaceMask (next_cap_ptr - CFG_PCIE_CAPS_SIZE_BYTES + idx*4, pcie_caps_mask.words[idx]);
+    }
+
+    // -------------------------------------
+    // MSI capability
+    // -------------------------------------
+
+    // Default to all zeros and read-only
+    for (int idx = 0; idx < (CFG_MSI_CAPS_SIZE_BYTES/4); idx++)
+    {
+        msi_caps.words[idx]      = 0x00000000;
+        msi_caps_mask.words[idx] = 0xffffffff;
+    }
+
+    next_cap_ptr += CFG_MSI_CAPS_SIZE_BYTES;
+
+    msi_caps.msi_caps_struct.cap_id           = 0x05;
+    msi_caps.msi_caps_struct.next_cap_ptr     = next_cap_ptr;
+    msi_caps.msi_caps_struct.mess_control     = 0x0080;     msi_caps_mask.msi_caps_struct.mess_control = 0xff8e;
+    msi_caps.msi_caps_struct.mess_addr_lo     = 0x00000000; msi_caps_mask.msi_caps_struct.mess_addr_lo = 0x00000003;
+    msi_caps.msi_caps_struct.mess_addr_hi     = 0x00000000; msi_caps_mask.msi_caps_struct.mess_addr_hi = 0x00000000;
+    msi_caps.msi_caps_struct.mess_data        = 0x0000;     msi_caps_mask.msi_caps_struct.mess_data    = 0x0000;
+    msi_caps.msi_caps_struct.mask             = 0x00000000; msi_caps_mask.msi_caps_struct.mask         = 0x00000000;
+    msi_caps.msi_caps_struct.pending          = 0x00000000;
+
+    for (int idx = 0; idx < (CFG_MSI_CAPS_SIZE_BYTES/4); idx++)
+    {
+        pcie->writeConfigSpace     (next_cap_ptr - CFG_MSI_CAPS_SIZE_BYTES + idx*4, msi_caps.words[idx]);
+        pcie->writeConfigSpaceMask (next_cap_ptr - CFG_MSI_CAPS_SIZE_BYTES + idx*4, msi_caps_mask.words[idx]);
+    }
+
+    // -------------------------------------
+    // Power managment capability
+    // -------------------------------------
+
+    // Default to all zeros and read-only
+    for (int idx = 0; idx < (CFG_PWR_MGMT_CAPS_SIZE_BYTES/4); idx++)
+    {
+        pwr_mgmnt_caps.words[idx]      = 0x00000000;
+        pwr_mgmnt_caps_mask.words[idx] = 0xffffffff;
+    }
+
+    next_cap_ptr += CFG_PWR_MGMT_CAPS_SIZE_BYTES;
+
+    pwr_mgmnt_caps.pwr_mgmnt_caps_struct.cap_id                   = 0x01;
+    pwr_mgmnt_caps.pwr_mgmnt_caps_struct.next_cap_ptr             = 0x00; // last capability
+    pwr_mgmnt_caps.pwr_mgmnt_caps_struct.pwr_mgmnt_caps           = 0x0003;
+    pwr_mgmnt_caps.pwr_mgmnt_caps_struct.pwr_mgmnt_control_status = 0x0008;  pwr_mgmnt_caps_mask.pwr_mgmnt_caps_struct.pwr_mgmnt_control_status = 0xe0fc;
+
+    for (int idx = 0; idx < (CFG_PWR_MGMT_CAPS_SIZE_BYTES/4); idx++)
+    {
+        pcie->writeConfigSpace     (next_cap_ptr - CFG_PWR_MGMT_CAPS_SIZE_BYTES + idx*4, pwr_mgmnt_caps.words[idx]);
+        pcie->writeConfigSpaceMask (next_cap_ptr - CFG_PWR_MGMT_CAPS_SIZE_BYTES + idx*4, pwr_mgmnt_caps_mask.words[idx]);
     }
 }
 
 //-------------------------------------------------------------
 // VUserMain2()
 //
-// Test program to generate all sorts of TL, DL and PL
-// patterns. Where appropriate, node 1 pcieVHost will
-// generate an auto-response. It is not meant to be
-// a valid sequence of transactions.
+// Endpoint program Initialises link and FC
+// before sending idles indefinitely.
 //
 //-------------------------------------------------------------
 
 extern "C" void VUserMain2(int node)
 {
-    int idx;
-    PktData_t buff[4096];
-    char      sbuf[128];
-    int       rid = node+1;
-    int       tag = 0;
-    uint64_t  addr;
-    uint32_t  baraddr[6];
-    int       errors = 0;
-    uint64_t  bar64;
-    
     // Create VProc API object for this node
-    VProc* vp2 = new VProc(node);
-
-    // Create an API object for this node
-    pcieModelClass* pcie = new pcieModelClass(node);
+    VProc* vp1 = new VProc(node);
+    
+    // Create pcievhost API object for this node
+    pcieModelClass *pcie = new pcieModelClass(node);
 
     // Initialise PCIe VHost, with input callback function and no user pointer.
-    pcie->initialisePcie(VUserInput_2, NULL);
-
-    pcie->getPcieVersionStr(sbuf, 128);
-    VPrint("  %s\n", sbuf);
+    pcie->initialisePcie(VUserInput_1, NULL);
 
     // Make sure the link is out of electrical idle
-    vp2->write(LINK_STATE, 0, 0);
-
-    pcie->configurePcie(CONFIG_ENABLE_SKIPS, 20000);
+    vp1->write(LINK_STATE, 0);
     
     // Configure for a pipe
     pcie->configurePcie(CONFIG_DISABLE_SCRAMBLING);
     pcie->configurePcie(CONFIG_DISABLE_8B10B);
+    
+    //Marke DUT as node 2
+    pcie->configurePcie(CONFIG_DISP_BCK_NODE_NUM, 1);  // the partner: the RC at node 1
 
     DebugVPrint("VUserMain: in node %d\n", node);
 
-    vp2->regIrq(ResetDeasserted);
+    vp1->regIrq(ResetDeasserted);
 
     // Use node number as seed
     pcie->pcieSeed(node);
+
+    // Construct an endpoint PCIe configuration space
+    ConfigureType0PcieCfg(pcie);
 
     // Send out idles until we recieve an interrupt
     do
@@ -183,242 +290,22 @@ extern "C" void VUserMain2(int node)
 
     Interrupt &= ~RST_DEASSERT_INT;
 
-    // Initialise the link for 1 lanes
+    // Initialise the link for 1 lane
     InitLink(1, node);
 
-    // Initialise flow control
+    // Initialise DLLP flow control
     pcie->initFc();
 
-    // ---------------------------------------------------------
-    // Inspect Common space and configure BARs
-    // ---------------------------------------------------------
-
-    // Read vendor ID
-    pcie->cfgRead (CFG_VENDOR_ID_OFFSET, 2, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Vendor ID read back 0x%04x\n", ((uint16_t*)ipbuf)[0]);
-
-    // Read device ID
-    pcie->cfgRead (CFG_DEVICE_ID_OFFSET, 2, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Device ID read back 0x%04x\n", ((uint16_t*)ipbuf)[1]);
-
-    // Read revision ID and class code
-    pcie->cfgRead (CFG_REVISION_ID_OFFSET, 1, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Revision ID read back 0x%02x\n", ((uint8_t*)ipbuf)[0]);
-    VPrint("===> Class code read back class=0x%02x subclass=0x%02x progif=0x%02x\n",
-             ((uint8_t*)ipbuf)[3], ((uint8_t*)ipbuf)[2], ((uint8_t*)ipbuf)[1]);
-
-    // Read header type
-    pcie->cfgRead (CFG_HEADER_TYPE_OFFSET, 1, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Revision ID read back 0x%02x\n", ((uint8_t*)ipbuf)[2]);
-
-    // Read status
-    pcie->cfgRead (CFG_STATUS_OFFSET, 2, tag, rid, SEND);  GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Status read back 0x%04x\n", ((uint16_t*)ipbuf)[1]);
-
-    // Read header type
-    pcie->cfgRead (CFG_HEADER_TYPE_OFFSET, 2, tag, rid, SEND);  GetNextTag(tag);
-    WaitForInput();
-    VPrint("===> Header type read back 0x%02x\n", ((uint8_t*)ipbuf)[2]);
-
-    // Inspect BARs
-    WordToBuf(0xffffffff, 0);
-    for (int bidx = 0; bidx < 6; bidx++)
+    // Send out idels forever
+    while (true)
     {
-        VPrint("===> BAR%d writing 0x%08x\n",bidx,  0xffffffff);
-        pcie->cfgWrite (CFG_BAR_HDR_OFFSET + bidx*4, buff, 4, tag, rid, SEND);  GetNextTag(tag);
-        pcie->cfgRead  (CFG_BAR_HDR_OFFSET + bidx*4, 4, tag, rid, SEND);  GetNextTag(tag);
-
-        WaitForInput();
-        baraddr[bidx] = ((uint32_t*)ipbuf)[0];
-        
-        // If a 64-bit address write.  and read back next BAR
-        if (((baraddr[bidx] & CFG_BAR_LOCATABLE_MASK) >> CFG_BAR_LOCATABLE_BIT_POS) == CFG_BAR_LOCATABLE_64_BIT)
-        {
-            bidx++;
-            VPrint("===> BAR%d writing 0x%08x\n",bidx,  0xffffffff);
-            pcie->cfgWrite (CFG_BAR_HDR_OFFSET + bidx*4, buff, 4, tag, rid, SEND);  GetNextTag(tag);
-            pcie->cfgRead  (CFG_BAR_HDR_OFFSET + bidx*4, 4, tag, rid, SEND);  GetNextTag(tag);
-            
-            WaitForInput();
-            baraddr[bidx] = ((uint32_t*)ipbuf)[0];
-            
-            bar64 = (uint64_t)baraddr[bidx-1] | ((uint64_t)baraddr[bidx] << 32);
-            VPrint("===> BAR%d read back 0x%016lx = %llu Mbytes\n", bidx-1, bar64, (~(bar64 & ~0xfULL) + 1) >> 20);
-        }
-        else
-        {
-            VPrint("===> BAR%d read back 0x%08x = %d bytes\n", bidx, baraddr[bidx], ~(baraddr[bidx] & ~0xfU) + 1);
-        }
-
+        pcie->sendIdle(100);
     }
-
-    // Set address for BAR0 to 0x2A784000
-    baraddr[0] = 0x2a784000;
-    WordToBuf(baraddr[0], 0);
-    VPrint("===> BAR0 writing 0x%08x\n",  baraddr[0]);
-    pcie->cfgWrite (CFG_BAR_HDR_OFFSET, buff, 4, tag, rid, SEND); GetNextTag(tag);
-
-    // Set address for BAR1 to 0X7E09AC00
-    baraddr[1] = 0x7e09ac00;
-    WordToBuf(baraddr[1], 0);
-    VPrint("===> BAR1 writing 0x%08x\n",  baraddr[1]);
-    pcie->cfgWrite (CFG_BAR_HDR_OFFSET+4, buff, 4, tag, rid, SEND); GetNextTag(tag);
-    
-    // Set address for BAR2/3 to 0X7FFF8A600000000
-    bar64 = 0x7fff8a600000000ULL;
-    baraddr[2] = (uint32_t)(bar64 & 0xffffffff);
-    baraddr[3] = (uint32_t)((bar64 >> 32) & 0xffffffff);
-    
-    WordToBuf(baraddr[2], 0);
-    VPrint("===> BAR2 writing 0x%08x\n",  baraddr[2]);
-    pcie->cfgWrite (CFG_BAR_HDR_OFFSET+8, buff, 4, tag, rid, SEND); GetNextTag(tag);
-    WordToBuf(baraddr[3], 0);
-    VPrint("===> BAR3 writing 0x%08x\n",  baraddr[3]);
-    pcie->cfgWrite (CFG_BAR_HDR_OFFSET+12, buff, 4, tag, rid, SEND); GetNextTag(tag);
-
-    // Check BAR0
-    pcie->cfgRead  (CFG_BAR_HDR_OFFSET, 4, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-
-    if ((((uint32_t*)ipbuf)[0] & ~0xfU) == baraddr[0])
-    {
-        VPrint("===> BAR0 read back 0x%08x\n", ((uint32_t*)ipbuf)[0]);
-    }
-    else
-    {
-        VPrint("**** ERROR: unexpected BAR0 value. Got 0x%08x, expected 0x%08x\n", (((uint32_t*)ipbuf)[0] & ~0xfU), baraddr[0]);
-        errors++;
-    }
-
-    // Check BAR1
-    pcie->cfgRead  (CFG_BAR_HDR_OFFSET+4, 4, tag, rid, SEND); GetNextTag(tag);
-
-    WaitForInput();
-
-    if ((((uint32_t*)ipbuf)[0] & ~0xfU) == baraddr[1])
-    {
-        VPrint("===> BAR1 read back 0x%08x\n", ((uint32_t*)ipbuf)[0]);
-    }
-    else
-    {
-        VPrint("**** ERROR: unexpected BAR1 value. Got 0x%08x, expected 0x%08x\n", (((uint32_t*)ipbuf)[0] & ~0xfU), baraddr[1]);
-        errors++;
-    }
-    
-    // Check BAR2/3
-    
-    pcie->cfgRead  (CFG_BAR_HDR_OFFSET+8, 4, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
- 
-    if ((((uint32_t*)ipbuf)[0] & ~0xfU) == baraddr[2])
-    {
-        VPrint("===> BAR2 read back 0x%08x\n", ((uint32_t*)ipbuf)[0]);
-    }
-    else
-    {
-        VPrint("**** ERROR: unexpected BAR2 value. Got 0x%08x, expected 0x%08x\n", (((uint32_t*)ipbuf)[0] & ~0xfU), baraddr[2]);
-        errors++;
-    }
-    
-    pcie->cfgRead  (CFG_BAR_HDR_OFFSET+12, 4, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
- 
-    if (((uint32_t*)ipbuf)[0] == baraddr[3])
-    {
-        VPrint("===> BAR3 read back 0x%08x\n", ((uint32_t*)ipbuf)[0]);
-    }
-    else
-    {
-        VPrint("**** ERROR: unexpected BAR3 value. Got 0x%08x, expected 0x%08x\n", ((uint32_t*)ipbuf)[0], baraddr[1]);
-        errors++;
-    }
-
-    // ---------------------------------------------------------
-    // Walk through the capabilities
-    // ---------------------------------------------------------
-
-    // Initial next capability pointer at TYPE0 config ptr offset
-    pcie->cfgRead (CFG_CAPABILITIES_PTR_OFFSET, 4, tag, rid, SEND); GetNextTag(tag);
-    WaitForInput();
-    uint32_t next_cap_ptr = ((uint8_t*)ipbuf)[0];
-
-    do
-    {
-        // If not at the end of the list, process next capability
-        if (next_cap_ptr)
-        {
-            uint32_t this_cap = next_cap_ptr;
-
-            // Read capability's ID
-            pcie->cfgRead (this_cap + 0, 4, tag, rid, SEND); GetNextTag(tag);
-            WaitForInput();
-            uint32_t capId = ((uint8_t*)ipbuf)[0];
-            next_cap_ptr   = ((uint8_t*)ipbuf)[1];
-
-            switch(capId)
-            {
-            case PWRMGMTCAPTYPE:
-                VPrint("===> Found Power Mangement capability\n");
-                VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-
-                for (int idx = 4; idx < CFG_PWR_MGMT_CAPS_SIZE_BYTES; idx += 4)
-                {
-                    pcie->cfgRead (this_cap + idx, 4, tag, rid, SEND); GetNextTag(tag);
-                    WaitForInput();
-                    VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-                }
-                break;
-            case MSICAPTYPE:
-                VPrint("===> Found MSI capability\n");
-                VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-
-                for (int idx = 4; idx < CFG_MSI_CAPS_SIZE_BYTES; idx += 4)
-                {
-                    pcie->cfgRead (this_cap + idx, 4, tag, rid, SEND); GetNextTag(tag);
-                    WaitForInput();
-                    VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-                }
-                break;
-            case PCIECAPTYPE:
-                VPrint("===> Found PCIe capability\n");
-                VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-
-                for (int idx = 4; idx < CFG_PCIE_CAPS_SIZE_BYTES; idx += 4)
-                {
-                    pcie->cfgRead (this_cap + idx, 4, tag, rid, SEND); GetNextTag(tag);
-                    WaitForInput();
-                    VPrint("    0x%08x\n", ((uint32_t*)ipbuf)[0]);
-                }
-                break;
-            default:
-                VPrint("****ERROR: Unknown/unsupported capability\n");
-                errors++;
-                break;
-            }
-        }
-    }
-    while (next_cap_ptr);
-
-    // Print results
-    if (errors)
-    {
-        VPrint("\n****ERROR: Finished with %d errors\n\n", errors);
-    }
-    else
-    {
-        VPrint("\n===> Finished with no errors\n\n");
-    }
-
-    // Go quiet for a while, before finishing
-    pcie->sendIdle(100);
-
-    // Halt the simulation
-    vp2->write(PVH_FINISH, 0, 0);
-
 }
 
+// -----------------------------------------------------------------------------
+// Project:     openCologne-PCIE
+// Description: NLnet-sponsored open-source implementation
+// Version:     1.0
+// Date:        April 2025
+// -----------------------------------------------------------------------------

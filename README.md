@@ -3,6 +3,8 @@
 [![License:BSD-3/CC-BY-SA](https://badgen.net/badge/License/BSD-3%2FCC-BY-SA/blue)](LICENSES)
 [![REUSE:Compliant](https://badgen.net/badge/REUSE/Compliant/green)](REUSE.toml)
 [![eduBOS5:YES](https://badgen.net/badge/eduBOS5/YES/green)](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/README.md)
+[![pcievhost:YES](https://badgen.net/badge/pcievhost/YES/green)](5.sim/models/pcievhost/README.md)
+[![Verilator:YES](https://badgen.net/badge/Verilator/YES/green)](5.sim/README.md#running-the-co-simulation)
 [![WaveCrux:YES](https://badgen.net/badge/WaveCrux/YES/green)](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)
 [![Lint:WIP](https://badgen.net/badge/Lint/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
 [![Verible:WIP](https://badgen.net/badge/Verible/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
@@ -54,7 +56,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 ### Design Blueprint
 
 <p align="center">
-  <img alt="PCIe EndPoint top-level stack" width="50%" src="0.doc/diagrams/pcie-ep-top-stack.png">
+  <img alt="PCIe EndPoint top-level stack" width="50%" src="0.doc/2.rtl/pcie-ep-top-stack.png">
 </p>
 
 --------------------
@@ -133,23 +135,19 @@ For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 
 ## Simulation Test Bench
 
-The [test bench](5.sim/README.md) aims to have a flexible approach to simulation which allows a common test environment to be used whilst selecting between alternative CPU components, one of which uses the [_VProc_ virtual processor](https://github.com/wyvernSemi/vproc) co-simulation element. This allows simulations to be fully HDL, with the eduBOS5 RISC-V processor RTL, or to co-simulate software using the virtual processor, with a significant speed up in simulation times. The test bench has the following features:
+<p align="center">
+    <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="75%" src="0.doc/5.sim/tb-structure.drawio.svg">
+</p>
 
-* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component
-  * [Selectable](5.sim/README.md#auto-selection-of-soc_cpu-component) between this or an RTL softcore
+The [test bench](5.sim/README.md) runs on open-source simulators only, Verilator or Icarus Verilog. The host is the [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) in the RC role, `RCPIPEx1__pcieVHost`: it drives our DUT at its PIPE interface, trains the link and enumerates the EP. The top level focuses on the MAC, DLL and TL RTL and the firmware; the PIPE and the PHY below it are covered by their own [block-level test benches](5.sim/README.md#scope-mac-dll-tl-and-firmware), where the opensource SerDes BFM comes in. The same pcieVHost model has already run against the AMD `PCIE_2_1` hard macro on openPCIE, which raises the odds that our EP works on the first try against a physical Artix-7 RC on the openPCIE backplane.
+
+* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component, in place of the RTL CPU
   * Can run natively compiled test code
   * Can run the application compiled natively with the [auto-generated co-sim HAL](5.sim/README.md#co-simulation-hal)
   * Can run RISC-V compiled code using the [rv32 RISC-V ISS model](5.sim/models/rv32/README.md)
-* The [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) is used to drive the logic's PCIe link
 * Uses a C [sparse memory model](https://github.com/wyvernSemi/mem_model)
   * An [HDL component](5.sim/models/cosim/README.md) instantiated in logic gives logic access to this memory
   * An API is provided to _VProc_ running code for direct access from the _pcieVHost_ software, which implements this sparse memory C model.
-
-The figure below shows an overview block diagram of the test bench HDL.
-
-<p align="center">
-    <img alt="openCologne-PCIE test bench architecture" width="75%" src="0.doc/5.sim/opencologne-pcie-tb.png">
-</p>
 
 More details on the architecture and usage of the test bench can be found in the [README.md](5.sim/README.md) in the `5.sim` directory.
 

@@ -7,7 +7,7 @@
 #
 #   pipe16 / pipe64   the PIPE layer of gatemate-pipe on the SerDes, 16- or
 #                     64-bit PIPE: TS1 ordered sets, test data, error detection
-#   equiv             the open SerDes model alone, looped back (self-check)
+#   equiv             the opensource SerDes BFM alone, looped back (self-check)
 #
 # usage:  bash run-phy.sh pipe16|pipe64 [--vendor] [--dump]
 #         bash run-phy.sh equiv [--ref] [--cross] [--dump] [--keep]

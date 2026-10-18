@@ -1,28 +1,28 @@
 # _VProc_ and _mem_model_ Co-simulation Components
 
-The _VProc_ virtual processor and the _mem_model_ sparse memory model (part of _pcievhost_) components form the heart of the co-simulation for the _opencpcie2-rc_  top level simulation test bench. The `soc_cpu.VProc` is based on the virtual processor and the memory used by the running programs has access to the memory model's space. Logic can also access the memory model's address space with a provided HDL component. This component is also used in the PCIe interface driver block, and the code running on the _pcievhost_ VIP's _VProc_ also has access to the same memory via the API. Thus, these components are tied together tightly.
+The _VProc_ virtual processor and the _mem_model_ sparse memory model (part of _pcievhost_) components form the heart of the co-simulation for the _openCologne-PCIE_  top level simulation test bench. The `soc_cpu.VProc` is based on the virtual processor and the memory used by the running programs has access to the memory model's space. Logic can also access the memory model's address space with a provided HDL component. This component is also used in the PCIE interface driver block, and the code running on the _pcievhost_ VIP's _VProc_ also has access to the same memory via the API. Thus, these components are tied together tightly.
 
 ## _VProc_
 
 The _VProc_ virtual processor is a VIP co-simulation component that allows a natively compiled user program to be “run” on an HDL processor component instantiated in the logic. C/C++ APIs are provided to initiate read and write transactions on the _VProc_ HDL bus, and for the
 advancing simulation time.
 
-<p align="center"><img alt="VProc virtual processor connecting user code to HDL" width=450 src="https://github.com/user-attachments/assets/b272d61c-fa97-4ba2-a609-307ed4d0840c"></p>
+<p align="center"><img alt="VProc virtual processor" width=450 src="https://github.com/user-attachments/assets/b272d61c-fa97-4ba2-a609-307ed4d0840c"></p>
 
-_VProc_ has a generic memory mapped bus and this would normally be wrapped in a module to convert this to a standard bus or interconnect protocol, such as AXI or Avalon but, for _opencpcie2-rc_, the bus is converted to the local `soc_if` interface with some simple logic. Multiple _VProc_ test programs components can be instantiated, each with a unique “node” number.
+_VProc_ has a generic memory mapped bus and this would normally be wrapped in a module to convert this to a standard bus or interconnect protocol, such as AXI or Avalon but, for _openCologne-PCIE_, the `soc_cpu.VPROC` wrapper converts it to the SOC's CPU memory bus (`mem_if`: `mem_valid`/`mem_ready`) with some simple logic. Multiple _VProc_ test programs components can be instantiated, each with a unique “node” number.
 
-Since the simulator is _Vivado_, the connection between software and HDL is done using the SystemVerilog DPI-C interface. The details of connection between the HDL and running user code won’t be discussed here but suffice it to say that the user program is running in its own thread and the _VProc_ layer software provides both the API and the means to synchronise the user program with the simulation, keeping both in lock-step but allowing the user program to be free flowing code. For each instantiated _VProc_ node the user code has a specific “main” entry point of the form `VUserMain<n>`, where `<n>` is the _VProc_’s node number: e.g. `VUserMain0`, which must have C linkage for DPI requirements. The user programs are compiled into a library and, along with a _VProc_ code library, are linked into a shared object, _VProc.so_, which is loaded by the simulator at run time. There are both C and C++ low level APIs available to user programs and abbreviated versions are shown below.
+The connection between software and HDL is the SystemVerilog DPI-C interface under Verilator, and VPI under Icarus; the same VProc sources are built for each. The details of connection between the HDL and running user code won’t be discussed here but suffice it to say that the user program is running in its own thread and the _VProc_ layer software provides both the API and the means to synchronise the user program with the simulation, keeping both in lock-step but allowing the user program to be free flowing code. For each instantiated _VProc_ node the user code has a specific “main” entry point of the form `VUserMain<n>`, where `<n>` is the _VProc_’s node number: e.g. `VUserMain0`, which must have C linkage for DPI requirements. The user programs are compiled into a library and, along with a _VProc_ code library, are linked into a shared object, _VProc.so_, which is loaded by the simulator at run time. There are both C and C++ low level APIs available to user programs and abbreviated versions are shown below.
 
 <p align="center"><img alt="VProc C and C++ API summary" width=700 src="https://github.com/user-attachments/assets/f8dd88fe-ed63-4a6c-a0eb-55a13d0f845d"></p>
 
 As well as basic read and write transactions methods, there is also a “tick” method. User programs run infinitely fast with respect to simulation time, so simulation time is advanced when a transaction method is called but can also be advanced with the `tick` method without a memory access transaction. Using these APIs directly gives the means to construct pure test programs that can run on the `soc_cpu.VPROC` component to drive the CSR registers in the core logic and instigate operations. A very simple program of this nature is shown below.
 
-<p align="center"><img alt="Example VProc test program" width=600 src="https://github.com/user-attachments/assets/a5b03827-e882-42d5-8765-c9cc3128b31a"></p>
+<p align="center"><img alt="A simple VProc test program" width=600 src="https://github.com/user-attachments/assets/a5b03827-e882-42d5-8765-c9cc3128b31a"></p>
 
 
 ## _mem_model_
 
-The _opencpcie2-rc_ test bench makes use of the [mem_model](https://github.com/wyvernSemi/mem_model) co-simulation component HDL. This consists of a sparse memory model , written in C as part of the [_pcievhost_](https://github.com/wyvernSemi/pcievhost) IP, with co-simulation capabilities via a `mem_model` HDL component with various Avalon style ports for memory mapped, burst and write functions. Code running in _VProc_ can access the C model directly via an API, with an abbreviated version shown below.
+The _openCologne-PCIE_ test bench makes use of the [mem_model](https://github.com/wyvernSemi/mem_model) co-simulation component HDL. This consists of a sparse memory model , written in C as part of the [_pcievhost_](https://github.com/wyvernSemi/pcievhost) IP, with co-simulation capabilities via a `mem_model` HDL component with various Avalon style ports for memory mapped, burst and write functions. Code running in _VProc_ can access the C model directly via an API, with an abbreviated version shown below.
 
 <p align="center"><img alt="mem_model C API summary" width=400 src="https://github.com/user-attachments/assets/06278e89-e718-4396-9a05-d8c9cbb51efa"></p>
 
@@ -34,11 +34,11 @@ This model can also be accessed from the HDL using the `mem_model` HDL component
 <p align="center"><img alt="mem_model HDL component" width=400 src="https://github.com/user-attachments/assets/e991b49b-8b50-4e8f-bf7d-caa96992a680"></p>
 
 
-## VProc and mem_model integration into _opencpcie2-rc_
+## VProc and mem_model integration into _openCologne-PCIE_
 
-The `5.sim/models/cosim` directory contains library code for the *VProc* virtual processor and *mem_model* sparse memory model co-simulation verification IP, suitable for the Vivado logic simulation environment (other simulators are not supported at this time). This directory contains the HDL modules for the two components, with the HDL top level modules being `f_VProc.sv` and `mem_model.sv`, which reference the sub-modules (`f_VProc.v` and `mem_model.v`) along with the Verilog header files, with `` `include`` inclusions. Thus only these top level files need to be compiled and this directory included in the search path, though this is all taken care of in the `MakefileVProc.mk` make file in the `5.sim/` directory.
+This directory holds only our wrapper, `mem_model.sv`, which wraps upstream's `f_mem_model.v` in Verilator `lint_off` pragmas so third-party code stays out of our lint. Everything else, the VProc and mem_model HDL (`f_VProc.v`, `f_mem_model.v` and their headers) and the C libraries, is built from upstream sources by [`../../tools/fetch-vip.sh`](../../tools/fetch-vip.sh) into `$VIP_DIR`, and [`../../tb.f`](../../tb.f) lists the files from there.
 
-The DPI software for both the models is pre-compiled into a static library as `lib/libcosimlnx.a` (with a `lib/libcosimwin.a` version for use with the MSYS2/mingw64 environment on Windows). The headers for the models are placed in the `include/` directory. To use the  models' APIs, the user code must include either the  `VProcClass.h` header for the *VProc* C++ API, or `VUser.h` for the *VProc* C API, and the `mem.h` header for the memory model C API. Note that the `VUser.h` and `mem.h` inclusions must be wrapped as C linkage if included in code that will be compiled as C++. E.g.:
+The software of both models is in `$VIP_DIR/lib`: `libcosimlnx.a` for DPI-C (Verilator), `libcosimica.a` for VPI (Icarus). Their headers are in `$VIP_DIR/include`. To use the models' APIs, the user code must include either the  `VProcClass.h` header for the *VProc* C++ API, or `VUser.h` for the *VProc* C API, and the `mem.h` header for the memory model C API. Note that the `VUser.h` and `mem.h` inclusions must be wrapped as C linkage if included in code that will be compiled as C++. E.g.:
 
 ```
 extern "C" {

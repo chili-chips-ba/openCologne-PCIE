@@ -403,7 +403,7 @@ module tb_dll_phy;
 
       $display("");
       $display("=============================================================");
-      $display("  DLL -> MAC -> PIPE -> open SerDes model");
+      $display("  DLL -> MAC -> PIPE -> opensource SerDes BFM");
       $display("  two link partners, serial link at 2.5 Gb/s");
       $display("=============================================================");
       $display("");

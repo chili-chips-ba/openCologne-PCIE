@@ -1,239 +1,171 @@
-###################################################################
-# Makefile for virtual processor openpcie top level test bench
-# code in Vivado xsim
+# SPDX-FileCopyrightText: 2026 Chili.CHIPS
 #
-# Copyright (C) 2025 Chili.CHIPS*ba
+# SPDX-License-Identifier: BSD-3-Clause
+
+# =============================================================================
+# Co-simulation of the openCologne-PCIE test bench, in Verilator
 #
-###################################################################
-
-# --------------------------------------------
-# Command line modifiable variables
-# --------------------------------------------
-
-USER_C           = VUserMain0.cpp VUserMain1.cpp ltssm.c
-USRCODEDIR       = $(CURDIR)/usercode
-PCIE_C           = VUserMain2.cpp
-PCIECODEDIR      = $(CURDIR)/usercode
-OPTFLAG          = -g
-# TOPFILELIST      = top.prj
-SOCCPUMATCH      = ip.cpu
-VPROC_PLI        = VProc.so
-USRSIMOPTS       =
-USRCFLAGS        =
-BUILD            = DEFAULT
-
-# --------------------------------------------
-# Global exported environment variables
-# --------------------------------------------
-
-HW_SRC          := $(CURDIR)/../1.rtl
-BLD_DIR         := $(CURDIR)/../4.build
-SIM_DIR         := $(CURDIR)/../5.sim
-TB_NAME         := tb
-
-export BLD_DIR HW_SRC SIM_DIR TB_NAME
-
-# --------------------------------------------
-# VProc C/C++ variables
-# --------------------------------------------
-
-# Location of VProc and memory model libraries
-COSIMDIR         = $(CURDIR)/models/cosim
-PCIEDIR          = $(CURDIR)/models/pcievhost
-
-# --------------------------------------------
-# RV32 ISS variables
-# --------------------------------------------
-# Get OS type
-OSTYPE           = $(shell uname)
-
+# Run FROM THIS FOLDER, on Linux or WSL:
+#   make          build the C/C++ models and the Verilator executable
+#   make run      build and run
+#   make clean
 #
-# If BUILD is ISS, then override user source code list and directory
-# and define extra flags
+# Open-source simulators only: Verilator here (Icarus is used for the block
+# level flows in 2.rtl). The VIP is the same as on openPCIE: VProc, the
+# pcieVHost PCIE model, mem_model, built from upstream sources at openPCIE's
+# versions by tools/fetch-vip.sh, into ~/.cache -- no copies in this repo.
+# models/ holds only our own wrappers.
 #
-ifeq ("$(BUILD)", "ISS")
+# Nodes: VProc node 1 is the host, RCPIPEx1__pcieVHost, a pcieVHost in RC mode
+# (usercode/VUserMain1.cpp: IDs, BAR sizing and assignment); node 2 is the DUT.
+# The DUT is selected with DUT: the EP RTL + firmware, or the stand-in
+# EPPIPEx1__pcieVHost_DUT, a pcieVHost in EP mode (stubs/, usercode/VUserMain2.cpp),
+# which proves the test bench and the host on their own.
+# =============================================================================
 
-  ifeq ("$(OSTYPE)", "Linux")
-    RV32LIB      = rv32lnx
-  else
-    RV32LIB      = rv32win
-    RV32WINOPTS  = -lWs2_32
-    RV32WINFILES = getopt.c
-  endif
+# ---- simulator ------------------------------------------------------------------
+#   verilator  (default) compiled to a native executable; the models talk DPI-C
+#   icarus     Icarus Verilog; the same C/C++ models talk VPI
+SIM           ?= verilator
 
-  USER_C         += mem_vproc_api.cpp uart.cpp rv32_cache.cpp vuserutils.cpp $(RV32WINFILES)
-  USRCODEDIR     = $(CURDIR)/models/rv32/usercode
-
-  RV32DIR        = $(CURDIR)/models/rv32
-  RV32INCLOPTS   = -I$(RV32DIR)/include
-  RV32LDOPTS     = -L$(RV32DIR)/lib -l$(RV32LIB) $(RV32WINOPTS)
+# ---- DUT ----------------------------------------------------------------------
+#   mock     EPPIPEx1__pcieVHost_DUT (default until the EP RTL exists)
+#   rtl      the EP RTL + firmware
+DUT           ?= mock
+ifeq ($(DUT),rtl)
+  $(error DUT=rtl: the EP RTL (TL in 2.rtl/5.tlp) is not there yet; use DUT=mock)
+else ifneq ($(DUT),mock)
+  $(error DUT must be mock or rtl (got "$(DUT)"))
 endif
 
-# --------------------------------------------
-# VProc user code build variables
-# --------------------------------------------
+# ---- user code ----------------------------------------------------------------
+# ltssm.c, the link-training helper, is part of the Icarus pcieVHost library;
+# for Verilator it is compiled with the user code
+USER_C        ?= VUserMain1.cpp VUserMain2.cpp
+USRCODEDIR    ?= $(CURDIR)/usercode
+OPTFLAG       ?= -g
+USRSIMFLAGS   ?=
 
-# Compiler executables and standard flags
-CC               = gcc
-C++              = g++
-CPPSTD           = -std=c++20
-ARCHFLAG         = -m64 
+# ---- models -------------------------------------------------------------------
+# VIP_DIR: lib/, include/, ltssm/, hdl/ of the VIP; built once, then reused
+VIP_DIR       ?= $(shell bash $(CURDIR)/tools/fetch-vip.sh)
+export VIP_DIR
 
-# C/C++ include paths for VProc, memory model and user code
-INCLPATHS        = -I$(USRCODEDIR) -I$(PCIECODEDIR) -I$(COSIMDIR)/include -I$(PCIEDIR)/include -I$(PCIEDIR)/ltssm $(RV32INCLOPTS)
-DEFS             = -DVPROC_SV -DVPROC -DEXCLUDE_LTSSM
+# ---- tools --------------------------------------------------------------------
+HOST_CC       ?= gcc
+HOST_CXX      ?= g++
+HOST_AR       ?= ar
+VERILATOR     ?= verilator
+IVERILOG      ?= iverilog
+VVP           ?= vvp
 
-VOBJDIR          = $(CURDIR)/obj
+CPPSTD         = -std=c++20
+INCLPATHS      = -I$(USRCODEDIR) -I$(VIP_DIR)/include
+OBJDIR         = $(CURDIR)/obj/$(SIM)
+USERLIB        = $(OBJDIR)/libuser.a
 
-# Separate C and C++ source files
-USER_CPP_BASE    = $(notdir $(filter %cpp, $(USER_C) $(PCIE_C)))
-USER_C_BASE      = $(notdir $(filter %c,   $(USER_C) $(PCIE_C)))
-
-# Create list of object files (excluding any veriuser object)
-VOBJS            = $(addprefix $(VOBJDIR)/,                   \
-                    $(USER_C_BASE:%.c=%.o)                    \
-                    $(USER_CPP_BASE:%.cpp=%.o))
-
-USERLIB          = libuser.a
-
-ifeq ("$(OSTYPE)", "Linux")
-  COSIMLDOPT     = -lcosimlnx
-  PCIELDOPT      = -lpcielnx
+ifeq ($(SIM),verilator)
+  DEFS         = -DVPROC_SV -DVPROC -DEXCLUDE_LTSSM
+  USER_ALL     = $(USER_C) ltssm.c
+  SIMEXE       = $(OBJDIR)/Vtb
+else ifeq ($(SIM),icarus)
+  ICA_INC      = $(dir $(shell command -v $(IVERILOG)))../include/iverilog
+  ICA_LIB      = $(dir $(shell command -v $(IVERILOG)))../lib
+  DEFS         = -DICARUS -DVPROC -DEXCLUDE_LTSSM -I$(ICA_INC)
+  USER_ALL     = $(USER_C)
+  SIMEXE       = $(OBJDIR)/sim
+  VPROC_SO     = $(OBJDIR)/VProc.vpi
 else
-  COSIMLDOPT     = -lcosimwin
-  PCIELDOPT      = -lpciewin
+  $(error SIM must be verilator or icarus (got "$(SIM)"))
 endif
 
-ifeq ($(OSTYPE), Linux)
-  FLAGSOS        = -shared -lpthread -lrt -rdynamic
+VOBJS          = $(addprefix $(OBJDIR)/, $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(notdir $(USER_ALL)))))
+
+# ---- Verilator ----------------------------------------------------------------
+# The C/C++ side: our user code (whole-archive, so VProc finds VUserMain<n>),
+# then the VProc and pcieVHost libraries
+LDLIBS         = -Wl,-whole-archive $(USERLIB) -Wl,-no-whole-archive \
+                 -L$(VIP_DIR)/lib -lcosimlnx -lpcielnx \
+                 -lpthread -lrt -ldl -rdynamic
+
+# --timing: the test bench and the models use delays and event controls
+VLTFLAGS       = --binary -sv --timing --top-module tb -Mdir $(OBJDIR)       \
+                 -Wno-fatal -Wno-WIDTH -Wno-lint -Wno-style                     \
+                 +define+VPROC_SV +define+VPROC_BYTE_ENABLE                      \
+                 -F tb.f $(USRSIMFLAGS)                                         \
+                 -MAKEFLAGS "--quiet"                                           \
+                 -CFLAGS "$(CPPSTD) -Wno-attributes"                            \
+                 -LDFLAGS "$(LDLIBS)"
+
+# ---- Icarus -------------------------------------------------------------------
+# The same file list, with $VIP_DIR filled in; mem_model.sv is left out, as
+# this test bench does not instantiate it
+ICA_FILES      = $(OBJDIR)/tb.icarus.f
+ICAFLAGS       = -g2012 -DVPROC_BYTE_ENABLE -s tb -c $(ICA_FILES) $(USRSIMFLAGS)
+
+# =============================================================================
+# TARGETS
+# =============================================================================
+
+.PHONY: all run clean help FORCE
+.DEFAULT_GOAL := all
+
+all: $(SIMEXE)
+
+$(OBJDIR):
+	@mkdir -p $@
+
+$(OBJDIR)/%.o: $(USRCODEDIR)/%.c | $(OBJDIR)
+	@$(HOST_CC) -c -fPIC $(OPTFLAG) $(DEFS) $(INCLPATHS) $< -o $@
+
+$(OBJDIR)/%.o: $(USRCODEDIR)/%.cpp | $(OBJDIR)
+	@$(HOST_CXX) -c -fPIC $(OPTFLAG) $(CPPSTD) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
+
+$(OBJDIR)/%.o: $(VIP_DIR)/ltssm/%.c | $(OBJDIR)
+	@$(HOST_CC) -c -fPIC $(OPTFLAG) $(DEFS) $(INCLPATHS) $< -o $@
+
+$(USERLIB): $(VOBJS)
+	@rm -f $@
+	@$(HOST_AR) cr $@ $(VOBJS)
+
+ifeq ($(SIM),verilator)
+# Verilator decides itself what to rebuild; always ask it
+$(SIMEXE): $(USERLIB) FORCE
+	@$(VERILATOR) $(VLTFLAGS)
 else
-  FLAGSOS        = -shared -Wl,-export-all-symbols
+$(VPROC_SO): $(USERLIB)
+	@$(HOST_CXX) -shared -fPIC -pthread -rdynamic -o $@ \
+	    -Wl,-whole-archive $(USERLIB) -L$(VIP_DIR)/lib -lpcieica -lcosimica -Wl,-no-whole-archive \
+	    -L$(ICA_LIB) -lvpi -lrt -ldl
+
+$(ICA_FILES): tb.f FORCE | $(OBJDIR)
+	@sed -e 's#$$VIP_DIR#$(VIP_DIR)#g' -e '/mem_model\.sv/d' $< > $@
+
+$(SIMEXE): $(VPROC_SO) $(ICA_FILES) FORCE
+	@$(IVERILOG) -o $@ $(ICAFLAGS)
 endif
 
-# Flags for compiling/linking shared object
-CFLAGS_SO        = $(ARCHFLAG)                         \
-                   $(FLAGSOS) -lpthread                \
-                   -Wl,-whole-archive                  \
-                   -L$(CURDIR)      -luser             \
-                   -Wl,-no-whole-archive               \
-                   -L$(COSIMDIR)/lib $(COSIMLDOPT)     \
-                   -L$(PCIEDIR)/lib  $(PCIELDOPT)      \
-                   $(RV32LDOPTS)                       \
-                   -o $(VPROC_PLI)
+FORCE:
 
-# --------------------------------------------
-# Simulation variables
-# --------------------------------------------
-
-TBFILELIST       = $(TB_NAME).filelist
-
-WORKDIR          = work
-
-# Flags for xsim
-ANALYSEFLAGS       = -i $(PCIEDIR)/verilog/headers --define VPROC_SV --define VPROC_BYTE_ENABLE $(USRSIMOPTS) --prj tb.prj
-ELABFLAGS          = -sv_lib $(VPROC_PLI) --timescale 1ps/1ps --debug typical $(TB_NAME)
-SIMFLAGS           = $(TB_NAME)
-
-# Get OS type
-OSTYPE          := $(shell uname)
-
-ifneq ($(OSTYPE), Linux)
-  SIMLDFLAGS     = -Wl,-export-all-symbols
+run: all
+ifeq ($(SIM),verilator)
+	@cd $(CURDIR) && $(SIMEXE)
 else
-  SIMLDFLAGS     = -Wl,-E
+	@cd $(CURDIR) && $(VVP) -n -M $(OBJDIR) -m VProc $(SIMEXE)
 endif
-
-SIMMAKEFLAGS     = --quiet
-SIMEXE           = xsim
-
-#
-# Formatting
-#
-
-SPC =
-
-#======================================================
-# BUILD RULES
-#======================================================
-
-.PHONY: all, compile, run, rungui, gui, help, clean
-
-all: sysverilog
-
-# Rule to build object file temporary directory
-$(VOBJDIR):
-	@mkdir $(VOBJDIR)
-
-# Rule to build user C sources
-$(VOBJDIR)/%.o: $(USRCODEDIR)/%.c
-	@$(CC) -c -fPIC $(OPTFLAG) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
-
-# Rule to build user C++ sources
-$(VOBJDIR)/%.o: $(USRCODEDIR)/%.cpp
-	@$(C++) -c -fPIC $(OPTFLAGS) $(CPPSTD) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
-
-# Rule to build PCIe user C sources
-$(VOBJDIR)/%.o: $(PCIECODEDIR)/%.c
-	@$(CC) -c -fPIC $(OPTFLAG) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
-
-# Rule to build PCIe user C++ sources
-$(VOBJDIR)/%.o: $(PCIECODEDIR)/%.cpp
-	@$(C++) -c -fPIC $(OPTFLAGS) $(CPPSTD) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
-
-# Rule to build PCIe LTSSM support model
-$(VOBJDIR)/%.o: $(PCIEDIR)/ltssm/%.c
-	@$(CC) -c -fPIC $(OPTFLAG) -Wno-write-strings $(DEFS) $(INCLPATHS) $< -o $@
-
-# Rule to build library of user code
-$(USERLIB): $(VOBJDIR) $(VOBJS)
-	@ar cr $(USERLIB) $(VOBJS)
-    
-# Rule to build VProc shared object
-$(VPROC_PLI): $(USERLIB)
-	@$(C++) $(CFLAGS_SO) -o $@
-
-#
-# Compile simulation
-#
-sysverilog: $(VPROC_PLI)
-	@xvlog $(ANALYSEFLAGS)
-	@xelab $(ELABFLAGS)
-
-#======================================================
-# EXECUTION RULES
-#======================================================
-
-sim: sysverilog
-	@xsim $(SIMFLAGS)
-
-run: sysverilog
-	@xsim -R $(SIMFLAGS)
-
-rungui: sysverilog
-	@xsim -g --autoloadwcfg $(SIMFLAGS)
-
-gui: rungui
 
 help:
-	@$(info make help          Display this message)
-	@$(info make               Build C/C++ and HDL code without running simulation)
-	@$(info make run           Build and run batch simulation)
-	@$(info make rungui/gui    Build and run GUI simulation)
-	@$(info make clean         clean previous build artefacts)
-	@$(info )
-	@$(info Command line configurable variables:)
-	@$(info $(SPC) $(SPC) USER_C:       list of user source code files for soc_cpu (default VUserMain0.cpp))
-	@$(info $(SPC) $(SPC) PCIE_C:       list of user source code files for pcievhost modules (default VUserMain1.cpp))
-	@$(info $(SPC) $(SPC) USRCODEDIR:   directory containing user source code (default $$(CURDIR)/usercode))
-	@$(info $(SPC) $(SPC) OPTFLAG:      Optimisation flag for user VProc code (default -g))
-	@$(info $(SPC) $(SPC) SOCCPUMATCH:  string to match for soc_cpu filtering in h/w file list (default ip.cpu))
-	@$(info $(SPC) $(SPC) USRSIMOPTS:   additional simulator analysis flags, such as setting defines (default blank))
-	@$(info $(SPC) $(SPC) BUILD:        Select build type from DEFAULT or ISS (default DEFAULT))
-	@$(info )
-
-#======================================================
-# CLEANING RULES
-#======================================================
+	@echo "make [SIM=verilator|icarus] [DUT=mock|rtl]   build the models and the simulation"
+	@echo "make [SIM=verilator|icarus] run    build and run"
+	@echo "make clean                         remove obj/"
+	@echo "USER_C, USRCODEDIR, OPTFLAG, USRSIMFLAGS (extra simulator flags) can be overridden"
 
 clean:
-	@rm -rf $(WORKDIR) $(VOBJDIR) $(USERLIB) $(VPROC_PLI) xelab.* xvlog.* xsim.* *.wdb .Xil
+	@rm -rf $(CURDIR)/obj
+
+# -----------------------------------------------------------------------------
+# Project:     openCologne-PCIE
+# Description: NLnet-sponsored open-source implementation
+# Version:     1.0
+# Date:        April 2025
+# -----------------------------------------------------------------------------

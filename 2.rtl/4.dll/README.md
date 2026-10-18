@@ -181,25 +181,22 @@ Field layout: `type | Reserved | AckNak_Seq_Num | 16-bit CRC`.
 <!--## Prerequisites
 The simulation can be run using the pcieVHost model … *TODO*
 
-## Run Testbench
-`make -f makefile.ica run`
-
-## Testbench description
-The testbench drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers.-->
+## Sources and testbench
+The DLL sources are Cologne Chip's, in the gatemate-pipe submodule: [`2.pipe/pipe_src/src/dll_src`](../2.pipe/pipe_src/src/dll_src). Its block testbench, `sim/tb_dll_logic.v` there, drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers. Our own DLL simulation is [`sim/run-dll-phy.sh`](#simulation-over-mac-pipe-and-serdes): the same checks, with the MAC, PIPE and SerDes BFM below the DLL.
 
 ## Viewing the DLL in WaveCrux
 
 The pictures below decode the DLL's PHY-side stream with Ferrite's
 [PCIe PIPE and Data Link Layer decoders](https://github.com/Ferrite-Engineering/wavecrux-decoders)
 (`wcx-pcie` 0.1.0) in [WaveCrux](https://wavecrux.app). They come from
-`sim/tb_dll_wavecrux.v`, a copy of `tb_dll_logic.v` whose TLPs carry real
+`sim/tb_dll_wavecrux.v`, a fork of gatemate-pipe's `tb_dll_logic.v` whose TLPs carry real
 headers (MWr32, MWr64, CplD) so the decoders can name them; the test steps
 are the same.
 
 To reproduce, from `2.rtl/4.dll`:
 
 ```
-verilator --binary --timing --trace-fst --trace-structs -O0 --top-module tb_dll_wavecrux           sim/tb_dll_wavecrux.v sim/dll_wavecrux_view.sv dll_src/*.v
+verilator --binary --timing --trace-fst --trace-structs -O0 --top-module tb_dll_wavecrux           sim/tb_dll_wavecrux.v sim/dll_wavecrux_view.sv ../2.pipe/pipe_src/src/dll_src/*.v
 ./obj_dir/Vtb_dll_wavecrux          # writes sim/dll_wavecrux.fst
 ```
 
@@ -259,7 +256,7 @@ shape:
 
 > **pcieVHost is a Root Complex model written in C.** It has a **PIPE interface**, which is connected directly to our **MAC layer**. The traffic therefore passes through our MAC (LTSSM, ordered sets, packet framing) as well as through the DLL, so this simulation tests **both the MAC and the DLL** against an independent link partner.
 
-The test setup is available in the [`dll_test` branch of gatemate-pipe](https://github.com/colognechip/gatemate-pipe/tree/dll_test) and will be added to this repository later on. Scrambling is disabled on both sides in this run.
+The pictures come from Cologne Chip's test in the [`dll_test` branch of gatemate-pipe](https://github.com/colognechip/gatemate-pipe/tree/dll_test) (`sim/pcievhost_test`), with scrambling disabled on both sides. Our own runs against pcieVHost are in [`5.sim`](../../5.sim).
 
 The waveforms are decoded with the WaveCrux PCIe decoders described above. The signals are:
 - `LinkDownData`/`LinkDownDataK`: pcieVHost (Root Complex) -> our MAC.
@@ -292,7 +289,7 @@ The waveforms are decoded with the WaveCrux PCIe decoders described above. The s
 ## Simulation over MAC, PIPE and SerDes
 
 `sim/run-dll-phy.sh` runs this DLL over the MAC/LTSSM, the PIPE
-logic and the open SerDes model, with two link partners over a bit-level serial
+logic and the opensource SerDes BFM, with two link partners over a bit-level serial
 link: LTSSM training to L0, InitFC, TLPs in both directions, NAK and replay of a
 TLP corrupted on the wire, and an UpdateFC DLLP. See
 [sim/README.md](sim/README.md).

@@ -1,227 +1,121 @@
-//==========================================================================
-// Copyright (C) 2023 Chili.CHIPS*ba
-//--------------------------------------------------------------------------
-//                      PROPRIETARY INFORMATION
+// SPDX-FileCopyrightText: 2026 Chili.CHIPS
 //
-// The information contained in this file is the property of CHILI CHIPS LLC.
-// Except as specifically authorized in writing by CHILI CHIPS LLC, the holder
-// of this file: (1) shall keep all information contained herein confidential;
-// and (2) shall protect the same in whole or in part from disclosure and
-// dissemination to all third parties; and (3) shall use the same for operation
-// and maintenance purposes only.
+// SPDX-License-Identifier: BSD-3-Clause
+
+//==========================================================================
+// openCologne-PCIE * NLnet-sponsored open-source implementation
 //--------------------------------------------------------------------------
 // Description:
-//   Wrapper for any CPU to make it Plug-and-Play compatible with the SOC
-//   infrastructure. Here is instantiated the VProc virtual processor,
-//   optionally along with Instruction Memory (IMEM).
-//   See individual files for details...
-//--------------------------------------------------------------------------
-// Address mapping is:
-//  0x0000_0000 - 0x0FFF_FFFF - IMEM/PROGRAM space: ADDR_RESET = 0x0000_0000
-//  0x1000_0000 - 0x1FFF_FFFF - BUS /DATA space, see 'soc_fabric.sv' for details
+//   VProc virtual processor in the CPU socket of the SOC.
 //
-//  That's the full HARVARD architecture. However, as the Linker does not
-//  understand overlapping memory spaces, to fool it, we fictitiously specify
-//  that DATA is starting from 0x1000_0000, leaving 256MB for CODE and 256MB
-//  for DATA. The 0x0000_0000-0x0FFF_FFFF DATA space is still valid as an alias.
+//   Drop-in replacement for the eduBOS5 instance in riscv_pcie_soc.sv, so
+//   that the CPU of the SOC can be a native C/C++ program (or the rv32 ISS)
+//   instead of the RTL core. Everything else in the design -- the CSR, the
+//   PCIe stack, the top level -- is untouched and runs exactly as it does
+//   with the real core.
 //
-//  The recommended DATA space layout is:
-//  0x1000_0000 - 0x1FFF_FFFF - DMEM. Max space is 256MB
-//  0x2000_0000 - 0x3FFF_FFFF - CSR
-//  0x4000_0000 - 0xFFFF_FFFF - SDRAM:8MBytes, which needs 00_0000-7F_FFFF
+//   Selected with `define SOC_CPU_VPROC; see 5.sim/Makefile CPU=... .
 //
-//  This shows total allocation. Actual resources take much less, and alias
+//   It drives the SOC's CPU memory bus (mem_if), the one riscv_pcie_soc.sv
+//   decodes for the RAM and the CSR.
+//
+//   Protocol note. VProc holds WE/RD asserted until it samples WRAck/RDAck at
+//   a rising edge, then updates them on the following edge. On the bus:
+//   mem_valid with WE/RD, the ack is mem_ready itself, and
+//   mem_valid is low for the one cycle after ready, while VProc still holds
+//   the finished access. An access takes 2 clocks, as on the RTL core.
+//
+//   Reset: !resetn is VProc interrupt bit 3, so the ISS can wait for reset
+//   release and restart on a new reset (5.sim/models/rv32/usercode).
 //==========================================================================
-//
-// Just for background, the original TetriSaraj address mapping was
-// completely in DATA space (VON-NEUMANN). INSTRUCTION space (HARVARD)
-// was not used at all.
-//
-// -----------------------------------------------MEM_WORDS=8192 (32kB)
-//  0x1000_0000 - 0x1000_7FFF - DMEM (32kBytes): (cpu_addr < 4*MEM_WORDS)
-//                                                STACKADDR= 4*MEM_WORDS;
-//                                                Top of DMEM block
-// -----------------------------------------------
-//  0x0000_8000 - 0x0000_FFFF - IMEM (32KBytes)  (cpu_addr >= 4*MEM_WORDS)
-//                                              &(cpu_addr < 32'h 0200_0000)
-//  0x0001_0000 - 0x0001_7FFF - IMEM image 1
-//  0x0001_8000 - 0x0001_FFFF - IMEM image 2
-//  0x0010_0000 - 0x0010_7FFF - IMEM image 3 -> PROGADDR_RESET=32'h0010_0000=FlashStart=1MB
-//   ...                                                              (FlashEnd was on 5MB)
-//  0x01FF_8000 - 0x01FF_FFFF - IMEM image N
-// - - - - - - - - - - - - - - - - - - - - - - - -
-//  0x0100_0000 - 0xFFFF_FFFF - IOMEM bus space  (cpu_addr[31:24] > 8'h01);
-//   SPI_Flash         : 0x0200_0000 - 0x0200_0003
-//   SimpleUART.REG_DIV: 0x0200_0004 - 0x0200_0007
-//   SimpleUART.REG_DAT: 0x0200_0008 - 0x0200_000B
-//   GPIO              : iomem_addr[31:24] == 8'h03
-//   VGA               : iomem_addr[31:24] == 8'h05
-//==========================================================================
-/* verilator lint_off UNOPTFLAT */
-module soc_cpu #(
-   parameter [31:0]   ADDR_RESET     = 32'h 0000_0000,  // Unused
-   parameter int      NUM_WORDS_IMEM = 8192,            // Unused
-   parameter [3:0]    NODE           = 0                // CPU defaults to VProc node 0
-)(
-   soc_if.MST         bus,
 
-// access point for reloading CPU program memory
-   input logic        imem_cpu_rstn,
-   input logic        imem_we,
-   input logic [31:2] imem_waddr,
-   input logic [31:0] imem_wdat
+`timescale 1ns / 1ps
+
+module soc_cpu_vproc #(
+    parameter [3:0] NODE = 0      // VProc node: 0 is the CPU
+)(
+    input  logic        clk,
+    input  logic        resetn,
+
+    output logic        mem_valid,
+    input  logic        mem_ready,
+    output logic [31:0] mem_addr,
+    output logic [31:0] mem_wdata,
+    output logic [3:0]  mem_wstrb,
+    input  logic [31:0] mem_rdata
 );
 
-//----------------------------------------------------
-// Internal signal definitions
-//----------------------------------------------------
+    // ---------------------------------------------------------------------
+    // VProc side
+    // ---------------------------------------------------------------------
+    logic        vp_we, vp_rd;
+    logic [3:0]  vp_be;
+    logic [31:0] vp_addr;
+    logic [31:0] vp_wdat;
 
-// Signals for VProc
-logic                 vp_wack, vp_rack,vp_we, vp_rd;
-logic [3:0]           vp_be;
-logic [31:0]          vp_addr;
-logic [31:0]          vp_wdat;
-logic [31:0]          vp_rdat;
-logic                 cpu_access;
+    logic        vp_wack, vp_rack;
+    logic [31:0] vp_rdat;
 
-logic                 imem_write;
-logic                 imem_read;
-logic [31:0]          imem_readdata;
-logic                 imem_readdatavalid;
+    // ---------------------------------------------------------------------
+    // Bus side
+    // ---------------------------------------------------------------------
+    logic done;  // the cycle after ready: VProc still holds the finished access
 
-//--------------------------------------------------------
-// Combinatorial logic
-//
-// Maps VProc's generic memory mapped interface to comply
-// with the soc_if protocol.
-//
-//--------------------------------------------------------
+    always_ff @(posedge clk) begin
+        done <= mem_valid & mem_ready;
+    end
 
-// Flag if accessin the local IMEM
-assign cpu_access     = vp_addr[31:28] == '0;
+    assign mem_valid = resetn & (vp_we | vp_rd) & ~done;
+    assign mem_addr  = vp_addr;
+    assign mem_wdata = vp_wdat;
+    assign mem_wstrb = vp_we ? vp_be : 4'b0000;
 
-// Combine VProc's WE with BE to produce bus write enables
-assign bus.we         = vp_be & {4{vp_we}};
+    assign vp_wack   = mem_valid & mem_ready & vp_we;
+    assign vp_rack   = mem_valid & mem_ready & vp_rd;
+    assign vp_rdat   = mem_rdata;
 
-// Bus access valid on read or write
-assign bus.vld        = (vp_we | vp_rd) & ~cpu_access;
+    // ---------------------------------------------------------------------
+    // The virtual processor itself
+    // ---------------------------------------------------------------------
+    VProc #(
+        .INT_WIDTH      (4),
+        .DISABLE_DELTA  (1)
+    ) u_vproc (
+        .Clk            (clk),           // i
 
-// Bus output is a word address
-assign bus.addr       = vp_addr[31:2];
+        .Addr           (vp_addr),       // o
+        .DataOut        (vp_wdat),       // o
+        .WE             (vp_we),         // o
+        .WRAck          (vp_wack),       // i
 
-// Export write data onto bus
-assign bus.wdat       = vp_wdat;
+        // VProc is compiled with VPROC_BYTE_ENABLE, hence the BE port
+        .BE             (vp_be),         // o
 
-// Write to IMEM
-assign imem_write     = vp_we & cpu_access;
+        .DataIn         (vp_rdat),       // i
+        .RD             (vp_rd),         // o
+        .RDAck          (vp_rack),       // i
 
-// Read from IMEM
-assign imem_read      = vp_rd & cpu_access;
+        .Interrupt      ({~resetn, 3'b000}),  // i: bit 3 reset, 2:0 unused
 
-`ifndef VERILATOR
+        .Update         (),              // o (unused)
+        .UpdateResponse ('0),            // i (unused)
 
-  // Write acknowledge VProc when writing and bus.rdy
-assign vp_wack        = vp_we & (bus.rdy | cpu_access);
+        .Node           (NODE)
+    );
 
-  // Read acknowledge VProc when reading and bus.rdy
-assign vp_rack        = vp_rd & (bus.rdy | imem_readdatavalid);
-
-  // Mux source of read data
-assign vp_rdat        = cpu_access ? imem_readdata : bus.rdat;
-
-`else
-
-// For Verilator, ensure all input signals resolved before sampling
-always @(negedge bus.clk)
-begin
-
-  // Write acknowledge VProc when writing and bus.rdy
-  vp_wack             = vp_we & (bus.rdy | cpu_access);
-
-  // Read acknowledge VProc when reading and bus.rdy
-  vp_rack             = vp_rd & (bus.rdy | imem_readdatavalid);
-
-  // Mux source of read data
-  vp_rdat             = cpu_access ? imem_readdata : bus.rdat;
-
-end
-`endif
-
-//-----------------------------------------------------
-// VProc virtual processor
-//-----------------------------------------------------
-
-   VProc #(
-      .DISABLE_DELTA         (1)
-   )
-   u_cpu (
-      .Clk                   (bus.clk),                // i
-
-      .Addr                  (vp_addr),                // o
-
-      .DataOut               (vp_wdat),                // o
-      .WE                    (vp_we),                  // o
-      .WRAck                 (vp_wack),                // i
-
-      // Compile VProc with VPROC_BYTE_ENABLE defined for BE port
-      .BE                    (vp_be),                  // o
-
-      .DataIn                (vp_rdat),                // i
-      .RD                    (vp_rd),                  // o
-      .RDAck                 (vp_rack),                // i
-
-      .Interrupt             ('0),                     // i (unused)
-
-      .Update                (),                       // o (unused)
-      .UpdateResponse        ('0),                     // i (unused)
-
-      .Node                  (NODE)
-   );
-
-//-----------------------------------------------------
-// Memory model port for the imem write bus.
-//
-//-----------------------------------------------------
-
-   mem_model u_imem (
-      .clk               (bus.clk),                // i
-      .rst_n             (bus.arst_n),             // i
-
-      // Port used for reading program from VProc
-      // when not using memory model's direct C API
-      .address           (vp_addr),                // i
-      .byteenable        (4'hf),                   // i
-      .write             (imem_write),             // i
-      .writedata         (vp_wdat),                // i
-      .read              (imem_read),              // i
-      .readdata          (imem_readdata),          // o
-      .readdatavalid     (imem_readdatavalid),     // o
-
-       // Port used when loading program via UART
-      .wr_port_valid     (imem_we),                // i
-      .wr_port_data      (imem_wdat),              // i
-      .wr_port_addr      ({imem_waddr, 2'b00}),    // i
-
-       // Unused burst ports
-      .rx_waitrequest    (),                       // o (unused)
-      .rx_burstcount     ('0),                     // i (unused)
-      .rx_address        ('0),                     // i (unused)
-      .rx_read           ('0),                     // i (unused)
-      .rx_readdata       (),                       // o (unused)
-      .rx_readdatavalid  (),                       // o (unused)
-
-      .tx_waitrequest    (),                       // o (unused)
-      .tx_burstcount     ('0),                     // i (unused)
-      .tx_address        ('0),                     // i (unused)
-      .tx_write          ('0),                     // i (unused)
-      .tx_writedata      ('0)                      // i (unused)
-   );
-
-endmodule: soc_cpu
+endmodule: soc_cpu_vproc
 
 /*
 -----------------------------------------------------------------------------
 Version History:
 -----------------------------------------------------------------------------
- 2024/10/30 SS: initial creation
+ 2026/08/16 AV: initial creation, for CPU=vproc / CPU=iss
+ 2026/10/15    : 2-clock handshake; reset as interrupt bit 3
 */
+
+// -----------------------------------------------------------------------------
+// Project:     openCologne-PCIE
+// Description: NLnet-sponsored open-source implementation
+// Version:     1.0
+// Date:        April 2025
+// -----------------------------------------------------------------------------

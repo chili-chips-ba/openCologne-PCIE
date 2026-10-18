@@ -2,8 +2,7 @@
 
 | testbench | what it exercises | run |
 |---|---|---|
-| `tb_dll_logic.v` | the DLL alone, gatemate-pipe's block testbench (mirrored, unchanged) | see [../README.md](../README.md) |
-| `tb_dll_wavecrux.v` | our fork of it with real TLP headers, for WaveCrux | see [../README.md](../README.md#viewing-the-dll-in-wavecrux) |
+| `tb_dll_wavecrux.v` | a fork of gatemate-pipe's `tb_dll_logic.v` with real TLP headers, makes the WaveCrux pictures | see [../README.md](../README.md#viewing-the-dll-in-wavecrux) |
 | `tb_dll_phy.sv` | the DLL over a real PHY: two link partners over a serial link | `bash run-dll-phy.sh` |
 
 ## DLL over the PHY: `run-dll-phy.sh`
@@ -14,9 +13,9 @@ Two complete stacks, an Endpoint and a Root Complex, connected by a bit-level se
        EP                                                    RC
   TL stimulus           tb_dll_phy.sv                   TL stimulus
        |                                                     |
-  dll_logic             2.rtl/4.dll/dll_src             dll_logic
+  dll_logic             2.rtl/2.pipe/pipe_src           dll_logic
        |                                                     |
-  ccfpga_LTSSM_logic    2.rtl/3.mac/mac_src             ccfpga_LTSSM_logic
+  ccfpga_LTSSM_logic    2.rtl/2.pipe/pipe_src           ccfpga_LTSSM_logic
        |                                                     |
   phy_model             2.rtl/4.dll/sim                 phy_model
   (ccfpga_pipe_logic + ccfpga_serdes model)
@@ -27,7 +26,7 @@ Two complete stacks, an Endpoint and a Root Complex, connected by a bit-level se
 `pcie_stack.sv` is one side: the DLL, the MAC and the test-bench PHY [`phy_model.sv`](phy_model.sv). That model is the PIPE logic, the SerDes model and the SerDes bring-up sequence as a small FSM, so the layers above see a plain PIPE interface. The synthesizable `phy_top` will be the same with the `CC_SERDES` primitive in place of the SerDes model.
 
 ```sh
-git submodule update --init                   # MAC and PIPE sources are submodules
+git submodule update --init                   # DLL, MAC and PIPE sources: the gatemate-pipe submodule
 bash 2.rtl/4.dll/sim/run-dll-phy.sh           # ~15 s
 bash 2.rtl/4.dll/sim/run-dll-phy.sh --dump    # with a waveform
 ```

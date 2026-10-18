@@ -8,8 +8,8 @@
 #   precedence = "closest"  -> a file's own SPDX header wins; this is the fallback
 #   precedence = "override" -> this annotation applies even if the file says otherwise
 #
-# Cologne Chip's PIPE and MAC/LTSSM come in as git submodules
-# (2.rtl/2.pipe/pipe_src, 2.rtl/3.mac/mac_src), independent repositories
+# Cologne Chip's PIPE and MAC/LTSSM come in as a git submodule
+# (2.rtl/2.pipe/pipe_src), an independent repository
 # under their own terms; REUSE does not cover submodules.
 
 version = 1
@@ -160,7 +160,7 @@ SPDX-License-Identifier = "LicenseRef-Third-Party-Document"
 
 # Pictures of the Intergalaktik / Radiona.org boards, from https://github.com/intergalaktik/ulx5m-m2
 [[annotations]]
-path = ["0.doc/1.pcb/*.png", "0.doc/1.pcb/*.jpg"]
+path = ["0.doc/1.pcb/Intergalaktik-ULX5M.png", "0.doc/1.pcb/ULX4M-PCIe-IO.*.png", "0.doc/1.pcb/ulx5m-m2.*.jpg"]
 precedence = "override"
 SPDX-FileCopyrightText = ["Intergalaktik", "Radiona.org"]
 SPDX-License-Identifier = "CC-BY-SA-4.0"

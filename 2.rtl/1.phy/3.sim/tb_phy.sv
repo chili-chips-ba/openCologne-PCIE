@@ -6,7 +6,7 @@
 //   PIPE test (default)  the PIPE layer of gatemate-pipe on the SerDes:
 //                        TS1 ordered sets, test data, error detection;
 //                        DATA_BYTES = 2 (16-bit) or 8 (64-bit) PIPE
-//   TB_PHY_EQUIV         the open SerDes model alone, looped back, as a
+//   TB_PHY_EQUIV         the opensource SerDes BFM alone, looped back, as a
 //                        self-check; with HAVE_VENDOR_SERDES also the vendor
 //                        model side by side, CROSS_LINK links the two
 //

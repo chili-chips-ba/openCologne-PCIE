@@ -1,6 +1,6 @@
-# RV32 ISS Model Integration for _openpcie2-rc__
+# RV32 ISS Model Integration for _openCologne-PCIE_
 
-This directory contains the integration code for the [rv32](https://github.com/wyvernSemi/rv32/tree/main/iss) RISC-V instruction set simulator (ISS) into the _openpcie2-rc_ simulation test bench as a program running on the [VProc virtual processor](https://github.com/wyvernSemi/vproc). The ISS is provided as a pre-compiled static library in the `lib` directory (either `librv32lnx.a` for Linux or `librv32win.a` for Windows with MSYS2/mingw-w64). The `include` directory has all the required headers for the ISS, but only `rv32.h` needs to be included in the VProc code to access all the model's features.
+This directory contains the integration code for the [rv32](https://github.com/wyvernSemi/rv32/tree/main/iss) RISC-V instruction set simulator (ISS) into the _openCologne-PCIE_ simulation test bench as a program running on the [VProc virtual processor](https://github.com/wyvernSemi/vproc). The ISS sources are not kept here: [`../../tools/fetch-rv32.sh`](../../tools/fetch-rv32.sh) fetches them from upstream at the commit openPCIE uses (`774d84fa`), with openPCIE's two fixes (the timer-compare check no longer adds 2 cycles to every instruction; `sw`/`sh` take store timing), and the make file builds the library from them. Of its headers, only `rv32.h` needs to be included in the VProc code to access all the model's features.
 
 ## File Organisation
 

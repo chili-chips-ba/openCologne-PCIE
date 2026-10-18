@@ -88,11 +88,11 @@
   },
   "signalTreeState": {
     "expanded": [
-      "tb_dll_logic",
-      "tb_dll_logic.wavecrux"
+      "tb_dll_wavecrux",
+      "tb_dll_wavecrux.wavecrux"
     ],
     "selected": [
-      "tb_dll_logic.wavecrux.TxPclk"
+      "tb_dll_wavecrux.wavecrux.TxPclk"
     ]
   },
   "translateFilters": {},

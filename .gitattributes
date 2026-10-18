@@ -26,5 +26,3 @@ Makefile* text eol=lf
 *.drawio  text eol=lf
 *.bat     text eol=crlf
 
-# Mirrored from colognechip/gatemate-pipe: kept byte for byte as upstream has it
-2.rtl/4.dll/dll_src/** -text
