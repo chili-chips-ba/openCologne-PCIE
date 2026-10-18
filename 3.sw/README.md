@@ -4,7 +4,7 @@ This is where the developers of **PIO TestApp** (the software part of) describe 
 
 ### HW/SW Architecture
 
-<p align="center"><img src="../0.doc/3.sw/sw-structure.drawio.svg" width="100%" alt="Firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top to the PCIE link"></p>
+<p align="center"><img src="../0.doc/3.sw/sw-structure.drawio.png" width="100%" alt="Firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top to the PCIE link"></p>
 
 ### EP firmware
 

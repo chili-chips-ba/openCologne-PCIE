@@ -49,7 +49,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 
 ### References:
 
-- **[PCIE Primer](http://www.anita-simulators.org.uk/wyvernsemi/articles/pci_express.pdf) by Simon Southwell** ✔
+- **[PCIE Primer](http://www.anita-simulators.org.uk/wyvernsemi/articles/pci_express.pdf) by Simon Southwell** ✅
   
 ### Design Blueprint
 
@@ -100,7 +100,7 @@ There are two major elements in this design:
 - **PCIE protocol stack**: Our soft RTL that implements MAC/LTSSM, DLL and TL, crowned by an eduBOS5-based RISC-V SOC for application layer.
 
 <p align="center">
-  <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="0.doc/2.rtl/block-diagram.drawio.svg" width="100%">
+  <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="0.doc/2.rtl/block-diagram.drawio.png" width="100%">
 </p>
 
 For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
@@ -110,7 +110,7 @@ For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
 # SW Architecture
 
 <p align="center">
- <img alt="EP firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top, directly or behind the backplane switch, to the host Root Complex" src="0.doc/3.sw/sw-structure.drawio.svg" width="100%">
+ <img alt="EP firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top, directly or behind the backplane switch, to the host Root Complex" src="0.doc/3.sw/sw-structure.drawio.png" width="100%">
 </p>
 
 The EP firmware runs bare-metal on the eduBOS5 RISC-V core of our GateMate SOC. It answers the host's Memory requests (PIO); the soft TL answers the configuration requests.
@@ -127,7 +127,7 @@ For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 # Simulation Architecture
 
 <p align="center">
-    <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="75%" src="0.doc/5.sim/tb-structure.drawio.svg">
+    <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="75%" src="0.doc/5.sim/tb-structure.drawio.png">
 </p>
 
 The [test bench](5.sim/README.md) runs on open-source simulators only, Verilator or Icarus Verilog. The host is the [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) in the RC role, `RCPIPEx1__pcieVHost`: it drives our DUT at its PIPE interface, trains the link and enumerates the EP. The top level focuses on the MAC, DLL and TL RTL and the firmware; the PIPE and the PHY below it are covered by their own [block-level test benches](5.sim/README.md#scope-mac-dll-tl-and-firmware), where the opensource SerDes BFM comes in. The same pcieVHost model has already run against the AMD `PCIE_2_1` hard macro on openPCIE, which raises the odds that our EP works on the first try against a physical Artix-7 RC on the openPCIE backplane.
@@ -164,7 +164,7 @@ More details of the test bench, the _pcievhost_ component and its usage can be f
 # Implementation Workflow
 
 <p align="center">
- <img alt="Build flow: CSR generation, firmware, Yosys + nextpnr-himbaechel + gmpack to the GateMate bitstream, co-simulation, lint and logic equivalence" src="0.doc/4.build/build-flow.drawio.svg" width="100%">
+ <img alt="Build flow: CSR generation, firmware, Yosys + nextpnr-himbaechel + gmpack to the GateMate bitstream, co-simulation, lint and logic equivalence" src="0.doc/4.build/build-flow.drawio.png" width="100%">
 </p>
 
 See [4.build/README.md](4.build/README.md)
@@ -210,38 +210,38 @@ See [6.litex/README.md](6.litex/README.md)
 
 # Project Status
 
-- [x] ✔ Procure Test equipment, test fixtures, dev boards and accessories
+- [x] ✅ Procure Test equipment, test fixtures, dev boards and accessories
 
 - [ ] Create docs and diagrams that are easy to follow and comprehend
->- [x] ✔ RTL DLL and TL
->- [x] ✔ PIPE
->- [ ] SW
->- [ ] TB, Sim, VIP
+>- [x] ✅ RTL DLL and TL
+>- [x] ✅ PIPE
+>- [x] ✅ SW
+>- [x] ✅ TB, Sim, VIP
 
 - [ ] Design, debug and manufacture two flavors of EP cards
 > Given the high-speed nature of this design, we plan for two iterations:
->- [x] ✔ M.2  **RevA**
->- [ ] Edge RevA
+>- [x] ✅ M.2  **RevA**
+>- [ ] 🟠 Edge RevA
 
->- [ ] M.2  **RevB**
+>- [ ] 🟠 M.2  **RevB**
 >- [ ] Edge RevB
 
  
 - [ ] Develop opensource PHY with PIPE interface for GateMate SerDes
->- [x] ✔ x1, **Gen1**
+>- [x] ✅ x1, **Gen1**
 >- [ ] x1, Gen2 (best-effort, consider it a bonus if we make it)
 
-- [ ] Develop opensource RTL for PCIE EP **DLL function**, with PIPE interface
-- [ ] Develop opensource RTL for PCIE EP **TL function**
+- [ ] 🟠 Develop opensource RTL for PCIE EP **DLL function**, with PIPE interface
+- [ ] 🟠 Develop opensource RTL for PCIE EP **TL function**
 
-- [ ] Create comprehensive co-sim testbench
+- [ ] 🟠 Create comprehensive co-sim testbench
 
 - [ ] Develop opensource PCIE EP Demo/Example for PIO access
 > - [ ] Software driver and TestApp
 > - [ ] Debug and bringup
 
 - [ ] Implement it all in GateMate, pushing through PNR and timing closure
-> - [ ] Work with nextpnr/ProjectPeppercorn developers to identify and resolve issues
+> - [ ] 🟠 Work with nextpnr/ProjectPeppercorn developers to identify and resolve issues
 
 - [ ] Port to LiteX
 
@@ -260,28 +260,6 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 - bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
 > This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
 - possibly also tackling the SerDes HM building brick.
-
---------------------
-
-### Community outreach
-
-It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exist in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
-
-We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
-
-- **[Embedded World 2026, Nuremberg](https://www.embedded-world.de/en)**
-> This is a trade fair where CologneChip will host a booth! This trade show also features a conference track.
-
-- **[FPGA Conference 2026, Munich](https://www.fpga-conference.eu)**
-> CologneChip is one of the sponsors and therefore gets at least 2 presentation slots.
-
-- **[Electronica 2026, Munich](https://electronica.de/en)**
-> It is very likely that CologneChip will have a booth. There is also a conference track.
-
-- **[FPGA Developer Forum, CERN, Geneva](https://indico.cern.ch/event/1467417)**
-> CologneChip is a sponsor. They might get a few presentation slots 
-
-We are fully open to consider additional venues -- Please reach out and send your ideas!
 
 --------------------
 
@@ -344,7 +322,11 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
 
 --------------------
 
-### Community Outreach:
+### Community Outreach
+
+It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exist in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
+
+Our posts so far:
 - [2026-10-17](https://www.linkedin.com/posts/chili-chips_having-too-much-fun-cracking-ones-and-zeros-activity-7517129808020074496-Rmev?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAJv-TcBSi_5ff0VNMrInrT-xg44YF3jnyU)
 - [2026-09-17](https://www.linkedin.com/feed/update/urn:li:activity:7505843991876370432?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7505843991876370432%2C7505869378253578240%29&replyUrn=urn%3Ali%3Acomment%3A%28activity%3A7505843991876370432%2C7505896426162274304%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287505869378253578240%2Curn%3Ali%3Aactivity%3A7505843991876370432%29&dashReplyUrn=urn%3Ali%3Afsd_comment%3A%287505896426162274304%2Curn%3Ali%3Aactivity%3A7505843991876370432%29)
 - [2026-06-23](https://www.linkedin.com/posts/andrew-e-wilson_its-fun-bringing-all-the-fpga-vendors-together-share-7475267075234607104-j50-)
@@ -352,6 +334,22 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
 - [2025-11-20](https://www.linkedin.com/feed/update/urn:li:activity:7394569666557366272?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7394569666557366272%2C7397466385519448064%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287397466385519448064%2Curn%3Ali%3Aactivity%3A7394569666557366272%29)
 - [2025-10-02](https://www.linkedin.com/feed/update/urn:li:activity:7379769413421559808)
 - [2025-08-25](https://www.linkedin.com/feed/update/urn:li:ugcPost:7362742908170473473?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7362742908170473473%2C7363111076936232962%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287363111076936232962%2Curn%3Ali%3AugcPost%3A7362742908170473473%29)
+
+We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
+
+- **[Embedded World 2026, Nuremberg](https://www.embedded-world.de/en)**
+> This is a trade fair where CologneChip will host a booth! This trade show also features a conference track.
+
+- **[FPGA Conference 2026, Munich](https://www.fpga-conference.eu)**
+> CologneChip is one of the sponsors and therefore gets at least 2 presentation slots.
+
+- **[Electronica 2026, Munich](https://electronica.de/en)**
+> It is very likely that CologneChip will have a booth. There is also a conference track.
+
+- **[FPGA Developer Forum, CERN, Geneva](https://indico.cern.ch/event/1467417)**
+> CologneChip is a sponsor. They might get a few presentation slots 
+
+We are fully open to consider additional venues -- Please reach out and send your ideas!
 
 --------------------
 

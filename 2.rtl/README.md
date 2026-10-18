@@ -13,7 +13,7 @@ At the moment, this section is merely a scratchpad of our thoughts and ideas, te
 ### HW/SW Architecture
 
 <p align="center">
-  <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="../0.doc/2.rtl/block-diagram.drawio.svg" width="100%">
+  <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="../0.doc/2.rtl/block-diagram.drawio.png" width="100%">
 </p>
 
 ### Compatibility goal: an Artix-7 EndPoint, in open source
