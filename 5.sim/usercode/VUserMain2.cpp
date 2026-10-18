@@ -37,7 +37,7 @@
 //              https://opensource.org/license/bsd-3-clause
 //--------------------------------------------------------------------------
 // Description:
-//   Program for the stand-in EP, EPPIPEx1__pcieVHost_DUT (a pcieVHost in EP
+//   Program for the mock EP, EPPIPEx1__pcieVHost_DUT (a pcieVHost in EP
 //   mode, stubs/), selected with DUT=mock
 //   at VProc node 2, until the EP RTL takes its place.
 //==========================================================================

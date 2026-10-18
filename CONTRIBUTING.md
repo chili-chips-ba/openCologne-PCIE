@@ -11,11 +11,11 @@ Open an [Issue](https://github.com/chili-chips-ba/openCologne-PCIE/issues). For 
 1. Bigger change? Open an Issue first, so we agree on the approach
 2. Fork, branch off `main`, make the change
 3. QA process:
-   - **[run-lint](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-lint.sh)** shows no errors. Fix lint findings at the root. Waive only as the last resort, following steps in [run-lint-waivers.txt](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-lint-waivers.txt).
-   - **[run-format --check](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-format.sh)** passes.
+   - **[run-lint](4.build/hw_build/run-lint.sh)** shows no errors. Fix lint findings at the root. Waive only as the last resort, following steps in [run-lint-waivers.txt](4.build/hw_build/run-lint-waivers.txt).
+   - **[run-format --check](4.build/hw_build/run-format.sh)** passes.
    - Ensure that **[co-sim](5.sim)** and the block-level flows you touched (**[PHY](2.rtl/1.phy/3.sim)**, **[DLL over PHY](2.rtl/4.dll/sim)**) pass
    - and that the **[GateMate build](4.build)** completes.
-   - For a mere cleanup: **[run-leq](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-leq.sh)** to prove that are no functional changes.
+   - For a mere cleanup: **[run-leq](4.build/hw_build/run-leq.sh)** to prove that are no functional changes.
 
 4. Open a Pull Request against `main`.
 

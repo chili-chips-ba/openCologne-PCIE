@@ -1,0 +1,175 @@
+{
+  "version": 4,
+  "sourceFilePath": "tb.fst",
+  "signals": [
+    {
+      "kind": "signal",
+      "id": "ocpcie-0",
+      "ref": "10",
+      "path": "tb.pclk",
+      "name": "pclk",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-1",
+      "ref": "11",
+      "path": "tb.downdata",
+      "name": "downdata",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-2",
+      "ref": "12",
+      "path": "tb.downdatak",
+      "name": "downdatak",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-3",
+      "ref": "15",
+      "path": "tb.elec_idle_down",
+      "name": "elec_idle_down",
+      "color": 4283417591,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-4",
+      "ref": "13",
+      "path": "tb.updata",
+      "name": "updata",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-5",
+      "ref": "14",
+      "path": "tb.updatak",
+      "name": "updatak",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-6",
+      "ref": "16",
+      "path": "tb.elec_idle_up",
+      "name": "elec_idle_up",
+      "color": 4294948685,
+      "format": "hexadecimal",
+      "height": 30.0
+    }
+  ],
+  "cursor": {
+    "primary": null,
+    "secondary": null
+  },
+  "markers": {},
+  "view": {
+    "ticksPerPixel": 55929.0,
+    "panOffsetTicks": 0.0,
+    "scrollOffset": 0.0
+  },
+  "panels": {
+    "signalTree": false,
+    "valueColumn": false,
+    "transactionView": false,
+    "stageView": false,
+    "statisticsStrip": false,
+    "cocotbLogPanel": false,
+    "rtlSource": false,
+    "sizes": {
+      "left": 301.59999999999997,
+      "right": 150.0
+    }
+  },
+  "signalTreeState": {
+    "expanded": [],
+    "selected": [],
+    "scroll": 0.0
+  },
+  "translateFilters": {},
+  "stage": {
+    "panels": []
+  },
+  "activeTheme": "wavecrux-dark",
+  "decoders": [
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "10",
+          "data": "11",
+          "datak": "12"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "10",
+          "data": "11",
+          "datak": "12"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "10",
+          "data": "13",
+          "datak": "14"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "10",
+          "data": "13",
+          "datak": "14"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    }
+  ]
+}

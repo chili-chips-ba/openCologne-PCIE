@@ -166,13 +166,13 @@ module soc_csr
       .s_cpuif_addr        ({mem.addr[CSR_MIN_ADDR_WIDTH-1:2], 2'b00}),
       .s_cpuif_wr_data     (mem.wdata),
       .s_cpuif_wr_biten    (cpuif_wr_biten),
-      .s_cpuif_req_stall_wr(),
-      .s_cpuif_req_stall_rd(),
+      .s_cpuif_req_stall_wr(  /*LINT:OK*/),
+      .s_cpuif_req_stall_rd(  /*LINT:OK*/),
       .s_cpuif_rd_ack      (cpuif_rd_ack),
-      .s_cpuif_rd_err      (),
+      .s_cpuif_rd_err      (  /*LINT:OK*/),
       .s_cpuif_rd_data     (cpuif_rd_data),
       .s_cpuif_wr_ack      (cpuif_wr_ack),
-      .s_cpuif_wr_err      (),
+      .s_cpuif_wr_err      (  /*LINT:OK*/),
 
       .hwif_in (csr_in),
       .hwif_out(csr_out)

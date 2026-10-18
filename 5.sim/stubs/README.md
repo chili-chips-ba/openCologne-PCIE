@@ -1,8 +1,8 @@
-# _openCologne-PCIE_ DUT stand-in: `EPPIPEx1__pcieVHost_DUT`
+# _openCologne-PCIE_ DUT mock: `EPPIPEx1__pcieVHost_DUT`
 
 [`EPPIPEx1__pcieVHost_DUT.sv`](EPPIPEx1__pcieVHost_DUT.sv) can take the place of the DUT, the EP RTL + firmware, so the test bench and the host can be brought up and checked on their own. It is an option we keep, next to the RTL: `make DUT=mock` runs it, `make DUT=rtl` the real EP once it exists. Its name mirrors the host's, `RCPIPEx1__pcieVHost`: the same model, in the other role.
 
-The stand-in is a single `pcieVHostPipex1`, the PIPE wrapper of the pcieVHost model, configured as an EP at VProc node 2 and running [`../usercode/VUserMain2.cpp`](../usercode/VUserMain2.cpp). It has the ports the real EP will show the test bench:
+The mock is a single `pcieVHostPipex1`, the PIPE wrapper of the pcieVHost model, configured as an EP at VProc node 2 and running [`../usercode/VUserMain2.cpp`](../usercode/VUserMain2.cpp). It has the ports the real EP will show the test bench:
 
 - PIPE data out and in, 64 bits wide with one K flag per byte, as Cologne Chip's PIPE
 - `pclk` (the PIPE clock, `pcieclk`/8 for 64 bits) and `pcieclk` (the 250 MHz symbol clock of Gen1)

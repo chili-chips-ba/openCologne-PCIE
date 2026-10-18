@@ -39,7 +39,7 @@
 // Description:
 //   Top-level test bench: the host, RCPIPEx1__pcieVHost at VProc node 1,
 //   drives the DUT at its PIPE interface: the EP RTL + firmware, or the
-//   stand-in EPPIPEx1__pcieVHost_DUT.
+//   mock EPPIPEx1__pcieVHost_DUT.
 //==========================================================================
 
 `timescale 1ps/1ps
@@ -121,7 +121,7 @@ module tb #(
 
 //--------------------------------------------------------------
 // DUT: the EP, at its PIPE interface. Either the EP RTL + firmware
-// (make DUT=rtl, once it exists) or the stand-in EPPIPEx1__pcieVHost_DUT,
+// (make DUT=rtl, once it exists) or the mock EPPIPEx1__pcieVHost_DUT,
 // a pcieVHost in EP mode (make DUT=mock)
 //--------------------------------------------------------------
 
@@ -179,6 +179,15 @@ begin
     $finish;
 end
 endtask
+
+// FST waveform, for WaveCrux and GTKWave (make DUMP=1 run): the signals of
+// this level, i.e. the PIPE link both ways, its clocks and reset
+`ifdef DUMP
+initial begin
+    $dumpfile("tb.fst");
+    $dumpvars(1, tb);
+end
+`endif
 
 endmodule: tb
 

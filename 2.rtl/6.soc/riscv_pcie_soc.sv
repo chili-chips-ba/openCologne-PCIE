@@ -79,8 +79,8 @@ module riscv_pcie_soc
   // -------------------------------------------------------------------------
   // The CPU -- two interchangeable implementations
   //
-  //   default             : the eduBOS5 RTL core (from openPCIE, fetched by
-  //                         4.build/fetch-edubos5.sh), 2-stage pipeline,
+  //   default             : the eduBOS5 RTL core (CPU.eduBOS5, a copy from
+  //                         openPCIE), 2-stage pipeline,
   //                         executing firmware.hex out of the RAM below;
   //                         `define SOC_EDUBOS5_3STG for 3-stage.
   //   `define SOC_CPU_VPROC : the VProc virtual processor, so that a native
@@ -93,6 +93,14 @@ module riscv_pcie_soc
   // `define SOC_CSR_RD_COMB (experimental): the CSR answers in the request
   // cycle, without its output register.
   // -------------------------------------------------------------------------
+
+  // KEEPME: the CPU's retired-instruction stream (RVFI). Nothing in the
+  // design reads it: it is for WaveCrux's RISC-V decoder and RVFI Commit
+  // Inspector, through tb.cpu_view in 5.sim, and for formal checks.
+  // eduBOS5 drives it with RISCV_FORMAL defined (simulation and formal
+  // only); otherwise, and under VProc, it reads 0: a native program has no
+  // instructions, and the rv32 ISS does not report them to the HDL.
+  rvfi_if rvfi ();  // KEEPME
 
 `ifdef SOC_CSR_RD_COMB
   localparam bit CSR_RD_FLOP = 1'b0;
@@ -112,6 +120,29 @@ module riscv_pcie_soc
       .mem_wstrb(mem.wstrb),
       .mem_rdata(mem.rdata)
   );
+
+  // KEEPME: no retired-instruction stream here, rvfi reads 0
+  assign rvfi.rvfi_valid     = '0;
+  assign rvfi.rvfi_order     = '0;
+  assign rvfi.rvfi_insn      = '0;
+  assign rvfi.rvfi_trap      = '0;
+  assign rvfi.rvfi_halt      = '0;
+  assign rvfi.rvfi_intr      = '0;
+  assign rvfi.rvfi_mode      = '0;
+  assign rvfi.rvfi_ixl       = '0;
+  assign rvfi.rvfi_rs1_addr  = '0;
+  assign rvfi.rvfi_rs2_addr  = '0;
+  assign rvfi.rvfi_rs1_rdata = '0;
+  assign rvfi.rvfi_rs2_rdata = '0;
+  assign rvfi.rvfi_rd_addr   = '0;
+  assign rvfi.rvfi_rd_wdata  = '0;
+  assign rvfi.rvfi_pc_rdata  = '0;
+  assign rvfi.rvfi_pc_wdata  = '0;
+  assign rvfi.rvfi_mem_addr  = '0;
+  assign rvfi.rvfi_mem_rmask = '0;
+  assign rvfi.rvfi_mem_wmask = '0;
+  assign rvfi.rvfi_mem_rdata = '0;
+  assign rvfi.rvfi_mem_wdata = '0;
 `else
   // eduBOS5 is Harvard: it fetches through a second, read-only port of the RAM
   // (below), which answers in one cycle as eduBOS5 expects; its data bus is the
@@ -150,20 +181,68 @@ module riscv_pcie_soc
   edubos5 #(
       .EN_WAIT4REGS(EDUBOS5_WAIT4REGS)
   ) cpu (
-      .clk        (clk),
-      .arst_n     (resetn),
-      .imem_addr  (imem_addr),
-      .imem_rdat  (imem_rdat),
-      .imem_rdy   (1'b1),
-      .imem_vld   (  /*LINT:OK*/),  // the RAM read port needs no request
-      .dmem_addr  (mem.addr),
-      .dmem_we    (mem.wstrb),
-      .dmem_strobe(  /*LINT:OK*/),  // dmem_vld is the request
-      .dmem_wdat  (mem.wdata),
-      .dmem_rdat  (mem.rdata),
-      .dmem_rdy   (edubos5_rdy),
-      .dmem_vld   (mem.valid)
+      .clk           (clk),
+      .arst_n        (resetn),
+`ifdef RISCV_FORMAL
+      .rvfi_valid    (rvfi.rvfi_valid),      // KEEPME
+      .rvfi_order    (rvfi.rvfi_order),      // KEEPME
+      .rvfi_insn     (rvfi.rvfi_insn),       // KEEPME
+      .rvfi_trap     (rvfi.rvfi_trap),       // KEEPME
+      .rvfi_halt     (rvfi.rvfi_halt),       // KEEPME
+      .rvfi_intr     (rvfi.rvfi_intr),       // KEEPME
+      .rvfi_mode     (rvfi.rvfi_mode),       // KEEPME
+      .rvfi_ixl      (rvfi.rvfi_ixl),        // KEEPME
+      .rvfi_rs1_addr (rvfi.rvfi_rs1_addr),   // KEEPME
+      .rvfi_rs2_addr (rvfi.rvfi_rs2_addr),   // KEEPME
+      .rvfi_rs1_rdata(rvfi.rvfi_rs1_rdata),  // KEEPME
+      .rvfi_rs2_rdata(rvfi.rvfi_rs2_rdata),  // KEEPME
+      .rvfi_rd_addr  (rvfi.rvfi_rd_addr),    // KEEPME
+      .rvfi_rd_wdata (rvfi.rvfi_rd_wdata),   // KEEPME
+      .rvfi_pc_rdata (rvfi.rvfi_pc_rdata),   // KEEPME
+      .rvfi_pc_wdata (rvfi.rvfi_pc_wdata),   // KEEPME
+      .rvfi_mem_addr (rvfi.rvfi_mem_addr),   // KEEPME
+      .rvfi_mem_rmask(rvfi.rvfi_mem_rmask),  // KEEPME
+      .rvfi_mem_wmask(rvfi.rvfi_mem_wmask),  // KEEPME
+      .rvfi_mem_rdata(rvfi.rvfi_mem_rdata),  // KEEPME
+      .rvfi_mem_wdata(rvfi.rvfi_mem_wdata),  // KEEPME
+`endif
+      .imem_addr     (imem_addr),
+      .imem_rdat     (imem_rdat),
+      .imem_rdy      (1'b1),
+      .imem_vld      (  /*LINT:OK*/),        // the RAM read port needs no request
+      .dmem_addr     (mem.addr),
+      .dmem_we       (mem.wstrb),
+      .dmem_strobe   (  /*LINT:OK*/),        // dmem_vld is the request
+      .dmem_wdat     (mem.wdata),
+      .dmem_rdat     (mem.rdata),
+      .dmem_rdy      (edubos5_rdy),
+      .dmem_vld      (mem.valid)
   );
+
+`ifndef RISCV_FORMAL
+  // KEEPME: eduBOS5 built without its RVFI outputs, rvfi reads 0
+  assign rvfi.rvfi_valid     = '0;
+  assign rvfi.rvfi_order     = '0;
+  assign rvfi.rvfi_insn      = '0;
+  assign rvfi.rvfi_trap      = '0;
+  assign rvfi.rvfi_halt      = '0;
+  assign rvfi.rvfi_intr      = '0;
+  assign rvfi.rvfi_mode      = '0;
+  assign rvfi.rvfi_ixl       = '0;
+  assign rvfi.rvfi_rs1_addr  = '0;
+  assign rvfi.rvfi_rs2_addr  = '0;
+  assign rvfi.rvfi_rs1_rdata = '0;
+  assign rvfi.rvfi_rs2_rdata = '0;
+  assign rvfi.rvfi_rd_addr   = '0;
+  assign rvfi.rvfi_rd_wdata  = '0;
+  assign rvfi.rvfi_pc_rdata  = '0;
+  assign rvfi.rvfi_pc_wdata  = '0;
+  assign rvfi.rvfi_mem_addr  = '0;
+  assign rvfi.rvfi_mem_rmask = '0;
+  assign rvfi.rvfi_mem_wmask = '0;
+  assign rvfi.rvfi_mem_rdata = '0;
+  assign rvfi.rvfi_mem_wdata = '0;
+`endif
 `endif
 
   logic [31:0] ram[2048];
@@ -220,7 +299,7 @@ module riscv_pcie_soc
     SEND_CYCLE_1 = 2'd1,
     SEND_CYCLE_2 = 2'd2
   } tx_state_e;
-  tx_state_e          tx_state;
+  tx_state_e tx_state;
 
   typedef enum logic [1:0] {
     RX_HDR0 = 2'd0,  // next beat: header DW0/DW1
@@ -341,23 +420,22 @@ module riscv_pcie_soc
     end
   end
 
-  assign csr_in.rx.header0.hdr.we       = rx_dw0;
-  assign csr_in.rx.header0.hdr.next     = m_axis_rx.tdata[31:0];
-  assign csr_in.rx.header1.hdr.we       = rx_dw0;
-  assign csr_in.rx.header1.hdr.next     = m_axis_rx.tdata[63:32];
-  assign csr_in.rx.header2.hdr.we       = rx_dw2;
-  assign csr_in.rx.header2.hdr.next     = m_axis_rx.tdata[31:0];
-  assign csr_in.rx.data.payload.we      = rx_dw2;
-  assign csr_in.rx.data.payload.next    = m_axis_rx.tdata[63:32];
-  assign csr_in.rx.valid.valid.hwset    = rx_beat & m_axis_rx.tlast;
+  assign csr_in.rx.header0.hdr.we = rx_dw0;
+  assign csr_in.rx.header0.hdr.next = m_axis_rx.tdata[31:0];
+  assign csr_in.rx.header1.hdr.we = rx_dw0;
+  assign csr_in.rx.header1.hdr.next = m_axis_rx.tdata[63:32];
+  assign csr_in.rx.header2.hdr.we = rx_dw2;
+  assign csr_in.rx.header2.hdr.next = m_axis_rx.tdata[31:0];
+  assign csr_in.rx.data.payload.we = rx_dw2;
+  assign csr_in.rx.data.payload.next = m_axis_rx.tdata[63:32];
+  assign csr_in.rx.valid.valid.hwset = rx_beat & m_axis_rx.tlast;
 
   // ---- Status: straight from the PCIe core, no shadow registers ----------
-  assign csr_in.status.err.msg_err_fatal.next    = cfg.msg_err_fatal;
+  assign csr_in.status.err.msg_err_fatal.next = cfg.msg_err_fatal;
 
-  assign csr_in.status.phy.tx_state.next         = tx_state;
-  assign csr_in.status.phy.tx_buf_avail.next     = cfg.tx_buf_avail;
-  assign csr_in.status.cfg_id.id.next            = {cfg.bus_number, cfg.device_number,
-                                                    cfg.function_number};
+  assign csr_in.status.phy.tx_state.next = tx_state;
+  assign csr_in.status.phy.tx_buf_avail.next = cfg.tx_buf_avail;
+  assign csr_in.status.cfg_id.id.next = {cfg.bus_number, cfg.device_number, cfg.function_number};
 
   // ---- Firmware result: the marker the firmware writes when it stops ------
   // The PASS compare drives an LED.

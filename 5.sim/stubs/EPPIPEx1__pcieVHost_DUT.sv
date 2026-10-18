@@ -37,7 +37,7 @@
 //              https://opensource.org/license/bsd-3-clause
 //--------------------------------------------------------------------------
 // Description:
-//   EPPIPEx1__pcieVHost_DUT: the stand-in for the EP DUT, a pcieVHost in
+//   EPPIPEx1__pcieVHost_DUT: the mock of the EP DUT, a pcieVHost in
 //   EP mode at VProc node 2, with the PIPE ports the real EP has. An option
 //   next to the EP RTL + firmware, kept on purpose: it proves the test bench
 //   and the host on their own (make DUT=mock, the default for now).
@@ -69,7 +69,7 @@ module EPPIPEx1__pcieVHost_DUT
 );
 
 //--------------------------------------------------------------
-// The stand-in EP: a pcieVHost in EP mode at VProc node 2
+// The mock EP: a pcieVHost in EP mode at VProc node 2
 //--------------------------------------------------------------
 
   pcieVHostPipex1 #(

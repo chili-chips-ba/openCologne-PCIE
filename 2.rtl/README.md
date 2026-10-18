@@ -30,8 +30,8 @@ To its user, our EP looks exactly like the AMD Artix-7 EP, the `PCIE_2_1` hard m
 | `phy_top`: `mac2phy` + GTP wrapper + `GTPE2` hard macros | `phy_top`: Cologne Chip soft wrapper ([2.pipe](2.pipe)) + GateMate SerDes `CC_SERDES` ([1.phy](1.phy)), with the open [SerDes BFM](1.phy/2.serdes-model) for simulation |
 | `trn_if`, `axis_if`, `cfg_if`, `pcie_pkg` | the same ([5.tlp](5.tlp)) |
 | SOC `riscv_pcie_soc` + PeakRDL CSR | the same ([6.soc](6.soc)), with the Rx window capturing any TLP, as an EP must see Memory requests |
-| eduBOS5 RISC-V core | fetched from openPCIE, not copied ([`4.build/fetch-edubos5.sh`](../4.build/fetch-edubos5.sh)) |
-| co-sim VIP: VProc, pcieVHost as the EP, rv32 ISS | the same in [5.sim](../5.sim), pcieVHost as the RC; rv32 ISS fetched from upstream, not copied |
+| eduBOS5 RISC-V core | copied from openPCIE, unchanged ([`6.soc/CPU.eduBOS5`](6.soc/CPU.eduBOS5)) |
+| co-sim VIP: VProc, pcieVHost as the EP, rv32 ISS | the same in [5.sim](../5.sim), pcieVHost as the RC; upstream copies in [`5.sim/vip`](../5.sim/vip/README.md) |
 | C firmware: the RC enumerates and tests the EP | C firmware: the EP answers the host's Memory requests |
 
 Only the C firmware changes in role; the user interface, the SOC and the VIP stay the same. Everything is open source, so there is no split between vendor and open RTL.
@@ -56,6 +56,7 @@ Also there, not counted above: [`4.dll/sim/tb_dll_wavecrux.v`](4.dll/sim) makes 
 - [PCIE Primer](../0.doc/pcie-primer.Simon-Southwell.pdf) by Simon Southwell ✔
 - [PCIE Technology Rev3.0 (MindSharePress2012)](https://github.com/chili-chips-ba/openCologne-PCIE/blob/main/0.doc/PCIE-Technology3-0---MindSharePress2012.pdf)
 - [PCIE Base Spec Rev2.1](https://github.com/chili-chips-ba/openCologne-PCIE/blob/main/0.doc/PCIE-base-spec.Rev2-1.pdf)
+- [openPCIE Controller WhitePaper](https://www.mdpi.com/2076-3417/16/7/3409)
 - [GateMate FPGA Datasheet, DS1001](../0.doc/2.rtl/ds1001-GateMate-datasheet.Sep2026.pdf) by Cologne Chip, September 2026
 - [GateMate FPGA Primitives Library, UG1001](../0.doc/2.rtl/ug1001-GateMate-primitives-library.Mar2025.pdf) by Cologne Chip, March 2025: `CC_PLL`, `CC_DFF`, `CC_BUFG`, `CC_USR_RSTN`, `CC_SERDES`
 - [GateMate Integrated Logic Analyzer, UG1005](../0.doc/2.rtl/ug1005-GateMate-ILA.Aug2025.pdf) by Cologne Chip, August 2025: on-chip debug
@@ -345,7 +346,7 @@ I don't see where in the diagram a configuration space is located unless it's pa
 
 ### RTL coding rules
 
-IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/README.md#rtl-coding-rules). For our RTL and the models that stand in for it. Code from the Cologne Chip submodule (`2.pipe/pipe_src`: PIPE, MAC/LTSSM, DLL) keeps its own style. `run-lint`, `run-format` and `run-leq` are openPCIE's, linked there until they are in `4.build`.
+IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/README.md#rtl-coding-rules). For our RTL and the models that stand in for it. Code from the Cologne Chip submodule (`2.pipe/pipe_src`: PIPE, MAC/LTSSM, DLL) keeps its own style. [`run-lint`](../4.build/hw_build/run-lint.sh), [`run-format`](../4.build/hw_build/run-format.sh) and [`run-leq`](../4.build/hw_build/run-leq.sh) are in `4.build/hw_build`.
 
 - **One place for bit positions:** TLP header fields and sideband bits are packed structs in a `_pkg` (openPCIE: [`pcie_pkg.sv`](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/pcie/pcie_pkg.sv)). Use their members, never raw slices like `tdata[30:29]`. Reserved bits are `rsvd0`, `rsvd1`, ..., so each struct spans its full width.
 - **Declare and size once:** widths, constants and types live in a `_pkg` (e.g. `TRN_DATA_W` in openPCIE's `pcie_pkg.sv`); no module redeclares them.
@@ -369,7 +370,7 @@ IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com
 - **Arrays, not flat buses:** arrays of lanes or structs, no index arithmetic on flat buses.
 - **`/*LINT:OK*/`:** marks an unused *output* pin of a hard macro, primitive or third-party core as reviewed: `.PIN (/*LINT:OK*/)`, with a `// reason` if not obvious. Never on an input (`run-lint.sh` flags it); unused inputs are tied off.
 - **No-connects:** unused bits of a hard-macro or primitive output go to `NC_` signals: `{NC_x, used}` on a bus pin, or an `NC_` signal for an unused lane. `NC_` signals are never read.
-- **Lint:** fix findings at the root; waive only as a last resort, as described in [`run-lint-waivers.txt`](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-lint-waivers.txt). Don't mold legal, intended code around one tool's quirk (e.g. slang on `unique case` with a `default`, Verilator on unpacked-struct members written by separate processes): waive it with a reason instead.
+- **Lint:** fix findings at the root; waive only as a last resort, as described in [`run-lint-waivers.txt`](../4.build/hw_build/run-lint-waivers.txt). Don't mold legal, intended code around one tool's quirk (e.g. slang on `unique case` with a `default`, Verilator on unpacked-struct members written by separate processes): waive it with a reason instead.
 - **Variants in one file:** a parameter selects the variant inside one module, never a copy of the module. The differences go in `generate` ... `endgenerate` with named branches, `if (PARAM == ...) begin : g_x` / `else begin : g_y`. A variant that needs no circuit ties the signal to a constant instead of keeping an unused flop. Example: `go2exec` in [`edubos5.sv`](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/edubos5.sv).
 - **Flopped controls:** a high-fanout control (load enable, mux select) comes from a flop, placed next to the logic it serves. Its next value is derived from existing signals; an FSM is neither copied nor edited for it.
 - **One signal per function:** no `x` plus `x_q` pairs. When a control is registered, the flop is the signal.
@@ -377,7 +378,24 @@ IEEE 1800-2009 SystemVerilog, the same rules as on [openPCIE](https://github.com
 - **Assertions:** only under an `ifdef`, and the RTL is never changed for them. Simulation gets SVA, open-source formal gets immediate `assert` with `$past`, and both forms stay ([eduBOS5](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/README.md#getting-started-with-formal-proving-a-worked-example)). In an RTL file they follow these rules too (`always_ff`, reset instead of initial values). The harnesses in `formal/` (e.g. `1.phy/2.serdes-model/formal`) are verification code, like `5.sim`.
 - **Clean diffs:** no blank-line or alignment changes beyond what `run-format.sh` makes; check `git diff` before a commit.
 - **Models follow the RTL:** a model keeps the ports, interfaces, structs, loops and names of the RTL it replaces.
-- **Formatting:** [`run-format.sh`](https://github.com/chili-chips-ba/openPCIE/blob/main/4.build/hw_build.openXC7/run-format.sh) puts every `if`, `else`, `always`, `for` and `initial` body in `begin` ... `end`, even a single statement, then runs Verible (`verible-verilog-format`) at its defaults plus all alignment options set to `align`, `end` and `else` on separate lines, LF line endings (flags in the script). Lines are at most 100 columns; wrap longer ones by hand. Run it last, after lint, before a commit. `run-format.sh --check` only lists unformatted files.
+- **Formatting:** [`run-format.sh`](../4.build/hw_build/run-format.sh) puts every `if`, `else`, `always`, `for` and `initial` body in `begin` ... `end`, even a single statement, then runs Verible (`verible-verilog-format`) at its defaults plus all alignment options set to `align`, `end` and `else` on separate lines, LF line endings (flags in the script). Lines are at most 100 columns; wrap longer ones by hand. Run it last, after lint, before a commit. `run-format.sh --check` only lists unformatted files.
+
+### Quality checks: lint, format, synthesis
+
+Simulation tests what the tests cover. Lint reads the code and finds what they miss: undriven signals, truncated widths, unintended latches. The scripts in [`4.build/hw_build`](../4.build/hw_build) check all of `top`:
+
+| Script | Does | Why |
+|---|---|---|
+| `run-lint.sh` | Verilator, Yosys, slang, Verible; `/*LINT:OK*/` only on outputs | each tool has blind spots; together they see more |
+| `run-format.sh` | `begin`/`end`, Verible format | diffs show only real changes |
+| `run-leq.sh` | Yosys formal equivalence, old vs new RTL | proves a cleanup changes nothing |
+| `run-synth.sh` | Yosys `synth_gatemate` | the RTL maps to GateMate; cell count |
+
+Fix findings at the root. Accept only what can't be fixed, with a reason: `/*LINT:OK*/` on an unused output, or [`run-lint-waivers.txt`](../4.build/hw_build/run-lint-waivers.txt).
+
+Example: the first run flagged a latch in the MAC scrambler (128 `CC_DLT` cells). A combinational `always` that skips an assignment on some path must hold the old value, which takes a latch. The simulation passed anyway; only lint caught it.
+
+Next: wider `run-lint.sh` coverage. [LintCrux](https://github.com/Ferrite-Engineering/lintcrux) (from the WaveCrux makers) runs several lint engines and tracks waivers and trends; it has been run on eduBOS5 and is a candidate.
 
 --------------------
 #### End of Document

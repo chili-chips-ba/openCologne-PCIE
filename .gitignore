@@ -16,6 +16,8 @@
 # Sim
 #--------
 *.fst
+!5.sim/tb.fst
+!2.rtl/6.soc/sim/tb_soc.fst
 *.vcd
 *.vvp
 

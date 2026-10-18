@@ -4,7 +4,6 @@
 [![REUSE:Compliant](https://badgen.net/badge/REUSE/Compliant/green)](REUSE.toml)
 [![eduBOS5:YES](https://badgen.net/badge/eduBOS5/YES/green)](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/README.md)
 [![pcievhost:YES](https://badgen.net/badge/pcievhost/YES/green)](5.sim/models/pcievhost/README.md)
-[![Verilator:YES](https://badgen.net/badge/Verilator/YES/green)](5.sim/README.md#running-the-co-simulation)
 [![WaveCrux:YES](https://badgen.net/badge/WaveCrux/YES/green)](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)
 [![Lint:WIP](https://badgen.net/badge/Lint/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
 [![Verible:WIP](https://badgen.net/badge/Verible/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
@@ -51,7 +50,6 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 ### References:
 
 - **[PCIE Primer](http://www.anita-simulators.org.uk/wyvernsemi/articles/pci_express.pdf) by Simon Southwell** ✔
-- [openPCIE Controller WhitePaper](https://www.mdpi.com/2076-3417/16/7/3409)
   
 ### Design Blueprint
 
@@ -113,10 +111,6 @@ For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
  <img alt="EP firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top, directly or behind the backplane switch, to the host Root Complex" src="0.doc/3.sw/sw-structure.drawio.svg" width="100%">
 </p>
 
-#### References:
-- [PCIE Utils](https://mj.ucw.cz/sw/pciutils)
-- [Debug PCIE issues using 'lspci' and 'setpci'](https://adaptivesupport.amd.com/s/article/1148199?language=en_US)
-
 The EP firmware runs bare-metal on the eduBOS5 RISC-V core of our GateMate SOC. It answers the host's Memory requests (PIO); the soft TL answers the configuration requests.
 
 On the host side, we test with:
@@ -130,16 +124,21 @@ For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 
 # Simulation Architecture
 
-#### References:
-- [pcieVHost](https://github.com/wyvernSemi/pcievhost/blob/master/doc/pcieVHost.pdf)
-
-## Simulation Test Bench
-
 <p align="center">
     <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="75%" src="0.doc/5.sim/tb-structure.drawio.svg">
 </p>
 
 The [test bench](5.sim/README.md) runs on open-source simulators only, Verilator or Icarus Verilog. The host is the [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) in the RC role, `RCPIPEx1__pcieVHost`: it drives our DUT at its PIPE interface, trains the link and enumerates the EP. The top level focuses on the MAC, DLL and TL RTL and the firmware; the PIPE and the PHY below it are covered by their own [block-level test benches](5.sim/README.md#scope-mac-dll-tl-and-firmware), where the opensource SerDes BFM comes in. The same pcieVHost model has already run against the AMD `PCIE_2_1` hard macro on openPCIE, which raises the odds that our EP works on the first try against a physical Artix-7 RC on the openPCIE backplane.
+
+### Coverage plan: every layer, against a known-good partner
+
+Either half of the design can be swapped for pcieVHost, the same model that already ran against the AMD hard macro on openPCIE:
+
+1. **`phy_top` → `RCPIPEx1__pcieVHost`** (pcieVHost as the RC): our MAC, DLL, TL and firmware get a full PCIE link partner at the PIPE interface. This is the top-level run.
+2. **`pcie_top` → `EPPIPEx1__pcieVHost_DUT`** (pcieVHost as the EP, `DUT=mock`): the test bench and the host program run before our EP RTL exists. This is today's default.
+3. **`phy_top` alone**, in its own [block-level test benches](2.rtl/README.md#simulation-layer-by-layer), with either SerDes: the vendor's `CC_SERDES` simulation model or our opensource SerDes BFM, with an [equivalence check](2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md) between the two.
+
+The block-level runs also feed the [WaveCrux PCIE decoders](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie), which show PIPE and DLL traffic as transactions ([DLL in WaveCrux](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)). Cologne Chip's own bench in the submodule drives their MAC + DLL with pcieVHost ([pictures](2.rtl/4.dll/README.md#simulation-with-pcievhost)). WaveCrux's [RV32 ISA decoder](https://github.com/Ferrite-Engineering/wavecrux/tree/main/assets/decoders/isa/riscv) can show the firmware's instructions the same way.
 
 * A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component, in place of the RTL CPU
   * Can run natively compiled test code
@@ -175,6 +174,10 @@ See [4.build/README.md](4.build/README.md)
 1) **openPCIE backplane:** the ULX5M-M2 card in an M.2 slot, the openPCIE Artix-7 as the RC: link up, enumeration, PIO write-read-validate, (a) Direct and (b) Behind Switch
 2) **Raspberry Pi:** enumeration and PIO from the Pi as the host
 3) **PC:** the same with a PC as the host
+
+#### References:
+- [PCIE Utils](https://mj.ucw.cz/sw/pciutils)
+- [Debug PCIE issues using 'lspci' and 'setpci'](https://adaptivesupport.amd.com/s/article/1148199?language=en_US)
 
 ## PCIE Protocol Analyzer
 

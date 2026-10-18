@@ -12,7 +12,7 @@
 
 ### CPU
 
-- **eduBOS5** (default): Chili.CHIPS' RV32I core, maintained in openPCIE and fetched from there, not copied: `EDUBOS5_DIR=$(bash 4.build/fetch-edubos5.sh)`. `` `define SOC_EDUBOS5_3STG `` selects its 3-stage pipeline.
+- **eduBOS5** (default): Chili.CHIPS' RV32I core, developed on openPCIE and copied here, in [`CPU.eduBOS5`](CPU.eduBOS5). `` `define SOC_EDUBOS5_3STG `` selects its 3-stage pipeline.
 - **VProc** (`` `define SOC_CPU_VPROC ``, co-simulation only): the same bus driven by native C/C++ or by the rv32 ISS, see [5.sim](../../5.sim).
 
 ### Address map
@@ -40,15 +40,13 @@ Things worth knowing:
 - **Configuration requests never get here.** The TL answers them itself, as the AMD hard macro does, and reports what it learned: `status.cfg_id` is the Bus/Device/Function the host gave us, captured from its Type 0 Configuration Writes (UG477 `cfg_bus_number`, `cfg_device_number`, `cfg_function_number`). Every Completion carries it as the Completer ID.
 - **`tx.data` is a trigger.** PeakRDL's `swmod` strobe on that field starts the Tx FSM, which is why the firmware writes the three headers first and the data last.
 
-Lint (WSL, from the repo root):
+Lint: [`4.build/hw_build/run-lint.sh`](../../4.build/hw_build/run-lint.sh) checks the SOC as part of `top`.
 
-```sh
-E=$(bash 4.build/fetch-edubos5.sh); G=4.build/csr_build/generated-files
-verilator --lint-only -Wall -Wno-DECLFILENAME --top-module riscv_pcie_soc \
-  2.rtl/5.tlp/pcie_pkg.sv $E/edubos5_pkg.sv $G/csr_pkg.sv 2.rtl/5.tlp/axis_if.sv 2.rtl/5.tlp/cfg_if.sv \
-  2.rtl/6.soc/mem_if.sv $E/edubos5_rf.sv $E/edubos5_alu.sv $E/edubos5.sv $G/csr.sv \
-  2.rtl/6.soc/soc_csr.sv 2.rtl/6.soc/riscv_pcie_soc.sv
-```
+### Watching the CPU in WaveCrux
+
+`riscv_pcie_soc` carries the CPU's retired instructions on [`rvfi_if`](rvfi_if.sv) (`// KEEPME`): the standard [RVFI](https://github.com/YosysHQ/riscv-formal) signals, one `rvfi_valid` per instruction. No RTL reads them; they are for WaveCrux and formal checks. eduBOS5 drives them when built with `RISCV_FORMAL` (simulation only); under VProc they read 0, as a native program has no instructions.
+
+[`sim/run-soc.sh`](sim/run-soc.sh) runs the SOC alone (`tb_soc`, Verilator, 20 µs): eduBOS5 starts the firmware, which then waits for the host. Open [`sim/tb_soc.RISCV-ISA.wavecrux`](sim/tb_soc.RISCV-ISA.wavecrux) in WaveCrux: the disassembly and the RVFI Commit Inspector come bound to `tb_soc.cpu_view` ([`soc_cpu_view.sv`](CPU.eduBOS5/wavecrux/soc_cpu_view.sv), from openPCIE).
 
 --------------------
 #### End of Document
