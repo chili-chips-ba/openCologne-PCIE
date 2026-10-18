@@ -356,6 +356,8 @@ module riscv_pcie_soc
 
   assign csr_in.status.phy.tx_state.next         = tx_state;
   assign csr_in.status.phy.tx_buf_avail.next     = cfg.tx_buf_avail;
+  assign csr_in.status.cfg_id.id.next            = {cfg.bus_number, cfg.device_number,
+                                                    cfg.function_number};
 
   // ---- Firmware result: the marker the firmware writes when it stops ------
   // The PASS compare drives an LED.

@@ -189,11 +189,25 @@ typedef union {
     uint32_t w;
 } csr__status__result_t;
 
+// reg - csr::status::cfg_id
+#define CSR__STATUS__CFG_ID__ID_bm 0xffff
+#define CSR__STATUS__CFG_ID__ID_bp 0
+#define CSR__STATUS__CFG_ID__ID_bw 16
+#define CSR__STATUS__CFG_ID__ID_reset 0x0
+typedef union {
+    struct __attribute__ ((__packed__)) {
+        uint32_t id :16;
+        uint32_t :16;
+    } f;
+    uint32_t w;
+} csr__status__cfg_id_t;
+
 // regfile - csr::status
 typedef struct __attribute__ ((__packed__)) {
     csr__status__err_t err;
     csr__status__phy_t phy;
     csr__status__result_t result;
+    csr__status__cfg_id_t cfg_id;
 } csr__status_t;
 
 // addrmap - csr
@@ -211,7 +225,7 @@ typedef struct __attribute__ ((__packed__)) {
 } opencologne_pcie_t;
 
 
-static_assert(sizeof(opencologne_pcie_t) == 0x30000030, "Packing error");
+static_assert(sizeof(opencologne_pcie_t) == 0x30000034, "Packing error");
 
 #ifdef __cplusplus
 }

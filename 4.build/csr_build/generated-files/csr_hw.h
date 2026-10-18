@@ -284,6 +284,25 @@ private:
 } __attribute__((packed));
 
 // -----------------------------------------------------
+//
+class csr__status__cfg_id_vp_t {
+public:
+    csr__status__cfg_id_vp_t* operator->() {return this;};
+
+    inline void     full(const uint32_t data) {raw.w = data;};
+    inline uint32_t full()                    {return raw.w;};
+
+    inline void     id(const uint32_t data) {*(volatile uint16_t*)((volatile uint8_t*)&raw + 0) = (uint16_t)((data & 0xffffu));};
+    inline uint32_t id()                    {return raw.f.id;};
+
+
+    inline uint32_t* get_addr() {return (uint32_t*)(uintptr_t)this;}
+
+private:
+    volatile csr__status__cfg_id_t raw;
+} __attribute__((packed));
+
+// -----------------------------------------------------
 class csr__status_vp_t {
 public:
 
@@ -292,6 +311,7 @@ public:
     csr__status__err_vp_t err;
     csr__status__phy_vp_t phy;
     csr__status__result_vp_t result;
+    csr__status__cfg_id_vp_t cfg_id;
 } __attribute__((packed));
 
 // -----------------------------------------------------

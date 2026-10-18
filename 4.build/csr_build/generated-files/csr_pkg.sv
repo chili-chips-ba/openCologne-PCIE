@@ -9,7 +9,7 @@ package csr_pkg;
 
     localparam CSR_DATA_WIDTH = 32;
     localparam CSR_MIN_ADDR_WIDTH = 6;
-    localparam CSR_SIZE = 'h30;
+    localparam CSR_SIZE = 'h34;
 
     typedef struct {
         logic [31:0] next;
@@ -85,8 +85,17 @@ package csr_pkg;
     } csr__status__phy__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } csr__status__cfg_id__id__in_t;
+
+    typedef struct {
+        csr__status__cfg_id__id__in_t id;
+    } csr__status__cfg_id__in_t;
+
+    typedef struct {
         csr__status__err__in_t err;
         csr__status__phy__in_t phy;
+        csr__status__cfg_id__in_t cfg_id;
     } csr__status__in_t;
 
     typedef struct {

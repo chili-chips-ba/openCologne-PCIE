@@ -87,6 +87,7 @@ module csr (
             logic err;
             logic phy;
             logic result;
+            logic cfg_id;
         } status;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -114,6 +115,7 @@ module csr (
         decoded_reg_strb.status.err = cpuif_req_masked & (cpuif_addr == 6'h24) & !cpuif_req_is_wr;
         decoded_reg_strb.status.phy = cpuif_req_masked & (cpuif_addr == 6'h28) & !cpuif_req_is_wr;
         decoded_reg_strb.status.result = cpuif_req_masked & (cpuif_addr == 6'h2c);
+        decoded_reg_strb.status.cfg_id = cpuif_req_masked & (cpuif_addr == 6'h30) & !cpuif_req_is_wr;
         decoded_err = '0;
     end
 
@@ -544,6 +546,9 @@ module csr (
         end
         if(rd_mux_addr == 6'h2c) begin
             readback_data_var[31:0] = field_storage.status.result.marker.value;
+        end
+        if(rd_mux_addr == 6'h30) begin
+            readback_data_var[15:0] = hwif_in.status.cfg_id.id.next;
         end
         readback_data = readback_data_var;
         readback_done = decoded_req & ~decoded_req_is_wr;

@@ -15,7 +15,7 @@ Don't override. Generated from: opencologne_pcie
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x30000030
+- Size: 0x30000034
 
 |  Offset  |Identifier|Name|
 |----------|----------|----|
@@ -37,7 +37,7 @@ No supported members.
 
 - Absolute Address: 0x30000000
 - Base Offset: 0x30000000
-- Size: 0x30
+- Size: 0x34
 
 <p>openCologne-PCIE EndPoint CSR</p>
 
@@ -235,7 +235,7 @@ writes 1 to clear it once it has read the TLP.</p>
 
 - Absolute Address: 0x30000024
 - Base Offset: 0x24
-- Size: 0xC
+- Size: 0x10
 
 <p>PCIe Link Status CSR</p>
 
@@ -244,6 +244,7 @@ writes 1 to clear it once it has read the TLP.</p>
 |  0x0 |    err   |  csr.status.err |
 |  0x4 |    phy   |  csr.status.phy |
 |  0x8 |  result  |csr.status.result|
+|  0xC |  cfg_id  |csr.status.cfg_id|
 
 ### err register
 
@@ -302,3 +303,26 @@ loading the next TLP.</p>
 <p>Result marker the firmware writes when it stops, e.g.
 0x0000FACE for PASS. Unlike tx.data, writing it launches
 no TLP: the value goes to logic only, to the PASS LED.</p>
+
+### cfg_id register
+
+- Absolute Address: 0x30000030
+- Base Offset: 0xC
+- Size: 0x4
+
+<p>Core ID: the EP's own Bus/Device/Function number</p>
+
+|Bits|Identifier|Access|Reset|           Name           |
+|----|----------|------|-----|--------------------------|
+|15:0|    id    |   r  | 0x0 |csr.status.cfg_id.id[15:0]|
+
+#### id field
+
+<p>Bus[15:8], Device[7:3] and Function[2:0] of this EP, as
+the TL captured them from the last Type 0 Configuration
+Write (UG477 cfg_bus_number, cfg_device_number,
+cfg_function_number). The firmware puts this value in the
+Completer ID of every Completion it sends. It is 0 until
+the host has configured the EP, and its bus number depends
+on the topology: behind a switch it is not the same as on
+a direct link.</p>

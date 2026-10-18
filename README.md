@@ -3,11 +3,12 @@
 [![License:BSD-3/CC-BY-SA](https://badgen.net/badge/License/BSD-3%2FCC-BY-SA/blue)](LICENSES)
 [![REUSE:Compliant](https://badgen.net/badge/REUSE/Compliant/green)](REUSE.toml)
 [![eduBOS5:YES](https://badgen.net/badge/eduBOS5/YES/green)](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/README.md)
+[![WaveCrux:YES](https://badgen.net/badge/WaveCrux/YES/green)](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)
 [![Lint:WIP](https://badgen.net/badge/Lint/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
 [![Verible:WIP](https://badgen.net/badge/Verible/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
 [![8b10b-Formal:Pass](https://badgen.net/badge/8b10b%20Formal/Pass/green)](2.rtl/1.phy/2.serdes-model/formal)
 [![DLL+PHY-Sim:Pass](https://badgen.net/badge/DLL%2BPHY%20Sim/Pass/green)](2.rtl/4.dll/sim)
-[![Sim:WIP](https://badgen.net/badge/Sim/WIP/orange)](5.sim)
+[![TopSim:WIP](https://badgen.net/badge/TopSim/WIP/orange)](5.sim)
 [![PCIE:TODO](https://badgen.net/badge/PCIE/TODO/red)](#project-status)
 [![LiteX:TODO](https://badgen.net/badge/LiteX/TODO/red)](6.litex/README.md)
 
@@ -63,11 +64,7 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 ### EP card: Intergalaktik ULX5M-M2
 
 <p align="center">
-  <a href="https://canva.link/vyykwt6k7odhs3t"><img width="70%" alt="ULX5M-M2 promo video (click to watch with sound)" src="0.doc/1.pcb/Intergalaktik-ULX5M.png"></a>
-</p>
-<p align="center">
-  <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/1.pcb/ulx5m-m2.1--Top.jpg">
-  <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/1.pcb/ulx5m-m2.2--Bottom.jpg">
+  <a href="https://canva.link/vyykwt6k7odhs3t" target="_blank" rel="noopener"><img width="70%" alt="ULX5M-M2 promo video (click to watch with sound)" src="0.doc/1.pcb/Intergalaktik-ULX5M.png"></a>
 </p>
 
 The GateMate EP card is the ULX5M-M2 by [Intergalaktik](https://intergalaktik.eu) and [Radiona](https://radiona.org), in M.2 form factor; its sources are at [intergalaktik/ulx5m-m2](https://github.com/intergalaktik/ulx5m-m2).
@@ -79,45 +76,6 @@ Our GateMate EP is the [ULX5M-M2](1.pcb/README.md) card. It plugs into the [open
 > That bus-number point is the one real difference for an EP. The EP takes its bus and device number from the Type 0 configuration writes it receives, and must put that number in every Completion it sends. With a direct link the bus number is often 1; behind the switch it's higher. A TL that hard-codes the bus number would pass the Direct test and fail Behind Switch.
 
 We then also test it with a Raspberry Pi and a PC as the host.
-
-### Form factors and hosts
-
-#### References:
-- [ULX4M-PCIe-IO](https://github.com/intergalaktik/ULX4M-PCIe-IO)
-- [openPCIE Backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb)
-- [NiteFury-and-LiteFury](https://github.com/RHSResearchLLC/NiteFury-and-LiteFury)
-- [4-port M.2 PCIE Switch](https://github.com/will127534/CM4-Nvme-NAS)
-- [AntMicro EMS Sim](https://antmicro.com/blog/2025/07/recent-improvements-to-antmicros-signal-integrity-simulation-flow)
-- [openEMS](https://docs.openems.de)
-
-The PCB part of the project shall deliver two cards: GateMate in **(i) PCIE "Slot"** and **(ii) M.2** form-factors
-<p align="center">
-  <img alt="PCIe slot connector" width="20%" src="0.doc/images/PCIE-Slot-Connector.JPG">
-  <img alt="NiteFury M.2 PCIe FPGA card" width="35%" src="0.doc/images/NiteFury-PCIE-M2.JPG">
-</p>
-
-While the "Slot" variant is not critical, and could have been suplanted by one of the ready-made M.2-to-Slot adapters, 
-
-<p align="center">
-  <img alt="PCIe slot to M.2 adapter" width="40%" src="0.doc/images/PCIE-Slot-to-M2-adapter.JPG">
-</p>
-
-it is more practical not to have an interposer. "Slot" is still the dominant PCIE form-factor for desktops and servers. The M.2 is typically found in the laptops. Initially, we will use the existing [CM4 ULX4M](https://github.com/intergalaktik/ULX4M) with off-the-shelf I/O boards:
-
-<p align="center">
-  <img alt="Raspberry Pi CM4 IO board with PCIe slot" width="40%" src="0.doc/images/CM4-IO-with-PCIE-Slot.jpg">
-  <img alt="Raspberry Pi CM4 IO board with PCIe M.2" width="40%" src="0.doc/images/CM4-IO-with-PCIE-M2.jpg">
-</p>
-
-When our two new plug-in boards become available, the plan is to gradually switch thedev platform to our openPCIE backplane, which features:
-- Slots on one side
-- M.2s on the other
-- RootComplex also as a plug-in card (as opposed to the more typical soldered-down), for interoperability testing with [RaspberryPi](https://www.raspberrypi.com) and Xilinx Artix-7 .
-- on-board (soldered-down) PCIE Switch for interoperability testing of the most typical EP deployment scenario, which is when RootPort is not directly connected to EndPoints, but goes through a Switch.
-
-<p align="center">
-  <img alt="PCIe interoperability with Raspberry Pi 5" width="40%" src="0.doc/images/PCIE-interop-with-RPI5.png">
-</p>
 
 For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
 
@@ -148,6 +106,10 @@ For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
 --------------------
 
 # SW Architecture
+
+<p align="center">
+ <img alt="EP firmware layers: application, PCIE driver, HAL, register map and startup, talking to the CSR block over the CPU memory bus, then through pcie_top, directly or behind the backplane switch, to the host Root Complex" src="0.doc/3.sw/sw-structure.drawio.svg" width="100%">
+</p>
 
 #### References:
 - [PCIE Utils](https://mj.ucw.cz/sw/pciutils)
@@ -201,6 +163,10 @@ More details of the test bench, the _pcievhost_ component and its usage can be f
 --------------------
 
 # Implementation Workflow
+
+<p align="center">
+ <img alt="Build flow: CSR generation, firmware, Yosys + nextpnr-himbaechel + gmpack to the GateMate bitstream, co-simulation, lint and logic equivalence" src="0.doc/4.build/build-flow.drawio.svg" width="100%">
+</p>
 
 See [4.build/README.md](4.build/README.md)
 

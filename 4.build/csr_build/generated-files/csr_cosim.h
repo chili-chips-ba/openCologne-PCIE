@@ -597,6 +597,47 @@ private:
 };
 
 // -----------------------------------------------------
+//
+class csr__status__cfg_id_vp_t {
+public:
+    csr__status__cfg_id_vp_t (uint32_t* reg_addr = 0) : reg((uint64_t)reg_addr) {};
+
+    inline void     full(const uint32_t data) {
+                        VWrite(reg, data, NO_DELTA_UPDATE, SOC_CPU_VPNODE);
+                        VTick(rand() % 33, SOC_CPU_VPNODE);
+                    };
+
+    inline uint32_t full()                    {
+                        uint32_t rdata;
+                        VRead(reg, &rdata, NO_DELTA_UPDATE, SOC_CPU_VPNODE);
+                        VTick(rand() % 33, SOC_CPU_VPNODE);
+
+                        return rdata;
+                    };
+    inline void     id (const uint32_t data) {
+                        uint32_t wdata = (uint32_t)(data & 0xffffffff);
+
+                        VWriteBE(reg + 0, wdata << 0, 0x3, NO_DELTA_UPDATE, SOC_CPU_VPNODE);
+                        VTick(rand() % 33, SOC_CPU_VPNODE);
+                    };
+
+    inline uint32_t id () {
+                        uint32_t rdata;
+
+                        VRead(reg + 0, &rdata, NO_DELTA_UPDATE, SOC_CPU_VPNODE);
+                        VTick(rand() % 33, SOC_CPU_VPNODE);
+
+                        return (((uint32_t)rdata << 0) & CSR__STATUS__CFG_ID__ID_bm) >> CSR__STATUS__CFG_ID__ID_bp;
+                    };
+
+
+    inline uint32_t* get_addr() {return (uint32_t*)((uint64_t)reg);}
+
+private:
+    uint32_t reg;
+};
+
+// -----------------------------------------------------
 class csr__status_vp_t {
 public:
 
@@ -605,11 +646,13 @@ public:
         err = new csr__status__err_vp_t (base_addr + 0x0/4);
         phy = new csr__status__phy_vp_t (base_addr + 0x4/4);
         result = new csr__status__result_vp_t (base_addr + 0x8/4);
+        cfg_id = new csr__status__cfg_id_vp_t (base_addr + 0xc/4);
     };
 
     csr__status__err_vp_t* err;
     csr__status__phy_vp_t* phy;
     csr__status__result_vp_t* result;
+    csr__status__cfg_id_vp_t* cfg_id;
 } ;
 
 // -----------------------------------------------------

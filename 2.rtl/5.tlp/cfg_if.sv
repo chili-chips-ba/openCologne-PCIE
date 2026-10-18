@@ -42,8 +42,15 @@ interface cfg_if;
   logic       msg_err_fatal;  // ERR_FATAL message received
   logic [5:0] tx_buf_avail;  // free TX buffers in the core
 
-  modport core(output msg_err_fatal, tx_buf_avail);
-  modport soc(input msg_err_fatal, tx_buf_avail);
+  // Core ID, captured from every Type 0 Configuration Write (UG477
+  // cfg_bus_number, cfg_device_number, cfg_function_number): the Completer
+  // ID of each Completion the EP sends
+  logic [7:0] bus_number;
+  logic [4:0] device_number;
+  logic [2:0] function_number;
+
+  modport core(output msg_err_fatal, tx_buf_avail, bus_number, device_number, function_number);
+  modport soc(input msg_err_fatal, tx_buf_avail, bus_number, device_number, function_number);
 endinterface
 // -----------------------------------------------------------------------------
 // Project:     openCologne-PCIE
