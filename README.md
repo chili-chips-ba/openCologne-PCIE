@@ -95,7 +95,9 @@ The GateMate SerDes has thus far not been used in the PCIE context. It is theref
 
 # RTL Architecture
 
-Above the Cologne Chip PHY and PIPE, the rest is our RTL: MAC/LTSSM, DLL, TL and the RISC-V SOC.
+There are two major elements in this design:
+- **PCIE-capable SerDes** -- in our case CologneChip (CC) **proprietary** mixed-signal hard IP. They wrap it into a thin, soft adaptation layer (_phy_top_) and present in the form an industry-standard PIPE interface. To enable faster and public domain simulations, we have complemented this CC HM with an opensource SerDes BFM
+- **PCIE protocol stack**: Our soft RTL that implements MAC/LTSSM, DLL and TL, crowned by an eduBOS5-based RISC-V SOC for application layer.
 
 <p align="center">
   <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="0.doc/2.rtl/block-diagram.drawio.svg" width="100%">
