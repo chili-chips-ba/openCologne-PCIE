@@ -291,15 +291,14 @@ The waveforms are decoded with the WaveCrux PCIe decoders described above. The s
 
 ## Simulation over MAC, PIPE and SerDes
 
-`5.sim/serdesflow_dll` runs this DLL over the MAC/LTSSM, the PIPE
+`sim/run-dll-phy.sh` runs this DLL over the MAC/LTSSM, the PIPE
 logic and the open SerDes model, with two link partners over a bit-level serial
 link: LTSSM training to L0, InitFC, TLPs in both directions, NAK and replay of a
 TLP corrupted on the wire, and an UpdateFC DLLP. See
-[5.sim/README.md](../../5.sim/README.md#full-stack-serdesflow_dll).
+[sim/README.md](sim/README.md).
 
 ```sh
-cd 5.sim
-./serdesflow_dll
+bash 2.rtl/4.dll/sim/run-dll-phy.sh
 ```
 
 ## References

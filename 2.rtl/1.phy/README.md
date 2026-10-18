@@ -65,13 +65,15 @@ simulated without the vendor model, which is under NDA.
 
 | flow | vendor model | open model |
 |---|---|---|
-| PIPE testcase `5.sim/testcase_pipe.v`, unmodified | 5 min 16 s, PASSED | ~14 s, PASSED |
-| DLL, MAC, PIPE and SerDes, two link partners (`5.sim/serdesflow_dll`) | | ~15 s, PASSED |
+| PIPE test, 64-bit (`3.sim/run-phy.sh pipe64`) | 5 min 16 s, PASSED | ~14 s, PASSED |
+| DLL, MAC, PIPE and SerDes, two link partners (`4.dll/sim/run-dll-phy.sh`) | | ~15 s, PASSED |
 
 Equivalence against the vendor model, including cross-linked interoperability,
 and formal proofs of the 8b/10b codec are described in
 [2.serdes-model/0.doc/equivalence-checking.md](2.serdes-model/0.doc/equivalence-checking.md).
-The simulation flows are described in [5.sim/README.md](../../5.sim/README.md).
+The PHY flows are described in [3.sim/README.md](3.sim/README.md), the DLL over this PHY in
+[4.dll/sim/README.md](../4.dll/sim/README.md). The test-bench PHY of that flow, SerDes model + PIPE + bring-up FSM,
+is [`phy_model.sv`](../4.dll/sim/phy_model.sv).
 
 --------------------
 #### End of Document

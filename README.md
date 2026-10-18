@@ -1,5 +1,15 @@
-[![NLnet Foundation](https://img.shields.io/badge/funded%20by-NLnet%20Foundation-74AA00)](https://nlnet.nl/)
-[![GitHub stars](https://img.shields.io/github/stars/chili-chips-ba/openCologne-PCIE?style=social)](https://github.com/chili-chips-ba/openCologne-PCIE/stargazers)
+[![NLnet:Funded](https://badgen.net/badge/NLnet/Funded/08C)](https://nlnet.nl/project/OpenCologne-PCIe/)
+[![Stars](https://badgen.net/github/stars/chili-chips-ba/openCologne-PCIE?label=Stars)](https://github.com/chili-chips-ba/openCologne-PCIE/stargazers)
+[![License:BSD-3/CC-BY-SA](https://badgen.net/badge/License/BSD-3%2FCC-BY-SA/blue)](LICENSES)
+[![REUSE:Compliant](https://badgen.net/badge/REUSE/Compliant/green)](REUSE.toml)
+[![eduBOS5:YES](https://badgen.net/badge/eduBOS5/YES/green)](https://github.com/chili-chips-ba/openPCIE/blob/main/2.rtl/0.common.opensource/src/CPU.eduBOS5/README.md)
+[![Lint:WIP](https://badgen.net/badge/Lint/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
+[![Verible:WIP](https://badgen.net/badge/Verible/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
+[![8b10b-Formal:Pass](https://badgen.net/badge/8b10b%20Formal/Pass/green)](2.rtl/1.phy/2.serdes-model/formal)
+[![DLL+PHY-Sim:Pass](https://badgen.net/badge/DLL%2BPHY%20Sim/Pass/green)](2.rtl/4.dll/sim)
+[![Sim:WIP](https://badgen.net/badge/Sim/WIP/orange)](5.sim)
+[![PCIE:TODO](https://badgen.net/badge/PCIE/TODO/red)](#project-status)
+[![LiteX:TODO](https://badgen.net/badge/LiteX/TODO/red)](6.litex/README.md)
 
 This project is the direct continuation of [openCologne](https://github.com/chili-chips-ba/openCologne), and it also firmly ties into [openPCIE](https://github.com/chili-chips-ba/openpcie).
 
@@ -47,7 +57,73 @@ The **Configuration Space** registers, while retained in our PCIE IP core, are r
 </p>
 
 --------------------
-# PIPE (is not a dream)
+
+# HW Architecture
+
+### EP card: Intergalaktik ULX5M-M2
+
+<p align="center">
+  <a href="https://canva.link/vyykwt6k7odhs3t"><img width="70%" alt="ULX5M-M2 promo video (click to watch with sound)" src="0.doc/1.pcb/Intergalaktik-ULX5M.png"></a>
+</p>
+<p align="center">
+  <img alt="ULX5M M.2 card, top side" width="36%" src="0.doc/1.pcb/ulx5m-m2.1--Top.jpg">
+  <img alt="ULX5M M.2 card, bottom side" width="45%" src="0.doc/1.pcb/ulx5m-m2.2--Bottom.jpg">
+</p>
+
+The GateMate EP card is the ULX5M-M2 by [Intergalaktik](https://intergalaktik.eu) and [Radiona](https://radiona.org), in M.2 form factor; its sources are at [intergalaktik/ulx5m-m2](https://github.com/intergalaktik/ulx5m-m2).
+
+### Test setup
+
+Our GateMate EP is the [ULX5M-M2](1.pcb/README.md) card. It plugs into the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb), where the [openPCIE](https://github.com/chili-chips-ba/openPCIE) Artix-7 drives it in the RC role, in two topologies: (1) **Direct**, our EP on the RC link, and (2) **Behind Switch**, through the PCIE switch of the backplane. For an EP the two should behave the same, but we still test them separately: behind the switch, our EP sits on another bus number, which it learns from the host's configuration writes and must return in the Completer ID of its Completions.
+
+> That bus-number point is the one real difference for an EP. The EP takes its bus and device number from the Type 0 configuration writes it receives, and must put that number in every Completion it sends. With a direct link the bus number is often 1; behind the switch it's higher. A TL that hard-codes the bus number would pass the Direct test and fail Behind Switch.
+
+We then also test it with a Raspberry Pi and a PC as the host.
+
+### Form factors and hosts
+
+#### References:
+- [ULX4M-PCIe-IO](https://github.com/intergalaktik/ULX4M-PCIe-IO)
+- [openPCIE Backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb)
+- [NiteFury-and-LiteFury](https://github.com/RHSResearchLLC/NiteFury-and-LiteFury)
+- [4-port M.2 PCIE Switch](https://github.com/will127534/CM4-Nvme-NAS)
+- [AntMicro EMS Sim](https://antmicro.com/blog/2025/07/recent-improvements-to-antmicros-signal-integrity-simulation-flow)
+- [openEMS](https://docs.openems.de)
+
+The PCB part of the project shall deliver two cards: GateMate in **(i) PCIE "Slot"** and **(ii) M.2** form-factors
+<p align="center">
+  <img alt="PCIe slot connector" width="20%" src="0.doc/images/PCIE-Slot-Connector.JPG">
+  <img alt="NiteFury M.2 PCIe FPGA card" width="35%" src="0.doc/images/NiteFury-PCIE-M2.JPG">
+</p>
+
+While the "Slot" variant is not critical, and could have been suplanted by one of the ready-made M.2-to-Slot adapters, 
+
+<p align="center">
+  <img alt="PCIe slot to M.2 adapter" width="40%" src="0.doc/images/PCIE-Slot-to-M2-adapter.JPG">
+</p>
+
+it is more practical not to have an interposer. "Slot" is still the dominant PCIE form-factor for desktops and servers. The M.2 is typically found in the laptops. Initially, we will use the existing [CM4 ULX4M](https://github.com/intergalaktik/ULX4M) with off-the-shelf I/O boards:
+
+<p align="center">
+  <img alt="Raspberry Pi CM4 IO board with PCIe slot" width="40%" src="0.doc/images/CM4-IO-with-PCIE-Slot.jpg">
+  <img alt="Raspberry Pi CM4 IO board with PCIe M.2" width="40%" src="0.doc/images/CM4-IO-with-PCIE-M2.jpg">
+</p>
+
+When our two new plug-in boards become available, the plan is to gradually switch thedev platform to our openPCIE backplane, which features:
+- Slots on one side
+- M.2s on the other
+- RootComplex also as a plug-in card (as opposed to the more typical soldered-down), for interoperability testing with [RaspberryPi](https://www.raspberrypi.com) and Xilinx Artix-7 .
+- on-board (soldered-down) PCIE Switch for interoperability testing of the most typical EP deployment scenario, which is when RootPort is not directly connected to EndPoints, but goes through a Switch.
+
+<p align="center">
+  <img alt="PCIe interoperability with Raspberry Pi 5" width="40%" src="0.doc/images/PCIE-interop-with-RPI5.png">
+</p>
+
+For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
+
+--------------------
+
+# PHY and PIPE (is not a dream)
 
 <p align="center">
   <img alt="PCIe physical layer sub-blocks" width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
@@ -57,15 +133,109 @@ The GateMate SerDes has thus far not been used in the PCIE context. It is theref
 
 > By adhering to PIPE architecture, we avoid mixing the generic (i.e. "logic" only) design part with FPGA-specific RTL. This does not mean that all of our RTL is portable to other vendors, but rather that it is structured in a way that facilitates future ports, with only a thin layer of code behind PIPE interface that needs to be revisited. That's a small subsection of the overall design, thereby saving a good amount of porting effort.
 
+--------------------
 
-## Future outlook
+# RTL Architecture
 
-Reflecting on our roadmap and possible future growth paths, in addition to the aforementioned DMA and porting to other FPGA families + ASICs, we are also thinking of:
+Above the Cologne Chip PHY and PIPE, the rest is our RTL: MAC/LTSSM, DLL, TL and the RISC-V SOC.
 
-- enablement of hardware acceleration for AI, video, and general DSP compute workloads
-- bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
-> This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
-- possibly also tackling the SerDes HM building brick.
+<p align="center">
+  <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="0.doc/2.rtl/block-diagram.drawio.svg" width="100%">
+</p>
+
+For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
+
+--------------------
+
+# SW Architecture
+
+#### References:
+- [PCIE Utils](https://mj.ucw.cz/sw/pciutils)
+- [Debug PCIE issues using 'lspci' and 'setpci'](https://adaptivesupport.amd.com/s/article/1148199?language=en_US)
+
+The EP firmware runs bare-metal on the eduBOS5 RISC-V core of our GateMate SOC. It answers the host's Memory requests (PIO); the soft TL answers the configuration requests.
+
+On the host side, we test with:
+1) **openPCIE Artix-7 RC** on the openPCIE backplane, Direct and Behind Switch: its bare-metal firmware enumerates our EP and runs the PIO write-read-validate test
+2) **Raspberry Pi**
+3) **PC**
+
+For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
+
+--------------------
+
+# Simulation Architecture
+
+#### References:
+- [pcieVHost](https://github.com/wyvernSemi/pcievhost/blob/master/doc/pcieVHost.pdf)
+
+## Simulation Test Bench
+
+The [test bench](5.sim/README.md) aims to have a flexible approach to simulation which allows a common test environment to be used whilst selecting between alternative CPU components, one of which uses the [_VProc_ virtual processor](https://github.com/wyvernSemi/vproc) co-simulation element. This allows simulations to be fully HDL, with the eduBOS5 RISC-V processor RTL, or to co-simulate software using the virtual processor, with a significant speed up in simulation times. The test bench has the following features:
+
+* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component
+  * [Selectable](5.sim/README.md#auto-selection-of-soc_cpu-component) between this or an RTL softcore
+  * Can run natively compiled test code
+  * Can run the application compiled natively with the [auto-generated co-sim HAL](5.sim/README.md#co-simulation-hal)
+  * Can run RISC-V compiled code using the [rv32 RISC-V ISS model](5.sim/models/rv32/README.md)
+* The [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) is used to drive the logic's PCIe link
+* Uses a C [sparse memory model](https://github.com/wyvernSemi/mem_model)
+  * An [HDL component](5.sim/models/cosim/README.md) instantiated in logic gives logic access to this memory
+  * An API is provided to _VProc_ running code for direct access from the _pcieVHost_ software, which implements this sparse memory C model.
+
+The figure below shows an overview block diagram of the test bench HDL.
+
+<p align="center">
+    <img alt="openCologne-PCIE test bench architecture" width="75%" src="0.doc/5.sim/opencologne-pcie-tb.png">
+</p>
+
+More details on the architecture and usage of the test bench can be found in the [README.md](5.sim/README.md) in the `5.sim` directory.
+
+## Co-simulation HAL
+
+The PCIE EP control and status register harware abstraction layer (HAL) software is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/). For co-simulation purposes an additional layer is auto-generated from the same SystemRDL specification using [`systemrdl-compiler`](https://systemrdl-compiler.readthedocs.io/en/stable/) that accompanies the `peakrdl` tools. This produces two header files that define a common API to the application layer for both the RISC-V platform and the *VProc* based co-simulation verification environment. The details of the HAL generation can be found in the [README.md](5.sim/README.md#co-simulation-hal) in the `4.build/` directory.
+
+More details of the test bench, the _pcievhost_ component and its usage can be found in the [5.sim/README.md](5.sim/README.md) file.
+  
+
+--------------------
+
+# Implementation Workflow
+
+See [4.build/README.md](4.build/README.md)
+
+--------------------
+
+# Bringup, Debug and Lab Validation
+
+1) **openPCIE backplane:** the ULX5M-M2 card in an M.2 slot, the openPCIE Artix-7 as the RC: link up, enumeration, PIO write-read-validate, (a) Direct and (b) Behind Switch
+2) **Raspberry Pi:** enumeration and PIO from the Pi as the host
+3) **PC:** the same with a PC as the host
+
+## PCIE Protocol Analyzer
+
+#### References
+- [PCIE Sniffing](https://ctf.re/pcie/experiment/linux/keysight/protocol-analyzer/2024/03/26/pcie-experiment-1)
+- [Stark 75T Card](https://www.ebay.com/itm/396313189094?var=664969332633)
+- [ngpscope](http://www.ngscopeclient.org/protocol-analysis)
+- [PCI Leech](https://github.com/ufrisk/pcileech)
+- [PCI Leech/ZDMA](https://github.com/ufrisk/pcileech-fpga/tree/master/ZDMA)
+- [LiteX PCIE Screamer](https://github.com/enjoy-digital/pcie_screamer)
+- [LiteX PCIE Analyzer](https://github.com/enjoy-digital/pcie_analyzer)
+- [Wireshark PCIe Dissector](https://github.com/antmicro/wireshark-pcie-dissector)
+- [PCIe Tool Hunt](https://scolton.blogspot.com/2023/05/pcie-deep-dive-part-1-tool-hunt.html)
+- [An interesting PCIE tidbit: Peer-to-Peer communication](https://github.com/Xilinx/XRT/blob/master/src/runtime_src/doc/toc/p2p.rst). Also see [this](https://xillybus.com/tutorials/pci-express-tlp-pcie-primer-tutorial-guide-1)
+- [NetTLP - An invasive method for intercepting PCIE TLPs](https://haeena.dev/nettlp)
+
+--------------------
+
+# LiteX integration
+
+<p align="center">
+  <a href="https://github.com/enjoy-digital/litex"><img width="25%" alt="LiteX logo" src="0.doc/artwork/LiteX.logo.png"></a>
+</p>
+
+See [6.litex/README.md](6.litex/README.md)
 
 --------------------
 
@@ -113,234 +283,36 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 >- [ ] Embedded World, Nuremberg
 
 
---------------------
-# PCB
+### Future outlook
 
-#### References:
-- [ULX4M-PCIe-IO](https://github.com/intergalaktik/ULX4M-PCIe-IO)
-- [openPCIE Backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb)
-- [NiteFury-and-LiteFury](https://github.com/RHSResearchLLC/NiteFury-and-LiteFury)
-- [4-port M.2 PCIE Switch](https://github.com/will127534/CM4-Nvme-NAS)
-- [AntMicro EMS Sim](https://antmicro.com/blog/2025/07/recent-improvements-to-antmicros-signal-integrity-simulation-flow)
-- [openEMS](https://docs.openems.de)
+Reflecting on our roadmap and possible future growth paths, in addition to the aforementioned DMA and porting to other FPGA families + ASICs, we are also thinking of:
 
-The PCB part of the project shall deliver two cards: GateMate in **(i) PCIE "Slot"** and **(ii) M.2** form-factors
-<p align="center">
-  <img alt="PCIe slot connector" width="20%" src="0.doc/images/PCIE-Slot-Connector.JPG">
-  <img alt="NiteFury M.2 PCIe FPGA card" width="35%" src="0.doc/images/NiteFury-PCIE-M2.JPG">
-</p>
-
-While the "Slot" variant is not critical, and could have been suplanted by one of the ready-made M.2-to-Slot adapters, 
-
-<p align="center">
-  <img alt="PCIe slot to M.2 adapter" width="40%" src="0.doc/images/PCIE-Slot-to-M2-adapter.JPG">
-</p>
-
-it is more practical not to have an interposer. "Slot" is still the dominant PCIE form-factor for desktops and servers. The M.2 is typically found in the laptops. Initially, we will use the existing [CM4 ULX4M](https://github.com/intergalaktik/ULX4M) with off-the-shelf I/O boards:
-
-<p align="center">
-  <img alt="Raspberry Pi CM4 IO board with PCIe slot" width="40%" src="0.doc/images/CM4-IO-with-PCIE-Slot.jpg">
-  <img alt="Raspberry Pi CM4 IO board with PCIe M.2" width="40%" src="0.doc/images/CM4-IO-with-PCIE-M2.jpg">
-</p>
-
-When our two new plug-in boards become available, the plan is to gradually switch thedev platform to our openPCIE backplane, which features:
-- Slots on one side
-- M.2s on the other
-- RootComplex also as a plug-in card (as opposed to the more typical soldered-down), for interoperability testing with [RaspberryPi](https://www.raspberrypi.com) and Xilinx Artix-7 .
-- on-board (soldered-down) PCIE Switch for interoperability testing of the most typical EP deployment scenario, which is when RootPort is not directly connected to EndPoints, but goes through a Switch.
-
-<p align="center">
-  <img alt="PCIe interoperability with Raspberry Pi 5" width="40%" src="0.doc/images/PCIE-interop-with-RPI5.png">
-</p>
-
-In the final step, we intend to test them inside a Linux PC, using both "Slot" and M.2 connectivity options. For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
-
+- enablement of hardware acceleration for AI, video, and general DSP compute workloads
+- bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
+> This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
+- possibly also tackling the SerDes HM building brick.
 
 --------------------
 
-# RTL Architecture
+### Community outreach
 
-For additional detail, please jump to [2.rtl/README.md](2.rtl/README.md)
+It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exist in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
 
+We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
 
---------------------
+- **[Embedded World 2026, Nuremberg](https://www.embedded-world.de/en)**
+> This is a trade fair where CologneChip will host a booth! This trade show also features a conference track.
 
-# SW Architecture
+- **[FPGA Conference 2026, Munich](https://www.fpga-conference.eu)**
+> CologneChip is one of the sponsors and therefore gets at least 2 presentation slots.
 
-#### References:
-- Using [bysybox (devmem)](0.doc/using-busybox-devmem-for-reg-access.txt) for register access
-- [Yocto](https://www.yoctoproject.org) and [Buildroot](https://buildroot.org)
-- [PCIE Utils](https://mj.ucw.cz/sw/pciutils)
-- [Debug PCIE issues using 'lspci' and 'setpci'](https://adaptivesupport.amd.com/s/article/1148199?language=en_US)
+- **[Electronica 2026, Munich](https://electronica.de/en)**
+> It is very likely that CologneChip will have a booth. There is also a conference track.
 
-The purpose of our "TestApp" is to put all hardware and software elements together, and to demonstrate how the system works in a typical end-to-end use case. The TestApp will enumerate and configure the EndPoint, then perform a series of the PIO write-read-validate transactions over PCIE, perhaps toggling some LEDs. It is envisioned as a "Getting Started" example of how to construct more complex PCIE applications.
+- **[FPGA Developer Forum, CERN, Geneva](https://indico.cern.ch/event/1467417)**
+> CologneChip is a sponsor. They might get a few presentation slots 
 
-We plan on creating not one, but three such examples, for the three representative compute platforms:
-1) **Hard Embedded / Hosted**: RaspberryPi
-2) **Soft Embedded / BareMetal**: Artix-7 FPGA acting as a RootComplex with soft on-chip RISC-V CPU
-3) **General-purpose desktop/server class**: Linux PC
-
-The 100% baremetal (option#2) is still under investigation. While we hope to be able to write it all from scratch, given that Linux comes with such a rich set of PCIE goodies, we may end-up going with _bare-Linux_ (i.e. minimal, specifically built by us to fit project needs), _busybox_, or some other clever way that works around standard Linux requirement for a hardware MMU, and it does not come with large codespace expenditure.
-
-For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
-
-
---------------------
-
-# TB/Sim Architecture
-
-#### References:
-- [pcieVHost](https://github.com/wyvernSemi/pcievhost/blob/master/doc/pcieVHost.pdf)
-
-## Simulation Test Bench
-
-The [test bench](5.sim/README.md) aims to have a flexible approach to simulation which allows a common test environment to be used whilst selecting between alternative CPU components, one of which uses the [_VProc_ virtual processor](https://github.com/wyvernSemi/vproc) co-simulation element. This allows simulations to be fully HDL, with a RISC-V processor RTL implementation such as picoRV32, Ibex or eduBOS5, or to co-simulate software using the virtual processor, with a significant speed up in simulation times. The test bench has the following features:
-
-* A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component
-  * [Selectable](5.sim/README.md#auto-selection-of-soc_cpu-component) between this or an RTL softcore
-  * Can run natively compiled test code
-  * Can run the application compiled natively with the [auto-generated co-sim HAL](5.sim/README.md#co-simulation-hal)
-  * Can run RISC-V compiled code using the [rv32 RISC-V ISS model](5.sim/models/rv32/README.md)
-* The [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) is used to drive the logic's PCIe link
-* Uses a C [sparse memory model](https://github.com/wyvernSemi/mem_model)
-  * An [HDL component](5.sim/models/cosim/README.md) instantiated in logic gives logic access to this memory
-  * An API is provided to _VProc_ running code for direct access from the _pcieVHost_ software, which implements this sparse memory C model.
-
-The figure below shows an overview block diagram of the test bench HDL.
-
-<p align="center">
-    <img alt="openCologne-PCIE test bench architecture" width="75%" src="5.sim/images/opencologne-pcie-tb.png">
-</p>
-
-More details on the architecture and usage of the test bench can be found in the [README.md](5.sim/README.md) in the `5.sim` directory.
-
-## Co-simulation HAL
-
-The PCIE EP control and status register harware abstraction layer (HAL) software is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/). For co-simulation purposes an additional layer is auto-generated from the same SystemRDL specification using [`systemrdl-compiler`](https://systemrdl-compiler.readthedocs.io/en/stable/) that accompanies the `peakrdl` tools. This produces two header files that define a common API to the application layer for both the RISC-V platform and the *VProc* based co-simulation verification environment. The details of the HAL generation can be found in the [README.md](5.sim/README.md#co-simulation-hal) in the `4.build/` directory.
-
-More details of the test bench, the _pcievhost_ component and its usage can be found in the [5.sim/README.md](5.sim/README.md) file.
-  
-
---------------------
-# Build Workflow
-
-See [4.build/README.md](4.build/README.md)
-
-
---------------------
-
-# Debug, Bringup, Testing (to be adapted to GateMate, currently simply lifted from openPCIE Artix-7)
-
-After programming the FPGA with the generated bitstream, the system was tested in a real-world environment to verify its functionality. The verification process was conducted in three main stages.
-
-### 1. Device Enumeration
-
-The first and most fundamental test was to confirm that the host operating system could correctly detect and enumerate the FPGA as a PCIe device. This was successfully verified on both Windows and Linux.
-
-*   On **Windows**, the device appeared in the Device Manager, confirming that the system recognized the new hardware.
-*   On **Linux**, the `lspci` command was used to list all devices on the PCIe bus. The output clearly showed the Xilinx card with the correct Vendor and Device IDs, classified as a "Memory controller".
-
-<table align="center" width="100%">
-  <tr>
-    <td align="center" width="50%">
-      <b>Device detected in Windows Device Manager</b><br>
-      <img alt="Device detected in Windows Device Manager" src="0.doc/images/device-detected-in-WinDevManager.png" style="max-width:90%; height:auto;">
-    </td>
-    <td align="center" width="50%">
-      <b>`lspci` output on Linux, identifying the device.</b><br>
-      <img alt="lspci output on Linux" src="0.doc/images/lspci-output-on-Linux.png" style="width:100%; height:100%;">
-    </td>
-  </tr>
-</table>
-
-### 2. Advanced Setup for Low-Level Testing: PCI Passthrough
-
-While enumeration confirms device presence, directly testing read/write functionality required an isolated environment to prevent conflicts with the host OS. A Virtual Machine (VM) with **PCI Passthrough** was configured for this purpose.
-
-This step was non-trivial due to a common hardware issue: **IOMMU grouping**. The standard Linux kernel grouped our FPGA card with other critical system devices (like USB and SATA controllers), making it unsafe to pass it through directly.
-
-The solution involved a multi-step configuration of the host system:
-
-**1. BIOS/UEFI Configuration**
-
-The first step was to enable hardware virtualization support in the system's BIOS/UEFI:
-*   **AMD-V (SVM - Secure Virtual Machine Mode):** This option enables the core CPU virtualization extensions necessary for KVM.
-*   **IOMMU (Input-Output Memory Management Unit):** This is critical for securely isolating device memory. Enabling it is a prerequisite for VFIO and safe PCI passthrough.
-
-**2. Host OS Kernel and Boot Configuration**
-
-A standard Linux kernel was not sufficient due to the IOMMU grouping issue. To resolve this, the following steps were taken:
-*   **Install XanMod Kernel:** A custom kernel, **XanMod**, was installed because it includes the necessary **ACS Override patch**. This patch forces the kernel to break up problematic IOMMU groups.
-*   **Modify GRUB Boot Parameters:** The kernel's bootloader (GRUB) was configured to activate all required features on startup. The following parameters were added to the `GRUB_CMDLINE_LINUX_DEFAULT` line:
-    *   `amd_iommu=on`: Explicitly enables the IOMMU on AMD systems.
-    *   `pcie_acs_override=downstream,multifunction`: Activates the ACS patch to resolve the grouping problem.
-    *   `vfio-pci.ids=10ee:7014`: This crucial parameter instructs the VFIO driver to automatically claim our Xilinx device (Vendor ID `10ee`, Device ID `7014`) at boot, effectively hiding it from the host OS.
-
-**3. KVM Virtual Machine Setup**
-
-With the host system properly prepared, the final step was to assign the device to a KVM virtual machine using `virt-manager`. Thanks to the correct VFIO configuration, the Xilinx card appeared as an available "PCI Host Device" and was successfully passed through.
-
-This setup created a safe and controlled environment to perform direct, low-level memory operations on the FPGA without risking host system instability.
-
-### 3. Functional Verification: Direct Memory Read/Write
-
-With the FPGA passed through to the VM, the final test was to verify the end-to-end communication path. This was done using the `devmem` utility to perform direct PIO (Programmed I/O) on the memory space mapped by the card's BAR0 register.
-
-**1. Finding the Device's Memory Address**
-
-After the FPGA is programmed and the system boots, the operating system will enumerate it on the PCIe bus and assign a memory-mapped I/O region, also known as a Base Address Register (BAR).
-To find this address, you can use the `lspci -v` command. The image below shows the output for our target device. The key information is the `Memory at ...` line, which indicates the base physical address that the host system will use to communicate with the device.
-In this example, the assigned base address is 0xfc500000.
-
-<p align="center">
-  <img alt="Physical address fc500000 assigned to the PCIe device" src="0.doc/images/Physical Address fc500000 Assigned to PCIe Device.png" style="width:60%; height:60%;">
-  <br><em>Physical Address fc500000 Assigned to PCIe Device.</em>
-</p>
-
-**2. Testing Data Transfer with devmem**
-
-The devmem utility allows direct reading from and writing to physical memory addresses. We can use it to perform a simple write-then-read test to confirm that the data path to the FPGA's on-chip memory (BRAM) is working correctly.
-
-The test procedure is as follows:
-*  Write a value to the device's base address.
-*  Read the value back from the same address to ensure it was stored correctly.
-*  Repeat with a different value to confirm that the memory isn't "stuck" and is dynamically updating.
-
-The image below demonstrates this process.
-*  First, the hexadecimal value 0xA is written to the address 0xFC500000. A subsequent read confirms that 0x0000000A is returned.
-*  Next, the value is changed to 0xB. A final read confirms that 0x0000000B is returned, proving the write operation was successful.
-
-<p align="center">
-  <img alt="Data read and write test using devmem" src="0.doc/images/Data Read and Write Test Using devmem.png" style="width:60%; height:60%;">
-  <br><em>Data Read and Write Test Using devmem.png</em>
-</p>
-
-This test confirms that the entire communication chain is functional: from the user-space application, through the OS kernel and PCIe fabric, to the FPGA's internal memory and back.
-
-
-
-## PCIE Protocol Analyzer
-
-#### References
-- [PCIE Sniffing](https://ctf.re/pcie/experiment/linux/keysight/protocol-analyzer/2024/03/26/pcie-experiment-1)
-- [Stark 75T Card](https://www.ebay.com/itm/396313189094?var=664969332633)
-- [ngpscope](http://www.ngscopeclient.org/protocol-analysis)
-- [PCI Leech](https://github.com/ufrisk/pcileech)
-- [PCI Leech/ZDMA](https://github.com/ufrisk/pcileech-fpga/tree/master/ZDMA)
-- [LiteX PCIE Screamer](https://github.com/enjoy-digital/pcie_screamer)
-- [LiteX PCIE Analyzer](https://github.com/enjoy-digital/pcie_analyzer)
-- [Wireshark PCIe Dissector](https://github.com/antmicro/wireshark-pcie-dissector)
-- [PCIe Tool Hunt](https://scolton.blogspot.com/2023/05/pcie-deep-dive-part-1-tool-hunt.html)
-- [An interesting PCIE tidbit: Peer-to-Peer communication](https://github.com/Xilinx/XRT/blob/master/src/runtime_src/doc/toc/p2p.rst). Also see [this](https://xillybus.com/tutorials/pci-express-tlp-pcie-primer-tutorial-guide-1)
-- [NetTLP - An invasive method for intercepting PCIE TLPs](https://haeena.dev/nettlp)
-
-
---------------------
-
-# LiteX integration
-
-See [6.litex/README.md](6.litex/README.md)
-
+We are fully open to consider additional venues -- Please reach out and send your ideas!
 
 --------------------
 
@@ -387,30 +359,21 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
   <a href="https://github.com/steveicarus/iverilog"><img width="20%" alt="Icarus Verilog logo" src="0.doc/artwork/Icarus-Verilog.logo.png"></a>
   <a href="https://www.veripool.org/verilator"><img width="20%" alt="Verilator logo" src="0.doc/artwork/Verilator.logo.png"></a>
   <a href="https://github.com/yosyshq"><img width="20%" alt="Yosys logo" src="0.doc/artwork/Yosys.logo.png"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/MikePopoloski/slang"><img width="25%" alt="MikePopoloski slang logo" src="0.doc/artwork/slang.logo.png"></a>
+  <a href="https://www.chipsalliance.org/projects"><img width="15%" alt="Chips Alliance SV Tools logo" src="0.doc/artwork/ChipsAlliance-SV-Tools.logo.png"></a>
+  <a href="https://github.com/chipsalliance/verible"><img width="25%" alt="Verible logo" src="0.doc/artwork/Verible.logo.png"></a>
+  <a href="https://peakrdl.readthedocs.io"><img width="14%" alt="PeakRDL logo" src="0.doc/artwork/PeakRDL.logo.png"></a>
+  <a href="https://www.drawio.com"><img width="25%" alt="draw.io logo" src="0.doc/artwork/drawio.logo.png"></a>
+  <a href="https://github.com/trabucayre/openFPGALoader"><img width="20%" alt="openFPGALoader logo" src="0.doc/artwork/openFPGAloader.logo.png"></a>
+  <a href="https://github.com/tarik-ibrahimovic/eduBOS5"><img width="17%" alt="eduBOS5 logo" src="0.doc/artwork/eduBOS5.logo.png"></a>
+  <a href="https://riscv.org"><img width="12%" alt="RISC-V logo" src="0.doc/artwork/RISC-V-logo.svg"></a>
 
 </p>
 
-
-### Community outreach
-
-It is in a way more important for the dev community to know about such-and-such project or IP, than for the code to exist in some repo. Without such awareness, which comes through presentations, postings, conferences, ..., the work that went into creating the technical content is not fully accomplished.
-
-We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
-
-- **[Embedded World 2026, Nuremberg](https://www.embedded-world.de/en)**
-> This is a trade fair where CologneChip will host a booth! This trade show also features a conference track.
-
-- **[FPGA Conference 2026, Munich](https://www.fpga-conference.eu)**
-> CologneChip is one of the sponsors and therefore gets at least 2 presentation slots.
-
-- **[Electronica 2026, Munich](https://electronica.de/en)**
-> It is very likely that CologneChip will have a booth. There is also a conference track.
-
-- **[FPGA Developer Forum, CERN, Geneva](https://indico.cern.ch/event/1467417)**
-> CologneChip is a sponsor. They might get a few presentation slots 
-
-We are fully open to consider additional venues -- Please reach out and send your ideas!
-
+--------------------
 
 ### Community Outreach:
 - [2026-10-17](https://www.linkedin.com/posts/chili-chips_having-too-much-fun-cracking-ones-and-zeros-activity-7517129808020074496-Rmev?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAJv-TcBSi_5ff0VNMrInrT-xg44YF3jnyU)
@@ -421,6 +384,21 @@ We are fully open to consider additional venues -- Please reach out and send you
 - [2025-10-02](https://www.linkedin.com/feed/update/urn:li:activity:7379769413421559808)
 - [2025-08-25](https://www.linkedin.com/feed/update/urn:li:ugcPost:7362742908170473473?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7362742908170473473%2C7363111076936232962%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287363111076936232962%2Curn%3Ali%3AugcPost%3A7362742908170473473%29)
 
+--------------------
+
+### Community Involvement
+
+Feel like helping opensource PCIE community grow better and larger?! See [Contributions](CONTRIBUTING.md).
+
+Don't feel shy to reach out and ask for help ===> [![issues](https://badgen.net/github/open-issues/chili-chips-ba/openCologne-PCIE?label=issues)](https://github.com/chili-chips-ba/openCologne-PCIE/issues).
+
+--------------------
+
+### GenAI
+
+Our repo may contain elements of work facilitated by the modern GenAI tools <img alt="Claude" height="16" src="https://cdn.simpleicons.org/claude/D97757">, used under strict guidance and tight supervision of the blood-and-flesh developers, and solely as suggestions.
+
+In the end, it is us, the human devs, who are fully responsible for any shortfalls you may uncover while tapping into repo resources.
 
 --------------------
 #### End of Document

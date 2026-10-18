@@ -1,6 +1,6 @@
 # Open-source behavioural model of the GateMate SerDes
 
-`ccfpga_serdes.v` is an open-source behavioural simulation model of the GateMate
+`ccfpga_serdes.sv` is an open-source behavioural simulation model of the GateMate
 SerDes hard macro. It has the same module name, port list, parameter names and
 defaults as the CologneChip simulation model, so it is a drop-in replacement:
 point the file list at this directory and nothing else in the design or the
@@ -11,12 +11,12 @@ instantiates the `CC_SERDES` primitive, as `ccfpga_pipe_wrapper.v` does.
 
 | file | content |
 |---|---|
-| `ccfpga_serdes.v` | the model |
-| `ccfpga_serdes_8b10b.vh` | 8b/10b encoder, also used by the formal proofs in `4.build/formal` |
-| `ccfpga_serdes_8b10b_dec.vh` | 8b/10b decode table |
+| `ccfpga_serdes.sv` | the model |
+| `ccfpga_serdes_pkg.sv` | 8b/10b encoder and decoder and the PRBS, as functions; also the source under proof in `formal/` |
+| `formal/` | the 8b/10b proofs (`run-formal.sh`) |
 | `0.doc/equivalence-checking.md` | how the model is verified against the vendor model |
 
-Running the PIPE testcase `5.sim/testcase_pipe.v` (64-bit datapath, Icarus
+Running the PIPE test (`2.rtl/1.phy/3.sim`, `run-phy.sh pipe64`) (64-bit datapath, Icarus
 Verilog 12, wall clock including compilation):
 
 | model | wall clock | simulated time | result |
@@ -30,13 +30,14 @@ Verilog 12, wall clock including compilation):
 
 ```sh
 iverilog -g2012 -I 2.rtl/1.phy/2.serdes-model \
-         2.rtl/1.phy/2.serdes-model/ccfpga_serdes.v  <design and testbench files>
+         2.rtl/1.phy/2.serdes-model/ccfpga_serdes_pkg.sv \
+         2.rtl/1.phy/2.serdes-model/ccfpga_serdes.sv  <design and testbench files>
 ```
 
 The bring-up is the same as for the silicon: enable the SerDes in the config
 file (`0x5C = 0x0001`), then select the configuration and enable the ADPLL in
-`PLL_CFG0` (`0x50 = 0x0002`, then `0x0003`). `5.sim/phy_pipe_serdes.v` does this
-with a small FSM, `5.sim/testcase_pipe.v` with `writeCfg` / `writeRegfile` tasks.
+`PLL_CFG0` (`0x50 = 0x0002`, then `0x0003`). The PHY wrapper `2.rtl/4.dll/sim/phy_model.sv` does this
+with a small FSM, the PIPE test in `2.rtl/1.phy/3.sim/tb_phy.sv` with `writeCfg` / `writeRegfile` tasks.
 
 ---
 
@@ -108,7 +109,7 @@ Their status registers report "done" / "locked".
 
 Signal integrity, jitter tolerance and equalisation are outside the scope of a
 digital simulation. On this project they are covered by hardware measurements on
-the GateMate EVK, see [`../1.serdes-tests/`](../1.serdes-tests/).
+the GateMate EVK, see [`../1.serdes-test.STANDALONE/`](../1.serdes-test.STANDALONE/).
 
 ---
 
@@ -135,9 +136,9 @@ parameter set works unchanged.
 
 | flow | what runs on top of the model |
 |---|---|
-| [`5.sim/serdesflow_dll`](../../../5.sim/serdesflow_dll) | DLL, MAC/LTSSM, PIPE and this SerDes, two link partners over a serial link |
-| [`5.sim/serdesflow_mod`](../../../5.sim/serdesflow_mod) | the PIPE testcase, with `SERDES_MODEL=open` |
-| [`5.sim/serdesflow_equiv`](../../../5.sim/serdesflow_equiv) | equivalence and interoperability against the vendor model |
+| [`2.rtl/1.phy/3.sim`](../3.sim/) `run-phy.sh pipe64` | the PIPE test of gatemate-pipe |
+| [`2.rtl/1.phy/3.sim`](../3.sim/) `run-phy.sh equiv` | self-check, equivalence and interoperability against the vendor model |
+| [`2.rtl/4.dll/sim`](../../4.dll/sim/) `run-dll-phy.sh` | DLL, MAC/LTSSM, PIPE and this SerDes, two link partners over a serial link |
 
 ---
 
@@ -146,13 +147,10 @@ parameter set works unchanged.
 Described in [`0.doc/equivalence-checking.md`](0.doc/equivalence-checking.md).
 
 ```sh
-cd 5.sim
-./serdesflow_equiv                 # self-check, ~2 s
-./serdesflow_equiv --ref           # against the vendor model
-./serdesflow_equiv --ref --cross   # the two models linked to each other
-
-cd ../4.build/formal
-./run_formal.sh                    # SAT proofs and exhaustive decode check
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv                 # self-check, ~2 s
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref           # against the vendor model
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref --cross   # the two models linked to each other
+bash 2.rtl/1.phy/2.serdes-model/formal/run-formal.sh    # SAT proofs and exhaustive decode check
 ```
 
 Current results:
@@ -161,21 +159,21 @@ Current results:
 formal          6 proved, 0 failed
 equivalence     400 words, 0 divergences, latency delta 0.0 ns
 cross-linked    400 words, 0 mismatches in both directions
-testcase_pipe.v PASSED, 101 check tasks, 0 errors
+PIPE test       pipe64 PASSED, 101 check tasks, 0 errors
 ```
 
 ### Vendor sources
 
 The vendor model is under NDA and is not part of this repository.
-`serdesflow_equiv` and `serdesflow_mod` take it from outside the repository
-through `5.sim/serdes_nda_env.sh`:
+`run-phy.sh` (`--vendor`, `--ref`) takes it from outside the repository
+through `2.rtl/1.phy/3.sim/serdes_nda_env.sh`:
 
 | | |
 |---|---|
 | originals | `$CCFPGA_SERDES_SRC`, default `$HOME/Downloads/ccfpga_serdes/src`, read only |
 | working copy | `$SERDES_BUILD_DIR`, default `$HOME/.cache/opencologne-pcie` |
-| after the run | the copy is deleted (`serdesflow_equiv --keep` keeps it) |
+| after the run | the copy is deleted (`--keep` keeps it) |
 | vendor files inside this tree | the scripts stop and ask to move them out |
 
 The working copy declares the untyped real parameters of the vendor sources as
-`parameter real`, which Icarus Verilog 12 needs. The originals are not changed.
+`parameter real`, which Icarus Verilog needs. The originals are not changed.

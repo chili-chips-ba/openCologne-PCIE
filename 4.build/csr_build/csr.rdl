@@ -1,0 +1,295 @@
+// SPDX-FileCopyrightText: 2026 Chili.CHIPS
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
+//==========================================================================
+// openCologne-PCIE * NLnet-sponsored open-source implementation
+//--------------------------------------------------------------------------
+//                   Copyright (C) 2026 Chili.CHIPS
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its
+// contributors may be used to endorse or promote products derived
+// from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//              https://opensource.org/license/bsd-3-clause
+//--------------------------------------------------------------------------
+// Description:
+//   This file defines the Control and Status Registers (CSR) of the
+//   openCologne-PCIE EndPoint SOC -- the TLP transmit/receive window that
+//   the eduBOS5 firmware uses to answer the Memory requests of the host.
+//   Configuration requests are answered by the TL itself, they never get
+//   here.
+//
+//   Register map:
+//
+//     0x3000_0000  tx.header0      TLP header DW0            (W)
+//     0x3000_0004  tx.header1      TLP header DW1            (W)
+//     0x3000_0008  tx.header2      TLP header DW2            (W)
+//     0x3000_000C  tx.data         TLP payload DW + SEND     (W, triggers)
+//     0x3000_0010  rx.header0      TLP header DW0            (R)
+//     0x3000_0014  rx.header1      TLP header DW1            (R)
+//     0x3000_0018  rx.header2      TLP header DW2            (R)
+//     0x3000_001C  rx.data         TLP payload DW or DW3     (R)
+//     0x3000_0020  rx.valid        a TLP is waiting          (R, W1C)
+//     0x3000_0024  status.err      fatal error received      (R)
+//     0x3000_0028  status.phy      Tx FSM state + buffers    (R)
+//     0x3000_002C  status.result   firmware result marker    (RW)
+//==========================================================================
+
+addrmap csr {
+   name = "csr";
+   desc = "openCologne-PCIE EndPoint CSR";
+
+   littleendian;
+   default accesswidth = 32;
+   default regwidth = 32;
+   default alignment = 4;
+   addressing = compact;
+
+   //-----------------------------------------------------------------------
+   // Tx -- the TLP the CPU hands over to the PCIe link
+   //-----------------------------------------------------------------------
+   regfile tx {
+      name = "csr.tx";
+      desc = "TLP Transmit CSR (CPU --> PCIe link)";
+
+      reg {
+         name = "csr.tx.header0";
+         desc = "TLP Header DW0 -- Fmt/Type, TC, attributes and Length";
+
+         field {
+            name = "csr.tx.header0.hdr[31:0]";
+            desc = "1st header DWORD of the outgoing TLP";
+            sw = rw;
+            hw = r;
+         } hdr[32] = 0;
+      } header0;
+
+      reg {
+         name = "csr.tx.header1";
+         desc = "TLP Header DW1 -- for a Completion: Completer ID, status and Byte Count";
+
+         field {
+            name = "csr.tx.header1.hdr[31:0]";
+            desc = "2nd header DWORD of the outgoing TLP";
+            sw = rw;
+            hw = r;
+         } hdr[32] = 0;
+      } header1;
+
+      reg {
+         name = "csr.tx.header2";
+         desc = "TLP Header DW2 -- for a Completion: Requester ID, Tag and Lower Address";
+
+         field {
+            name = "csr.tx.header2.hdr[31:0]";
+            desc = "3rd header DWORD of the outgoing TLP";
+            sw = rw;
+            hw = r;
+         } hdr[32] = 0;
+      } header2;
+
+      reg {
+         name = "csr.tx.data";
+         desc = "TLP Payload DWORD -- writing this register STARTS the transfer";
+
+         field {
+            name = "csr.tx.data.payload[31:0]";
+            desc = "Payload DWORD of the outgoing TLP. A software write to this
+                    register is what launches the Tx FSM, so it must be written
+                    LAST, after the three header registers. The write strobe is
+                    exported to logic as the 'swmod' output of this field.";
+            sw = rw;
+            hw = r;
+            swmod = true;
+         } payload[32] = 0;
+      } data;
+   } tx @ 0x00;
+
+   //-----------------------------------------------------------------------
+   // Rx -- the TLP coming in from the link, captured as-is
+   //-----------------------------------------------------------------------
+   regfile rx {
+      name = "csr.rx";
+      desc = "TLP Receive CSR (PCIe link --> CPU). The first two beats of an
+              incoming TLP are captured as they are: the 3 header DWORDs and
+              the payload DWORD (or DW3 of a 4-DW header). The firmware decodes
+              them, then clears rx.valid to take the next TLP.";
+
+      reg {
+         name = "csr.rx.header0";
+         desc = "TLP Header DW0 -- Fmt/Type, TC, attributes and Length";
+
+         field {
+            name = "csr.rx.header0.hdr[31:0]";
+            desc = "1st header DWORD of the received TLP";
+            sw = r;
+            hw = w;
+            we;
+         } hdr[32] = 0;
+      } header0;
+
+      reg {
+         name = "csr.rx.header1";
+         desc = "TLP Header DW1 -- for a request: Requester ID, Tag and byte enables";
+
+         field {
+            name = "csr.rx.header1.hdr[31:0]";
+            desc = "2nd header DWORD of the received TLP";
+            sw = r;
+            hw = w;
+            we;
+         } hdr[32] = 0;
+      } header1;
+
+      reg {
+         name = "csr.rx.header2";
+         desc = "TLP Header DW2 -- for a Memory request: the address";
+
+         field {
+            name = "csr.rx.header2.hdr[31:0]";
+            desc = "3rd header DWORD of the received TLP";
+            sw = r;
+            hw = w;
+            we;
+         } hdr[32] = 0;
+      } header2;
+
+      reg {
+         name = "csr.rx.data";
+         desc = "TLP Payload DWORD, or DW3 of a 4-DW header";
+
+         field {
+            name = "csr.rx.data.payload[31:0]";
+            desc = "4th DWORD of the received TLP: the payload of a 3-DW
+                    MemWr, or the low address of a 4-DW request";
+            sw = r;
+            hw = w;
+            we;
+         } payload[32] = 0;
+      } data;
+
+      reg {
+         name = "csr.rx.valid";
+         desc = "Receive Status Register";
+
+         field {
+            name = "csr.rx.valid.valid";
+            desc = "Set by hardware when a TLP has been captured. While it is
+                    set, the link is held off (m_axis_rx.tready low). Software
+                    writes 1 to clear it once it has read the TLP.";
+            sw = rw;
+            onwrite = woclr;
+            hw = r;
+            hwset;
+         } valid[0:0] = 0;
+      } valid;
+   } rx @ 0x10;
+
+   //-----------------------------------------------------------------------
+   // Status -- what the PCIe core and the Tx FSM report
+   //-----------------------------------------------------------------------
+   regfile status {
+      name = "csr.status";
+      desc = "PCIe Link Status CSR";
+
+      reg {
+         name = "csr.status.err";
+         desc = "PCIe Error Status Register";
+
+         field {
+            name = "csr.status.err.msg_err_fatal";
+            desc = "A fatal-error Message TLP has been received";
+            sw = r;
+            hw = w;
+         } msg_err_fatal[16:16] = 0;
+      } err;
+
+      reg {
+         name = "csr.status.phy";
+         desc = "PCIe PHY / Tx FSM Status Register";
+
+         field {
+            name = "csr.status.phy.tx_state[1:0]";
+            desc = "State of the Tx FSM: 0 = IDLE, 1 = SEND_CYCLE_1,
+                    2 = SEND_CYCLE_2. Software polls for 0 before it starts
+                    loading the next TLP.";
+            sw = r;
+            hw = w;
+         } tx_state[7:6] = 0;
+
+         field {
+            name = "csr.status.phy.tx_buf_avail[5:0]";
+            desc = "Number of free transmit buffers in the PCIe core
+                    (tx_buf_avail). Software waits for a non-zero value.";
+            sw = r;
+            hw = w;
+         } tx_buf_avail[5:0] = 0;
+      } phy;
+
+      reg {
+         name = "csr.status.result";
+         desc = "Firmware Result Register";
+
+         field {
+            name = "csr.status.result.marker[31:0]";
+            desc = "Result marker the firmware writes when it stops, e.g.
+                    0x0000FACE for PASS. Unlike tx.data, writing it launches
+                    no TLP: the value goes to logic only, to the PASS LED.";
+            sw = rw;
+            hw = r;
+         } marker[32] = 0;
+      } result;
+   } status @ 0x24;
+};
+
+//==========================================================================
+// SOC top level -- the address map the eduBOS5 firmware sees
+//==========================================================================
+addrmap opencologne_pcie {
+   littleendian;
+   default accesswidth = 32;
+   default regwidth = 32;
+   default alignment = 4;
+   addressing = compact;
+
+   // 8 KB of unified instruction/data RAM, initialised from firmware.hex
+   external mem imem {
+      name = "imem";
+      desc = "CPU Program/Data Memory";
+      mementries = 2048;
+      memwidth = 32;
+   } imem @ 0x0000_0000;
+
+   csr csr @ 0x3000_0000;
+};
+
+// -----------------------------------------------------------------------------
+// Project:     openCologne-PCIE
+// Description: NLnet-sponsored open-source implementation
+// Version:     1.0
+// Date:        April 2025
+// -----------------------------------------------------------------------------

@@ -59,14 +59,13 @@ do instead is split the problem.
 The 8b/10b codec *is* pure combinational logic over a small input space. That is
 exactly the shape formal tools are strongest on, so it gets proper proofs.
 
-`4.build/formal/fv_8b10b.v` states each property as a module with a single `ok`
+[`formal/fv_8b10b.sv`](../formal/fv_8b10b.sv) states each property as a module with a single `ok`
 output. Yosys builds the logic cone and asks its SAT solver to find **any** input
 that makes `ok` low. "unsat" means no such input exists anywhere in the input
 space. That is a proof, not a sample.
 
 ```sh
-cd 4.build/formal
-./run_formal.sh
+bash 2.rtl/1.phy/2.serdes-model/formal/run-formal.sh
 ```
 
 | property | statement |
@@ -85,7 +84,7 @@ consistently wrong, see section 5.
 
 The decode table is a procedurally initialised memory, which SAT cannot take. It
 does not need to: its input space is 1024 symbols, so
-`fv_8b10b_exhaustive.v` simply enumerates **all** of it. For a space that small,
+`fv_8b10b_exhaustive.sv` simply enumerates **all** of it. For a space that small,
 exhaustive enumeration is as complete an argument as a SAT proof.
 
 Note what `fv_injective` buys us. The decode table is *built from the encoder* at
@@ -96,7 +95,7 @@ class of decoder bugs.
 
 ### 3.2 The sequential whole: equivalence by simulation, modulo latency
 
-For the full SerDes, `5.sim/tb_serdes_equiv.v` instantiates **both** models side
+For the full SerDes, the model check in [`2.rtl/1.phy/3.sim/tb_phy.sv`](../../3.sim/tb_phy.sv) (`TB_PHY_EQUIV`) instantiates **both** models side
 by side, gives them a bit-identical configuration sequence and a bit-identical
 symbol stream, and compares what comes back.
 
@@ -108,10 +107,9 @@ a functional model and an implementation that may be pipelined differently. The
 latency of each model is measured and reported separately.
 
 ```sh
-cd 5.sim
-./serdesflow_equiv                 # open model self-check, ~2 s
-./serdesflow_equiv --ref           # vs the vendor model
-./serdesflow_equiv --ref --cross   # the two models talking to EACH OTHER
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv                 # open model self-check, ~2 s
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref           # vs the vendor model
+bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref --cross   # the two models talking to EACH OTHER
 ```
 
 ### 3.3 Self-loopback is not enough — the `--cross` mode
@@ -136,7 +134,7 @@ talking to a real Root Complex.
 
 Configuration: Gen1, 2.5 Gb/s, x1, 64-bit datapath, `ALIGN_COMMA_WORD = 2'b11`.
 
-**Formal (`4.build/formal/run_formal.sh`)**
+**Formal (`formal/run-formal.sh`)**
 
 ```
   fv_enc_disparity     PROVED
@@ -148,7 +146,7 @@ Configuration: Gen1, 2.5 Gb/s, x1, 64-bit datapath, `ALIGN_COMMA_WORD = 2'b11`.
   6 proved, 0 failed
 ```
 
-**Equivalence, self-loopback (`5.sim/serdesflow_equiv --ref`)**
+**Equivalence, self-loopback (`run-phy.sh equiv --ref`)**
 
 ```
   CHECK 1  behavioural model vs expected payload : 400 words, 0 mismatches
@@ -158,7 +156,7 @@ Configuration: Gen1, 2.5 Gb/s, x1, 64-bit datapath, `ALIGN_COMMA_WORD = 2'b11`.
   LATENCY  BHV 736.0 ns   REF 736.0 ns   delta 0.0 ns
 ```
 
-**Interoperability, cross-linked (`5.sim/serdesflow_equiv --ref --cross`)**
+**Interoperability, cross-linked (`run-phy.sh equiv --ref --cross`)**
 
 The open model's transmitter driving the vendor model's receiver, and the vendor
 model's transmitter driving the open model's receiver:
@@ -175,7 +173,7 @@ That is the result that matters for talking to real silicon.
 Also run: 6000 payload words through the open model with no mismatch, to check
 that nothing drifts over a long stream (elastic buffers, CDR tracking).
 
-**The vendor's own testcase, unmodified** (`5.sim/testcase_pipe.v`, the
+**The vendor's own testcase** (the PIPE test in `tb_phy.sv`, from `testcase_pipe.v` of the
 CologneChip/FH Dortmund PIPE testbench):
 
 | model | wall clock | result |
@@ -198,7 +196,7 @@ have three exceptions, balanced codes that are still complemented:
 |---|---|---|
 | control characters K.x.1/2/3/5/6 | K28.5 is `0101111100` at RD-, `1010000011` at RD+ | `fv_comma_format` |
 | D.7 in the 5b/6b block (`111000`) | every D7.x character | `fv_run_length` |
-| D.x.3 in the 3b/4b block (`1100`) | every Dx.3 character | `serdesflow_equiv --ref --cross` |
+| D.x.3 in the 3b/4b block (`1100`) | every Dx.3 character | `run-phy.sh equiv --ref --cross` |
 
 A model looped back to itself decodes its own symbols no matter which variant
 it chose, because its decode table is built from its own encoder. These cases
@@ -227,8 +225,8 @@ Being explicit about the gaps:
 
   These belong to SI analysis, hardware measurement or S-parameters with
   IBIS-AMI / SPICE models, not to a digital simulation. On this project that is
-  `2.rtl/1.phy/1.serdes-tests/` on the GateMate EVK.
-* **Reset and power-state corner cases** — covered by `testcase_pipe.v`, not
+  `2.rtl/1.phy/1.serdes-test.STANDALONE/` on the GateMate EVK.
+* **Reset and power-state corner cases** — covered by the PIPE test, not
   formally.
 * **PRBS and loopback modes** — implemented, exercised only lightly.
 * **Gen2 (5 Gb/s)** — the model derives its line rate from the PLL dividers, so

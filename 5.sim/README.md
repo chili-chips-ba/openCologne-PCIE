@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-* [Icarus Flows: DLL, MAC, PIPE and the Open SerDes Model](#icarus-flows-dll-mac-pipe-and-the-open-serdes-model)
+* [Block-level flows](#block-level-flows)
 * [Introduction](#introduction)
 * [Auto-selection of soc_cpu Component](#auto-selection-of-soc_cpu-component)
 * [_VProc_ Software](#vproc-software)
@@ -12,7 +12,6 @@
 * [Building and Running Code](#building-and-running-code)
   * [Configuring ISS timing model](#configuring-iss-timing-model)
   * [Running ISS code](#running-iss-code)
-* [PicoRV32 RTL-Only Simulation Makefile](#picorv32-rtl-only-simulation-makefile)
 * [Debugging Code](#debugging-code)
   * [Natively Compiled Code](#natively-compiled-code)
   * [ISS Software](#iss-software)
@@ -22,120 +21,9 @@
 * [References](#references)
 
 
-## Icarus Flows: DLL, MAC, PIPE and the Open SerDes Model
+## Block-level flows
 
-Besides the top level test bench described in the rest of this document, this
-directory holds three Icarus Verilog flows that run the PCIe layers below the TL
-on top of the open-source behavioural model of the GateMate SerDes
-([2.rtl/1.phy/2.serdes-model](../2.rtl/1.phy/2.serdes-model/)). None of them
-needs the proprietary SerDes sources.
-
-| script | testbench | what it exercises | run time |
-|---|---|---|---|
-| `serdesflow_dll` | `tb_dll_phy.v`, `pcie_stack.v`, `phy_pipe_serdes.v` | DLL, MAC/LTSSM, PIPE and SerDes, two link partners over a serial link | ~15 s |
-| `serdesflow_mod` | `tb_ccfpga_serdes.v`, `testcase_pipe.v` | the PIPE testcase, PIPE and SerDes | ~14 s |
-| `serdesflow_equiv` | `tb_serdes_equiv.v` | the open SerDes model against the vendor model | ~2 s, ~30 s with `--ref` |
-
-```sh
-git submodule update --init      # MAC and PIPE sources are submodules
-cd 5.sim
-./serdesflow_dll                 # full stack
-./serdesflow_dll --dump          # full stack, with a waveform
-echo 2 | SERDES_MODEL=open ./serdesflow_mod
-./serdesflow_equiv               # open model self-check
-./serdesflow_equiv --ref         # against the vendor model, needs $CCFPGA_SERDES_SRC
-./serdesflow_equiv --ref --cross # the two models linked to each other
-```
-
-Build products and waveforms go to `$SERDES_BUILD_DIR` (default
-`$HOME/.cache/opencologne-pcie`), outside the repository. Tested with Icarus
-Verilog 12.
-
-### Full stack: `serdesflow_dll`
-
-Two complete stacks, an Endpoint and a Root Complex, connected by a bit-level
-serial link in both directions:
-
-```
-       EP                                                    RC
-  TL stimulus           tb_dll_phy.v                    TL stimulus
-       |                                                     |
-  dll_logic             2.rtl/4.dll/dll_src             dll_logic
-       |                                                     |
-  ccfpga_LTSSM_logic    2.rtl/3.mac/mac_src             ccfpga_LTSSM_logic
-       |                                                     |
-  ccfpga_pipe_logic     2.rtl/2.pipe/pipe_src           ccfpga_pipe_logic
-       |                                                     |
-  ccfpga_serdes         2.rtl/1.phy/2.serdes-model      ccfpga_serdes
-       |                                                     |
-       +--------------- serial link, 2.5 Gb/s ---------------+
-```
-
-`pcie_stack.v` is one side: the DLL, the MAC and `phy_pipe_serdes.v`.
-`phy_pipe_serdes.v` is the PIPE logic, the SerDes model and the SerDes bring-up
-sequence (the `writeCfg` / `writeRegfile` accesses of `testcase_pipe.v`) as a
-small FSM, so the layers above see a plain PIPE interface.
-
-The test:
-
-1. both LTSSMs train from Detect.Quiet to L0, every state change is printed
-2. both DLLs go through InitFC1/InitFC2 to DL_Active
-3. three TLPs EP to RC and two TLPs RC to EP, every word is checked
-4. bits of a TLP are flipped on the EP to RC wire, the RC NAKs it and the EP
-   replays it
-5. an UpdateFC-P DLLP EP to RC
-
-```
-[  141124.0 ns] EP LTSSM : Config.Linkwidth.Start (link#)
-  ...
-[  152900.0 ns] EP LTSSM : L0
-[  153988.0 ns] RC LTSSM : L0
-=== Step 1: DLL initialisation, InitFC1/InitFC2 across the link ===
-[  158788.0 ns]   both DLLs DL_Active
-  ...
-=== Step 4: TLP corrupted on the EP -> RC wire, expect NAK and replay ===
-[  187524.0 ns]   RC received 3 words, checked
-[  189508.0 ns]   EP sent the TLP 2 times, NAK and replay worked
-  ...
-  SUMMARY: 0 errors
-  TEST PASSED
-```
-
-#### The Root Complex side
-
-The MAC implements the upstream port. The Root Complex is a second instance of
-the same MAC, which the testbench gives the downstream port role with `force`:
-
-* in Configuration it transmits link number 0, and from
-  Config.Linkwidth.Accept on lane number 0 (`expected_Link`, `expected_Lane`)
-* in Config.Linkwidth.Accept and Config.Lanenum.Accept it accepts TS2 as well
-  as TS1 (`TS2_pattern_en`)
-
-#### Settings
-
-* scrambling is disabled in both MACs, as with `DISABLE_SCRAMBLING` in the MAC's
-  pcievhost test
-* the PIPE reset is released 256 `clk_reg` cycles after the global reset, the
-  MAC and DLL reset once the SerDes reports ready, synchronised to PCLK
-* the DLL gets `phy_linkup` when the MAC reports link up and the LTSSM is in L0
-* the bit errors in step 4 are short inversions of the serial pair, starting
-  320 ns after the STP leaves the EP's MAC
-
-### PIPE testcase: `serdesflow_mod`
-
-Runs `testcase_pipe.v` on the PIPE logic and a SerDes model, selected from a
-menu: `[1]` 16-bit PIPE, `[2]` 64-bit PIPE, `[3]` SerDes only
-(`testcase_serdes.v`, not in this repository).
-
-```sh
-echo 2 | SERDES_MODEL=open ./serdesflow_mod                     # open model
-export CCFPGA_SERDES_SRC=/path/to/ccfpga_serdes/src
-echo 2 | ./serdesflow_mod                                       # vendor model
-```
-
-The vendor sources are read from `$CCFPGA_SERDES_SRC`, outside the repository,
-through `serdes_nda_env.sh`. The waveform is written to
-`$SERDES_BUILD_DIR/serdesflow/sim/vlog_sim.vcd`.
+This directory is the top-level test bench. The layers below it have their own Icarus Verilog flows, next to their RTL: the PHY (PIPE + SerDes, and the open SerDes model) in [2.rtl/1.phy/3.sim](../2.rtl/1.phy/3.sim/), the DLL over that PHY in [2.rtl/4.dll/sim](../2.rtl/4.dll/sim/).
 
 ## Introduction
 
@@ -144,7 +32,7 @@ The *opencologne-PCIE* top level test bench is based around the [*pcievhost*](ht
 The diagram below is a block diagram of the top level test bench showing the main features.
 
 <p align=center>
-<img alt="openCologne-PCIE test bench architecture" width=1000 src="images/opencologne-pcie-tb.png">
+<img alt="openCologne-PCIE test bench architecture" width=1000 src="../0.doc/5.sim/opencologne-pcie-tb.png">
 </p>
 
 The DUT PCIe link is connected to the _pcievhost_, instantiated in a wrapper x1 PIPE link (`pcieVHostePipex1.v`) configured as a root complex, and running some user code to generate PCIe traffic as required to drive the DUT. The model is capable of displaying link traffic on both the up- and downstream links to the console, configurable via a `ContDisps.hex` file. To drive the DUT's memory mapped slave bus, a _VProc_ component is used with a BFM wrapper for the specific bus protocol used for the device&mdash;in this case PCIe. A program can then be run on the virtual processor to access the device's memory mapped registers etc. and update the TX link signals and read from the RX link signals.
@@ -248,7 +136,7 @@ Note that, as C functions, there are no default parameters and the <tt>little_en
 Compiling co-designed application code, either compiled for the native host machine, or to run on the <tt>rv32</tt> RISC-V ISS will need further layers on top of these APIs, which will be virtualised away by that point ([see the sections below](#co-simulation-hal)). The diagram below summarises the software layers that make up a program running on the _VProc_ HDL component. The "native test code" use case, shown at the top left, is for the case just described above  that use the APIs directly, though they optional can use the HAL.
 
 <p align="center">
-<img alt="soc_cpu VProc software stack" src="images/soc-cpu-vproc-stack.png" width=800>
+<img alt="soc_cpu VProc software stack" src="../0.doc/5.sim/soc-cpu-vproc-stack.png" width=800>
 </p>
 
 ### Other Software Use Cases
@@ -309,7 +197,6 @@ With these options the model can load an elf executable or raw binary file to me
 Specific to the _opencologne-PCIE_ project is the ability to specify the region where memory loads and stores will make external simulation transactions rather than use internal memory modelling or peripherals, using the <tt>-x</tt> and <tt>-X</tt> options. This is useful to allow access to the CSR registers in the HDL whilst mapping all of the memory internally using the sparse C PCIe memory model. The cache model can be enabled with the <tt>-I</tt> option and the cache configured. The <tt>-l</tt> option specifies the number of bytes in a cache line, which can be 4, 8 or 16. The number of ways is set with <tt>-w</tt> and can be either 1 or 2, and the number of sets is specified with the <tt>-s</tt> options and can be 128, 256, 512 or 1024. The _opencologne-PCIE_ project also has the option to load a raw binary file to memory in place of reading an ELF file. The <tt>-B</tt> selects this mode (with the <tt>-t</tt> still specifying the file name), and the load address can be changed from 0 with the <tt>-L</tt> option. A set of pre-configured timing models can be specified with the <tt>-V</tt> option. The argument must be one of the following:
 
 * DEFAULT
-* PICORV32
 * EDUBOS5STG2
 * EDUBOS5STG3
 * IBEXMULSGL
@@ -368,7 +255,6 @@ make clean                                                 # Clean all intermedi
 Configuration of the timing model can done from the supplied integration code in <tt>VUserMain0.cpp</tt>. The main <tt>pre_run_setup()</tt> function, in <tt>VUserMain0.cpp</tt>, creates an <tt>rv32_timing_config</tt> object (<tt>rv32_time_cfg</tt>) which has an <tt>update_timing</tt> method that takes a pointer to the iss object and an enumerated type to select the model to use for the particular core timings required. This second argument is selected from one of the following:
 
 * <tt>rv32_timing_config::risc_v_core_e::DEFAULT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt> : Default timing values
-* <tt>rv32_timing_config::risc_v_core_e::PICORV32&nbsp;&nbsp;&nbsp;&nbsp;</tt> : picoRV32 timings
 * <tt>rv32_timing_config::risc_v_core_e::EDUBOS5STG2&nbsp;</tt> : 2 stage eduBOS5
 * <tt>rv32_timing_config::risc_v_core_e::EDUBOS5STG3&nbsp;</tt> : 3 stage eduBOS5
 * <tt>rv32_timing_config::risc_v_core_e::IBEXMULSGL&nbsp;&nbsp;</tt> : IBEX single cycle multipler
@@ -469,26 +355,6 @@ INFO: [Common 17-206] Exiting xsim at Tue Aug 19 16:03:05 2025...
 
 Note that the disassembled output is a mixture of 32-bit and compressed 16-bit instructions, with the compressed instruction hexadecimal values shown followed by a <tt>'</tt> character and the instruction heximadecimal value in the lower 16-bits. Unlike for the native compiled code use cases, unless the HDL has changed, the test bench does not need to be re-built when the RISC-V source code is changed or a different binary is to be run, just the RISC-V code is re-compiled or the <tt>vusermain.cfg</tt> updated to point to a different binary file.
 
-### PicoRV32 RTL-Only Simulation Makefile
-
-A standalone Makefile (located in `5.sim/`) for cycle-accurate simulation using the real picoRV32 RTL core.
-It:
-
-- Drives the PCie BFM (node 1) via `usercode/VUserMainPci.cpp`, using VProc’s DPI-C engine for the PCIe VIP.
-- Generates C++ sources with:
-  - `--cc -sv --timing --trace-fst --trace-structs`
-  - `+define+SIM_ONLY` and `+define+VPROC_SV`
-  - File lists `top.filelist` & `simple_tb.filelist` to pull in picoRV32 RTL.
-- Compiles into `output/` and links against:
-  - `libcosimlnx.a` (co-simulation)
-  - `libcpcie_lnx64.a` (PCIe VIP)
-  - DPI headers in `models/cosim/include` and `models/pcievhost/include`.
-- Provides standard targets:
-  - `compile` → generate & build
-  - `sim`     → run `./output/Vtb` (logs to `sim.log`)
-  - `wave`    → open `wave.fst` in GTKWave
-  - `clean`   → remove `output/`, `tb.xml`, `tb.stems`
-
 ## Debugging Code
 
 In each of the three usage cases of software, each can be debugged using <tt>gdb</tt>, either for the host computer or the gnu RISC-V toolchain's gdb.
@@ -538,7 +404,7 @@ Details of the memory model HDL can be found in the [README.md](models/cosim/REA
 The _opencologne-PCIE_ logic has interfaces for a single PCIe PIPE x1 downstream data port, transferring PCIe packets for GEN1 and GEN2 standards. In order to drive this interfaces, the test bench has a `pcieVHostPipex1` module based on the _pcieVHost_ VIP to generate the PCIe traffic.
 
 <p align=center>
-<img alt="pcieVHost module ports" width=750 src="models/pcievhost/images/pcievhost_module.png">
+<img alt="pcieVHost module ports" width=750 src="../0.doc/5.sim/pcievhost_module.png">
 </p>
 
 More details on the PCIe driver and _pcieVHost_ can be found in the [README.md](models/pcievhost/README.md) file in `5.sim/models/pcievhost`, along with details of configuring and driving the model.
@@ -573,6 +439,10 @@ void PCIEMAIN (void)
 ```
 
 The second consideration is the use of delay functions. This can be in the form of standard C functions, such as `usleep`, or application specific functions using instruction loops. In either case, these should be wrapped in a commonly named function&mdash;e.g., `pcie_usleep(int time)`. The wrapper delay library function will then need to have `VPROC` selected code to either call the application specific target delay function, or to convert the specified time to clock cycles and call the *VProc* API function `VTick` (or its C++ API equivalent) to advance simulation time the appropriate amount. The co-simulation auto-generated HAL header has `SOC_CPU_CLK_PERIOD_PS` defined that can be configured on the `4.build/sysrdl_cosim.py` command line with `-C` or `--clk_period`, but defaults to the equivalent of 80MHz that the test bench uses for the `soc_cpu`. A `SOC_CPU_VPNODE` is also defined, defaulting to 0, for use when calling the *VProc* C API functions directly. The definition is affected by the `-v` or `--vp_node` command line options of `4.build/sysrdl_cosim.py`.
+
+## Future Improvement
+
+Upgrade the VIP (VProc, mem_model, pcieVHost, rv32 ISS) so that the co-sim runs on Verilator instead of Icarus. On openPCIE, the encrypted Artix-7 hard macros (`PCIE_2_1`, `GTPE2`) left XSIM as the only choice; here all RTL is open source, with no encrypted IP, so nothing ties the co-sim to a vendor simulator.
 
 ## References:
 - [Logic sim using pcieVHost and 3rd Party PCIe](https://www.linkedin.com/pulse/case-study-logic-simulation-environment-using-third-party-southwell-tyere)

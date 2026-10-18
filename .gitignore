@@ -3,7 +3,10 @@
 #--------
 *~
 *.bak
+*.bak-*
+*-bak
 *.bkp
+*-backups/
 *.log
 *\#*\#
 *\#*
@@ -13,6 +16,7 @@
 # Sim
 #--------
 *.fst
+*.vcd
 *.vvp
 
 
@@ -44,6 +48,38 @@ ccfpga_serdes_rterm_calib.v
 1.pcb/*/fp-info-cache
 1.pcb/*/\#auto_saved_files\#
 1.pcb/*.kicad_sch.lck
+*.lck
+_autosave-*
+
+
+#--------
+# Firmware and FPGA build products (4.build)
+#--------
+# Kept on purpose (not ignored):
+#   4.build/csr_build/generated-files/  so a build never needs peakrdl
+4.build/sw_build/.build-config
+4.build/sw_build/firmware.elf
+4.build/sw_build/firmware.bin
+4.build/hw_build/.build-config
+4.build/hw_build/build_artifacts*/
+
+
+#--------
+# Sim build products (5.sim)
+#--------
+5.sim/obj/
+5.sim/xsim.dir/
+5.sim/work/
+5.sim/VProc.so
+5.sim/libuser.a
+5.sim/firmware.hex
+5.sim/run_us.cfg
+5.sim/*.wdb
+5.sim/*.pb
+5.sim/xelab.*
+5.sim/xvlog.*
+5.sim/xsim.*
+5.sim/webtalk*
 
 
 #--------
@@ -51,6 +87,8 @@ ccfpga_serdes_rterm_calib.v
 #--------
 */Thumbs.db
 *xOLD*
+*output*
+2.rtl/1.phy/1.serdes-test.STANDALONE/build/
 
 
 #--------

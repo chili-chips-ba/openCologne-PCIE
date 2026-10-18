@@ -36,7 +36,7 @@ More details of the model can be found in the [_Pcievhost_ manual](https://githu
 A Verilog module for the _pcievhost_ model is provided in a `pcieVHost.v` file in the `5.sim/models/pcievhost/verilog/pcieVHost` directory. This is wrapped in some BFM Verilog, `pcieVHostPipex1.v`, in the same directory, which presents a single Link port, as PIPE TX and RX data signals. The diagram below shows the module's ports and parameters.
 
 <p align=center>
-<img alt="pcieVHost module ports" width=800 src="images/pcievhost_module.png">
+<img alt="pcieVHost module ports" width=800 src="../../../0.doc/5.sim/pcievhost_module.png">
 </p>
 
 The module's `pcieclk` clock and reset must be synchronous (i.e. the reset originate from the same clock domain) and the clock run at the PCIe raw bit rate $\div$ 10. So for GEN1 this is 250MHz (4000ps period) and GEN2 this is 500MHz (2000ps period). The module can convert from a sybol stream to wider PIPE widths of 16, 32 or 64, and these are converted between these widths and the symbol stream with internal logic and using a PIPE clock (`pclk`), which needs to be the `pcieclk` divided by the PIPE data width over 8. E.g. If a 64 bit PIPE data width, then the `pclk` frequency must be `pcieclk` / 8, or 31.25MHz (GEN1) or 62.5MHz (GEN2).
@@ -74,7 +74,7 @@ The lowest nibble has some simulator control in bits 1 and 2, to either stop the
 A fragment of some link display output, using the `ContDisps.hex` file example above, is shown in the diagram below:
 
 <p align=center>
-<img alt="pcieVHost link display terminal output"  width=750 src="images/pcie_disp_terminal.png" style="box-shadow: 5px 5px 5px gray;">
+<img alt="pcieVHost link display terminal output"  width=750 src="../../../0.doc/5.sim/pcie_disp_terminal.png" style="box-shadow: 5px 5px 5px gray;">
 </p>
 
 More details on the link display can be found in the [_pcievhost_ manual](https://github.com/wyvernSemi/pcievhost/blob/master/doc/pcieVHost.pdf).
@@ -86,7 +86,7 @@ More details on the link display can be found in the [_pcievhost_ manual](https:
 The diagram below summarises the core PCIe model functionality, along with the connection to a logic simulation via the _VProc_ co-simulation component.
 
 <p align=center>
-<img alt="pcieVHost internal architecture" width=1000 src="images/pcievhost_architecture.png">
+<img alt="pcieVHost internal architecture" width=1000 src="../../../0.doc/5.sim/pcievhost_architecture.png">
 </p>
 
 On the left of the diagram are the two user supplied functions. The `VUserMain`<i>n</i> function is the main entry point for user code and this has access to the [model's API](#user-api-summary). Optionally, a user callback function can be registered (`VUserInput` in the diagram) that gets called to with non-handled packets (e.g. read completions) that are received over the link.

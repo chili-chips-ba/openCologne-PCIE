@@ -199,11 +199,6 @@ sysverilog: $(VPROC_PLI)
 	@xvlog $(ANALYSEFLAGS)
 	@xelab $(ELABFLAGS)
 
-# Create local file list for top, with PicoRv32 files removed
-# So soc_cpu.VPROC can be used instead
-#$(TOPFILELIST): $(HW_SRC)/$(TOPFILELIST)
-#	@sed -e "/$(SOCCPUMATCH)/d" $< > $@
-
 #======================================================
 # EXECUTION RULES
 #======================================================
