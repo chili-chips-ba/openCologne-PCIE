@@ -71,6 +71,12 @@ The GateMate EP card is the ULX5M-M2 by [Intergalaktik](https://intergalaktik.eu
 
 ### Test setup
 
+<p align="center">
+  <a href="https://www.canva.com/design/DAHXSTcjxEc/odZj_VbgU20EEeZ1zuJlJA/watch?utm_content=DAHXSTcjxEc&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8306e0024f" target="_blank" rel="noopener"><img width="70%" alt="openPCIE backplane intro video (click to watch)" src="0.doc/artwork/openPCIE-backplane.png"></a>
+</p>
+
+For additional info, see the [openPCIE backplane page](https://www.chili-chips.xyz/openpcie-backplane-put-your-fpga-in-control).
+
 Our GateMate EP is the [ULX5M-M2](1.pcb/README.md) card. It plugs into the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb), where the [openPCIE](https://github.com/chili-chips-ba/openPCIE) Artix-7 drives it in the RC role, in two topologies: (1) **Direct**, our EP on the RC link, and (2) **Behind Switch**, through the PCIE switch of the backplane. For an EP the two should behave the same, but we still test them separately: behind the switch, our EP sits on another bus number, which it learns from the host's configuration writes and must return in the Completer ID of its Completions.
 
 > That bus-number point is the one real difference for an EP. The EP takes its bus and device number from the Type 0 configuration writes it receives, and must put that number in every Completion it sends. With a direct link the bus number is often 1; behind the switch it's higher. A TL that hard-codes the bus number would pass the Direct test and fail Behind Switch.
@@ -87,7 +93,7 @@ For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
   <img alt="PCIe physical layer sub-blocks" width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
 </p>
 
-The GateMate SerDes has thus far not been used in the PCIE context. It is therefore reasonable to expect issues with physical layer, which may falter for signal integrity, jitter, or some other reason. Luckily, we have teamed up with CologneChip developers, who will own the PHY layer up to and including **P**hysical **I**nterface for **P**CI **E**xpress (PIPE) 👍. This technology-specific work is clearly separated in a directory of their own, see **`2.rtl/1.phy`**.
+The GateMate SerDes has thus far not been used in the PCIE context. It is therefore reasonable to expect issues with physical layer, which may falter for signal integrity, jitter, or some other reason. Luckily, we have teamed up with Cologne Chip developers, who will own the PHY layer up to and including **P**hysical **I**nterface for **P**CI **E**xpress (PIPE) 👍. This technology-specific work is clearly separated in a directory of their own, see **`2.rtl/1.phy`**.
 
 > By adhering to PIPE architecture, we avoid mixing the generic (i.e. "logic" only) design part with FPGA-specific RTL. This does not mean that all of our RTL is portable to other vendors, but rather that it is structured in a way that facilitates future ports, with only a thin layer of code behind PIPE interface that needs to be revisited. That's a small subsection of the overall design, thereby saving a good amount of porting effort.
 
@@ -96,7 +102,7 @@ The GateMate SerDes has thus far not been used in the PCIE context. It is theref
 # RTL Architecture
 
 There are two major elements in this design:
-- **PCIE-capable SerDes** -- in our case CologneChip (CC) **proprietary** mixed-signal hard IP. They wrap it into a thin, soft adaptation layer (_phy_top_) and present in the form an industry-standard PIPE interface. To enable faster and public domain simulations, we have complemented this CC HM with an opensource SerDes BFM
+- **PCIE-capable SerDes** -- in our case Cologne Chip (CC) **proprietary** mixed-signal hard IP. They wrap it into a thin, soft adaptation layer (_phy_top_) and present in the form an industry-standard PIPE interface. To enable faster and public domain simulations, we have complemented this CC HM with an opensource SerDes BFM
 - **PCIE protocol stack**: Our soft RTL that implements MAC/LTSSM, DLL and TL, crowned by an eduBOS5-based RISC-V SOC for application layer.
 
 <p align="center">
@@ -127,7 +133,7 @@ For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 # Simulation Architecture
 
 <p align="center">
-    <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="75%" src="0.doc/5.sim/tb-structure.drawio.png">
+    <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost on top, driving our DUT at its PIPE interface below it: MAC, DLL and TL RTL, CSR registers and the SOC CPU socket" width="100%" src="0.doc/5.sim/tb-structure.drawio.png">
 </p>
 
 The [test bench](5.sim/README.md) runs on open-source simulators only, Verilator or Icarus Verilog. The host is the [_pcieVHost VIP_](https://github.com/wyvernSemi/pcievhost) in the RC role, `RCPIPEx1__pcieVHost`: it drives our DUT at its PIPE interface, trains the link and enumerates the EP. The top level focuses on the MAC, DLL and TL RTL and the firmware; the PIPE and the PHY below it are covered by their own [block-level test benches](5.sim/README.md#scope-mac-dll-tl-and-firmware), where the opensource SerDes BFM comes in. The same pcieVHost model has already run against the AMD `PCIE_2_1` hard macro on openPCIE, which raises the odds that our EP works on the first try against a physical Artix-7 RC on the openPCIE backplane.
@@ -210,56 +216,42 @@ See [6.litex/README.md](6.litex/README.md)
 
 # Project Status
 
-- [x] ✅ Procure Test equipment, test fixtures, dev boards and accessories
+- ✅ Procure Test equipment, test fixtures, dev boards and accessories
 
-- [ ] Create docs and diagrams that are easy to follow and comprehend
->- [x] ✅ RTL DLL and TL
->- [x] ✅ PIPE
->- [x] ✅ SW
->- [x] ✅ TB, Sim, VIP
+- ✅ Create docs and diagrams that are easy to follow and comprehend
+>- ✅ RTL DLL and TL
+>- ✅ PIPE
+>- ✅ SW
+>- ✅ TB, Sim, VIP
 
-- [ ] Design, debug and manufacture two flavors of EP cards
+- 🟠 Design, debug and manufacture two flavors of EP cards
 > Given the high-speed nature of this design, we plan for two iterations:
->- [x] ✅ M.2  **RevA**
->- [ ] 🟠 Edge RevA
+>- ✅ M.2  **RevA**
+>- 🟠 Edge RevA
 
->- [ ] 🟠 M.2  **RevB**
->- [ ] Edge RevB
+>- 🟠 M.2  **RevB**
+>- ⬜ Edge RevB
 
  
-- [ ] Develop opensource PHY with PIPE interface for GateMate SerDes
->- [x] ✅ x1, **Gen1**
->- [ ] x1, Gen2 (best-effort, consider it a bonus if we make it)
+- 🟠 Develop opensource PHY with PIPE interface for GateMate SerDes
+>- ✅ x1, **Gen1**
+>- ⬜ x1, Gen2 (best-effort, consider it a bonus if we make it)
 
-- [ ] 🟠 Develop opensource RTL for PCIE EP **DLL function**, with PIPE interface
-- [ ] 🟠 Develop opensource RTL for PCIE EP **TL function**
+- 🟠 Develop opensource RTL for PCIE EP **DLL function**, with PIPE interface
+- 🟠 Develop opensource RTL for PCIE EP **TL function**
 
-- [ ] 🟠 Create comprehensive co-sim testbench
+- 🟠 Create comprehensive co-sim testbench
 
-- [ ] Develop opensource PCIE EP Demo/Example for PIO access
-> - [ ] Software driver and TestApp
-> - [ ] Debug and bringup
+- ⬜ Develop opensource PCIE EP Demo/Example for PIO access
+> - ⬜ Software driver and TestApp
+> - ⬜ Debug and bringup
 
-- [ ] Implement it all in GateMate, pushing through PNR and timing closure
-> - [ ] 🟠 Work with nextpnr/ProjectPeppercorn developers to identify and resolve issues
+- 🟠 Implement it all in GateMate, pushing through PNR and timing closure
+> - 🟠 Work with nextpnr/ProjectPeppercorn developers to identify and resolve issues
 
-- [ ] Port to LiteX
+- ⬜ Port to LiteX
 
-- [ ] Present project challenges and achievements at (minimum) two trade fairs or conference
->- [ ] FPGA Conference Europe, Munich
->- [ ] Electronica, Munich
->- [ ] FPGA Developer Forum, CERN
->- [ ] Embedded World, Nuremberg
-
-
-### Future outlook
-
-Reflecting on our roadmap and possible future growth paths, in addition to the aforementioned DMA and porting to other FPGA families + ASICs, we are also thinking of:
-
-- enablement of hardware acceleration for AI, video, and general DSP compute workloads
-- bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
-> This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
-- possibly also tackling the SerDes HM building brick.
+- ⬜ Present project challenges and achievements at (minimum) two trade fairs or conferences (see [Community Outreach](#community-outreach))
 
 --------------------
 
@@ -276,7 +268,6 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
 
 
 ### Partners and Contributors
- - [openPCIE project and backplane](https://www.chili-chips.xyz/openpcie-backplane-put-your-fpga-in-control), [Intro Video](https://www.canva.com/design/DAHXSTcjxEc/odZj_VbgU20EEeZ1zuJlJA/watch?utm_content=DAHXSTcjxEc&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8306e0024f)
 
 <p align="center">
   <a href="https://intergalaktik.eu"><img width="50%" alt="Intergalaktik logo" src="0.doc/artwork/Intergalaktik.logo.png"></a>
@@ -292,6 +283,10 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
 
 <p align="center">
   <a href="https://github.com/wyvernSemi"><img width="15%" alt="wyvernSemi logo" src="0.doc/artwork/wyvernSemi-logo-rounded.png"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/chili-chips-ba/openPCIE"><img width="15%" alt="openPCIE project logo" src="0.doc/artwork/pcie2rootc.hex.png"></a>
 </p>
 
 <p align="center">
@@ -335,19 +330,19 @@ Our posts so far:
 - [2025-10-02](https://www.linkedin.com/feed/update/urn:li:activity:7379769413421559808)
 - [2025-08-25](https://www.linkedin.com/feed/update/urn:li:ugcPost:7362742908170473473?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7362742908170473473%2C7363111076936232962%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287363111076936232962%2Curn%3Ali%3AugcPost%3A7362742908170473473%29)
 
-We therefore plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
-
-- **[Embedded World 2026, Nuremberg](https://www.embedded-world.de/en)**
-> This is a trade fair where CologneChip will host a booth! This trade show also features a conference track.
-
-- **[FPGA Conference 2026, Munich](https://www.fpga-conference.eu)**
-> CologneChip is one of the sponsors and therefore gets at least 2 presentation slots.
+We also plan on putting time and effort into community outreach through multiple venues. One of them is the presence at industry fairs and conferences, such as:
 
 - **[Electronica 2026, Munich](https://electronica.de/en)**
-> It is very likely that CologneChip will have a booth. There is also a conference track.
+> It is very likely that Cologne Chip will have a booth. There is also a conference track.
 
-- **[FPGA Developer Forum, CERN, Geneva](https://indico.cern.ch/event/1467417)**
-> CologneChip is a sponsor. They might get a few presentation slots 
+- **[Embedded World 2027, Nuremberg](https://www.embedded-world.de/en)**
+> This is a trade fair where Cologne Chip will host a booth! This trade show also features a conference track.
+
+- **[FPGA Developer Forum 2027, CERN, Geneva](https://indico.cern.ch/category/17799)**
+> Cologne Chip is a sponsor. They might get a few presentation slots.
+
+- **[FPGA Conference 2027, Munich](https://www.fpga-conference.eu)**
+> Cologne Chip is one of the sponsors and therefore gets at least 2 presentation slots.
 
 We are fully open to consider additional venues -- Please reach out and send your ideas!
 
@@ -358,6 +353,17 @@ We are fully open to consider additional venues -- Please reach out and send you
 Feel like helping opensource PCIE community grow better and larger?! See [Contributions](CONTRIBUTING.md).
 
 Don't feel shy to reach out and ask for help ===> [![issues](https://badgen.net/github/open-issues/chili-chips-ba/openCologne-PCIE?label=issues)](https://github.com/chili-chips-ba/openCologne-PCIE/issues).
+
+--------------------
+
+### Future outlook
+
+Reflecting on our roadmap and possible future growth paths, in addition to the aforementioned DMA and porting to other FPGA families + ASICs, we are also thinking of:
+
+- enablement of hardware acceleration for AI, video, and general DSP compute workloads
+- bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
+> This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
+- possibly also tackling the SerDes HM building brick. An opensource SerDes is in the works for the [GF180MCU](https://github.com/google/gf180mcu-pdk) process node. [wafer.space](https://wafer.space), who run shuttles on it, track that work and expect it in 6 to 9 months (as of October 2026).
 
 --------------------
 
