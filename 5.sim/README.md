@@ -4,6 +4,7 @@
 
 * [Block-level flows](#block-level-flows)
 * [Running the co-simulation](#running-the-co-simulation)
+  * [Choosing the user code](#choosing-the-user-code)
   * [Verilator and Icarus, side by side](#verilator-and-icarus-side-by-side)
   * [From XSIM to Verilator, via Icarus](#from-xsim-to-verilator-via-icarus)
   * [VIP versions and local changes](#vip-versions-and-local-changes)
@@ -40,6 +41,24 @@ TLPs from the PIPE bits: Ferrite's DLL decoder descrambles the symbols, frames e
 The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
 The DUT is selected with `DUT`: the EP RTL + firmware (`DUT=rtl`, once the TL exists), or the mock `EPPIPEx1__pcieVHost_DUT`, a second pcieVHost in EP mode ([`stubs`](stubs/README.md); `DUT=mock`, the default for now). The host is `RCPIPEx1__pcieVHost`, a pcieVHost in RC mode at node 1, running [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp). A passing run shows the link train to L0 on both sides, then the host enumerate the EP: Vendor and Device ID, class code, all six BARs sized and assigned, the capability list walked, ending with `===> Finished with no errors`. The host program ends the simulation itself when it is done.
+
+### Choosing the user code
+
+Each VProc node runs a C/C++ program whose entry point is `VUserMain<n>()`, `n` being the node number. The make file compiles these programs into `obj/<sim>/libuser.a` and links it into the simulation. Four variables, set on the command line, choose what goes in:
+
+| Variable | Default | What it does |
+|---|---|---|
+| `USER_C` | `VUserMain1.cpp VUserMain2.cpp` | the source files: one `VUserMain<n>` per node (1 = host, 2 = mock EP), plus any helper files they need |
+| `USRCODEDIR` | `5.sim/usercode` | the directory all of `USER_C` is read from; it is also on the include path |
+| `OPTFLAG` | `-g` | compiler flag for the user code; `-g` keeps it debuggable, `-O2` makes it faster |
+| `USRSIMFLAGS` | empty | extra simulator flags, e.g. a define: `+define+X` for Verilator, `-DX` for Icarus |
+
+```sh
+make USER_C="VUserMain1.cpp VUserMain2.cpp my_checks.cpp" run   # add a helper file
+make USRCODEDIR=$HOME/tests/cfg-walk run                         # another host program, same file names
+```
+
+A different test is therefore a different `USER_C` or `USRCODEDIR`, with no change to the make file. Run `make clean` after changing `OPTFLAG`: object files already built are not recompiled. `make help` lists the variables.
 
 ### Verilator and Icarus, side by side
 
