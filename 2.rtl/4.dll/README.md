@@ -181,6 +181,12 @@ Field layout: `type | Reserved | AckNak_Seq_Num | 16-bit CRC`.
 <!--## Prerequisites
 The simulation can be run using the pcieVHost model … *TODO*
 
+## Run Testbench
+`make -f makefile.ica run`
+
+## Testbench description
+The testbench drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers.-->
+
 ## Sources and testbench
 The DLL sources are Cologne Chip's, in the gatemate-pipe submodule: [`2.pipe/pipe_src/src/dll_src`](../2.pipe/pipe_src/src/dll_src). Its block testbench, `sim/tb_dll_logic.v` there, drives the DLL from both sides. On the **upstream** side it plays the Transaction Layer: it injects TLP payload (`tl_tx_*`) and requests DLLP transmissions (`tl_tx_dllp_valid`) to exercise framing, sequence-number assignment, LCRC generation and the transmission-priority logic. On the **downstream** side it models the PHY, feeding framed TLPs/DLLPs on `phy_rx_data`/`phy_rx_data_k` and driving `phy_linkup` so the DLL Init FSM walks through `DL_Inactive → DL_Init → DL_Active`, including flow-control initialization. Fault injection on the received stream (bad CRC/LCRC, out-of-sequence and duplicate sequence numbers) is used to check the ACK/NAK scheduling, the retry buffer and the replay/latency timers. Our own DLL simulation is [`sim/run-dll-phy.sh`](#simulation-over-mac-pipe-and-serdes): the same checks, with the MAC, PIPE and SerDes BFM below the DLL.
 
