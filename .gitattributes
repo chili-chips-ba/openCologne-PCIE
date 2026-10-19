@@ -8,6 +8,11 @@
 # third-party VIP (pcieVHost, rv32 ISS, VProc) and PeakRDL output: kept out of the language stats
 5.sim/vip/**                     linguist-vendored
 4.build/csr_build/generated-files/** linguist-generated
+5.sim/models/rv32/usercode/rv32_cache.*  linguist-vendored
+5.sim/models/rv32/usercode/uart.*        linguist-vendored
+
+# simulator file lists, not Fortran
+*.f     linguist-detectable=false
 
 # LF in the working copy too, whatever core.autocrlf says
 *.sv      text eol=lf
