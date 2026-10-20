@@ -221,6 +221,12 @@ module tb_dll_phy;
       else
          release rc.mac.TS2_pattern_en;
 
+   always @(ltssm[RC])
+      if (ltssm[RC] == CONFIG_LANENUM_ACCEPT)
+         force rc.mac.TS1_pattern_en = 1'b1;
+      else
+         release rc.mac.TS1_pattern_en;
+
 `ifndef SCRAMBLE
    initial begin
       force ep.mac.scrambler_en   = 1'b0;

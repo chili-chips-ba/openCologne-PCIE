@@ -11,6 +11,7 @@ module tb_dll_wavecrux;
     reg                     phy_linkup;
 
     reg  [DATA_WIDTH-1:0]   phy_rx_data;
+    reg  [DATA_BYTES-1:0]   phy_rx_data_k;
 
     reg  [DATA_WIDTH-1:0]   tl_tx_data;
     reg                     tl_tx_tlp_valid;
@@ -56,6 +57,7 @@ module tb_dll_wavecrux;
         .phy_reset(phy_reset),
         .phy_linkup(phy_linkup),
         .phy_rx_data(phy_rx_data),
+        .phy_rx_data_k(phy_rx_data_k),
 
         .tl_tx_data(tl_tx_data),
         .tl_tx_tlp_valid(tl_tx_tlp_valid),
@@ -93,14 +95,18 @@ module tb_dll_wavecrux;
     always @(posedge phy_clk or posedge phy_reset) begin
         if (phy_reset) begin
             phy_rx_data <= {DATA_WIDTH{1'b0}};
+            phy_rx_data_k <= {DATA_BYTES{1'b0}};
         end else if (external_en) begin
             phy_rx_data <= external_data;
+            phy_rx_data_k <= {DATA_BYTES{1'b0}};
         end else if (flip_one_bit && phy_tx_data_k[DATA_BYTES-1]) begin
             // only for the last datapath that we have a control charactera the end (END symbol)
             phy_rx_data  <= phy_tx_data ^ 64'h0000_0100_0000_0000; // END | LCRC[7:0] | LCRC[15:8] | LCRC[23:16] | ... -> flip bit 8 of LCRC
+            phy_rx_data_k <= phy_tx_data_k;
             flip_one_bit <= 1'b0;
         end else begin
             phy_rx_data <= phy_tx_data;
+            phy_rx_data_k <= phy_tx_data_k;
         end
     end
 

@@ -62,7 +62,7 @@ The test:
 The MAC implements the upstream port. The Root Complex is a second instance of the same MAC, which the testbench gives the downstream port role with `force`:
 
 * in Configuration it transmits link number 0, and from Config.Linkwidth.Accept on lane number 0 (`expected_Link`, `expected_Lane`)
-* in Config.Linkwidth.Accept and Config.Lanenum.Accept it accepts TS2 as well as TS1 (`TS2_pattern_en`)
+* in Config.Linkwidth.Accept and Config.Lanenum.Accept it accepts both TS1 and TS2 (`TS1_pattern_en`, `TS2_pattern_en`)
 
 ### Settings
 

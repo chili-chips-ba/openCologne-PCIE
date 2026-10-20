@@ -104,6 +104,7 @@ module pcie_stack #(
       .phy_reset         ( !mac_reset_n      ),
       .phy_linkup        ( dll_linkup        ),
       .phy_rx_data       ( mac_rx_data       ),
+      .phy_rx_data_k     ( mac_rx_datak      ),
 
       .tl_tx_data        ( tl_tx_data        ),
       .tl_tx_tlp_valid   ( tl_tx_tlp_valid   ),
