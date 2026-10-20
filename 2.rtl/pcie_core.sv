@@ -122,7 +122,7 @@ module pcie_core #(
       .phy_reset        (~mac_rst_n),
       .phy_linkup       (mac_link_up && (ltssm_state == LTSSM_L0)),
       .phy_rx_data      (mac_rx_data),
-      .phy_rx_data_k    (mac_rx_datak),     // K flags for framing (#9)
+      .phy_rx_data_k    (mac_rx_datak),                              // K flags for framing (#9)
       .tl_tx_data       (dll.tx_data),
       .tl_tx_tlp_valid  (dll.tx_tlp_valid),
       .tl_tx_tlp_first  (dll.tx_tlp_first),

@@ -7,10 +7,10 @@
 // tb_dll_wavecrux.wavecrux binds all inputs; the prefix drop-down picks
 // Tx or Rx.
 //
-// The testbench has no RX K signal (the DLL does not take one), so RxDataK
-// is rebuilt here: the testbench loops phy_tx_data back to phy_rx_data
-// through one register, so RxDataK is phy_tx_data_k through the same
-// register. Not valid while the testbench drives external_data.
+// RxDataK is rebuilt here: the testbench loops phy_tx_data and
+// phy_tx_data_k back to the DLL's phy_rx_data and phy_rx_data_k through
+// one register, so RxDataK is phy_tx_data_k through the same register.
+// Not valid while the testbench drives external_data.
 //
 // Attached with `bind`, so the testbench itself stays plain Verilog.
 // Compile this file after tb_dll_wavecrux.v (Verilator; Icarus does not

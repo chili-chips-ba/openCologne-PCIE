@@ -215,8 +215,8 @@ open [`sim/tb.DLL-PIPE.wavecrux`](sim/tb.DLL-PIPE.wavecrux). It loads
 testbench with `bind` and presents the stream under the names the decoders
 auto-bind to: **Tx** (orange) is DLL -> PHY, **Rx** (blue) is PHY -> DLL. The
 testbench loops Tx back into Rx through one register, so Rx runs one clock
-behind, and `RxDataK` is rebuilt from `TxDataK` because the DLL has no RX K
-input. `-O0` matters: without it Verilator traces these copies as aliases of
+behind, and `RxDataK` is `TxDataK` through the same register, as the
+testbench feeds it to the DLL's `phy_rx_data_k`. `-O0` matters: without it Verilator traces these copies as aliases of
 the original signals, and WaveCrux's signal pickers hide them. The four
 decoder rows are, top to bottom: Data Link Layer Tx, Data Link Layer Rx,
 PIPE Tx, PIPE Rx.
