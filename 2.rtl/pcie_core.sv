@@ -77,6 +77,7 @@ module pcie_core #(
   logic                  mac_link_up;
   logic [           4:0] ltssm_state;
   logic [    DATA_W-1:0] mac_rx_data;
+  logic [DATA_BYTES-1:0] mac_rx_datak;
   logic [    DATA_W-1:0] dll_tx_data;
   logic [DATA_BYTES-1:0] dll_tx_datak;
 
@@ -107,7 +108,7 @@ module pcie_core #(
       .o_TxData      (pipe.tx_data),
       .o_TxDataK     (pipe.tx_datak),
       .o_RxData      (mac_rx_data),
-      .o_RxDataK     (  /*LINT:OK*/),       // dll_logic has no K input
+      .o_RxDataK     (mac_rx_datak),
       .o_LinkUp      (mac_link_up),
       .o_LTSSM_State (ltssm_state)
   );
@@ -121,6 +122,7 @@ module pcie_core #(
       .phy_reset        (~mac_rst_n),
       .phy_linkup       (mac_link_up && (ltssm_state == LTSSM_L0)),
       .phy_rx_data      (mac_rx_data),
+      .phy_rx_data_k    (mac_rx_datak),     // K flags for framing (#9)
       .tl_tx_data       (dll.tx_data),
       .tl_tx_tlp_valid  (dll.tx_tlp_valid),
       .tl_tx_tlp_first  (dll.tx_tlp_first),
