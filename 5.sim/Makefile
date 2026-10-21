@@ -64,7 +64,9 @@ OBJDIR         = $(CURDIR)/obj/$(SIM)
 USERLIB        = $(OBJDIR)/libuser.a
 
 ifeq ($(SIM),verilator)
-  DEFS         = -DVPROC_SV -DVPROC -DEXCLUDE_LTSSM
+  # LTSSM_ABBREVIATED: 16 TS1 in Polling.Active instead of 1024, as in the
+  # Icarus library (tools/build-vip.sh), so both end at the same time
+  DEFS         = -DVPROC_SV -DVPROC -DEXCLUDE_LTSSM -DLTSSM_ABBREVIATED
   USER_ALL     = $(USER_C) ltssm.c
   SIMEXE       = $(OBJDIR)/Vtb
 else ifeq ($(SIM),icarus)
@@ -96,11 +98,14 @@ ifeq ($(DUMP),1)
 endif
 
 # --timing: the test bench and the models use delays and event controls
+# CFG_LDFLAGS_VERILATED cleared: a Verilator built with mold links through it
+# (-fuse-ld=mold), and mold fails on network shares (fchmod); the default
+# linker works everywhere
 VLTFLAGS       = --binary -sv --timing --top-module tb -Mdir $(OBJDIR) $(VLTDUMP) \
                  -Wno-fatal -Wno-WIDTH -Wno-lint -Wno-style                     \
                  +define+VPROC_SV +define+VPROC_BYTE_ENABLE                      \
                  -F tb.f $(USRSIMFLAGS)                                         \
-                 -MAKEFLAGS "--quiet"                                           \
+                 -MAKEFLAGS "--quiet CFG_LDFLAGS_VERILATED="                    \
                  -CFLAGS "$(CPPSTD) -Wno-attributes"                            \
                  -LDFLAGS "$(LDLIBS)"
 

@@ -48,7 +48,7 @@ Three test benches cover the EP, each where its layer is checked best, against a
 | DLL over PIPE + PHY | [`4.dll/sim`](4.dll/sim) `run-dll-phy.sh` | DLL, MAC/LTSSM, PIPE and SerDes BFM, end to end on the serial line | a second copy of the same stack: training to L0, InitFC, TLPs both ways, Nak and replay, UpdateFC | Icarus | no | passes |
 | MAC + DLL + TL + firmware | [`5.sim`](../5.sim) | the EP at its PIPE; today the mock EP (`DUT=mock`) | `RCPIPEx1__pcieVHost`, the host: enumeration, BARs, PIO | Verilator or Icarus | 1.9.3: RC (host), EP (mock) | passes with the mock |
 
-How to read it: a failure is pinned to the layer that shows it, because every layer below has passed on its own. The PHY bench is permanent. `run-dll-phy.sh` drives TLPs into the DLL until our TL is in; then [`5.sim`](../5.sim) with `DUT=rtl` takes over that job, against an independent link partner ([why the split](../5.sim/README.md#scope-mac-dll-tl-and-firmware)).
+How to read it: a failure is pinned to the layer that shows it, because every layer below has passed on its own. The PHY bench is permanent. `run-dll-phy.sh` drives TLPs into the DLL until our TL is in; then [`5.sim`](../5.sim) with `DUT=rtl` takes over that job, against an independent link partner ([why the split](../5.sim/README.md#scope-unit-debug-then-top-level-validation)).
 
 Also there, not counted above: [`4.dll/sim/tb_dll_wavecrux.v`](4.dll/sim) makes the [WaveCrux pictures](4.dll/README.md#viewing-the-dll-in-wavecrux) of the DLL; the gatemate-pipe submodule brings Cologne Chip's own test benches.
 
@@ -62,6 +62,7 @@ Also there, not counted above: [`4.dll/sim/tb_dll_wavecrux.v`](4.dll/sim) makes 
 - [GateMate Integrated Logic Analyzer, UG1005](../0.doc/2.rtl/ug1005-GateMate-ILA.Aug2025.pdf) by Cologne Chip, August 2025: on-chip debug
 - [Inside GateMate: Analysis and Benchmarking of a New FPGA Architecture](https://ieeexplore.ieee.org/document/11322434) by Tarik Ibrahimović and Nedim Osmić, ICM 2025
 - [7 Series FPGAs Integrated Block for PCI Express, UG477](../0.doc/2.rtl/ug477_7Series_IntBlock_PCIe.pdf) by AMD/Xilinx: the user interface (TRN / AXI-Stream, configuration space) our EP reproduces; the reference whenever in doubt
+- [USB 3 implementation on GateMate](https://videos.cern.ch/record/3025766), CERN FPGA Developers' Forum 2026: best-talk award, funded by NLnet
 
   
 #### Examples:

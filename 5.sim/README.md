@@ -4,12 +4,15 @@
 
 * [Block-level flows](#block-level-flows)
 * [Running the co-simulation](#running-the-co-simulation)
+  * [Modeling options: DUT, PHY, CPU](#modeling-options-dut-phy-cpu)
+  * [WaveCrux decoders](#wavecrux-decoders)
   * [Choosing the user code](#choosing-the-user-code)
   * [Verilator and Icarus, side by side](#verilator-and-icarus-side-by-side)
+  * [Build defines](#build-defines)
   * [From XSIM to Verilator, via Icarus](#from-xsim-to-verilator-via-icarus)
   * [VIP versions and local changes](#vip-versions-and-local-changes)
 * [Introduction](#introduction)
-* [Scope: MAC, DLL, TL and firmware](#scope-mac-dll-tl-and-firmware)
+* [Scope: unit debug, then top-level validation](#scope-unit-debug-then-top-level-validation)
   * [A host already proven against real silicon](#a-host-already-proven-against-real-silicon)
 * [VProc Software](#vproc-software)
   * [The CPU node: three ways to run the SOC's software](#the-cpu-node-three-ways-to-run-the-socs-software)
@@ -36,11 +39,33 @@ make DUMP=1 run          # also write tb.fst
 
 `DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset. [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
 
-TLPs from the PIPE bits: Ferrite's DLL decoder descrambles the symbols, frames each TLP, checks sequence numbers and LCRC, and names it (`TLP seq=5 MWr32 len=1`). Our [TLP plugin](tools/wavecrux-pcie-tlp/README.md) goes further, pairing each completion with its request, but reads a TLP DW stream; that stream exists once `DUT=rtl` does.
-
 The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
 The DUT is selected with `DUT`: the EP RTL + firmware (`DUT=rtl`, once the TL exists), or the mock `EPPIPEx1__pcieVHost_DUT`, a second pcieVHost in EP mode ([`stubs`](stubs/README.md); `DUT=mock`, the default for now). The host is `RCPIPEx1__pcieVHost`, a pcieVHost in RC mode at node 1, running [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp). A passing run shows the link train to L0 on both sides, then the host enumerate the EP: Vendor and Device ID, class code, all six BARs sized and assigned, the capability list walked, ending with `===> Finished with no errors`. The host program ends the simulation itself when it is done.
+
+### Modeling options: DUT, PHY, CPU
+
+Three `make` switches choose the models, as in the [block diagram](#introduction):
+
+| Switch | Values | Selects | Today |
+|---|---|---|---|
+| `DUT` | `mock` (default), `rtl` | the EP: a second pcieVHost in EP mode (`EPPIPEx1__pcieVHost_DUT`, node 2), or our MAC + DLL + TL RTL with firmware | `mock` only; `rtl` waits for the TL |
+| `PHY` | `vproc_rc`, `rtl` | the `phy_top` socket: the host `RCPIPEx1__pcieVHost` (node 1), or the real PHY | not a switch yet; the host is wired in |
+| `CPU` | `rtl`, `vproc`, `iss` | the SOC CPU, with `DUT=rtl`: eduBOS5 RTL, a native C/C++ program at node 0, or the rv32 ISS ([below](#the-cpu-node-three-ways-to-run-the-socs-software)) | not a switch yet; needs `DUT=rtl` |
+
+`SIM` (`verilator`, `icarus`) and `DUMP` (`0`, `1`) choose the simulator and the waveform, not the models.
+
+### WaveCrux decoders
+
+Three sets of decoders, one per layer, that complement each other:
+
+| Decoders | Show | Where |
+|---|---|---|
+| Ferrite's PIPE, Data Link Layer and serial-line decoders (free) | ordered sets, DLLPs, Ack/Nak, flow control, LCRC, TLP framing | [wavecrux-decoders `decoders/pcie`](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie) |
+| Our TLP decoder (free) | every TLP named, each completion paired with its request | [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp), moving to wavecrux-decoders ([PR #13](https://github.com/Ferrite-Engineering/wavecrux-decoders/pull/13)) |
+| WaveCrux Pro PCIe TLP analysis | latency, timeouts, Base Spec rule checks, bus statistics | [WaveCrux docs](https://github.com/Ferrite-Engineering/wavecrux/blob/main/docs-site/docs/protocol-decoders.md#pcie-tlp-analysis) |
+
+Here today: Ferrite's DLL decoder already names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads a TLP DW stream, which exists once `DUT=rtl` does.
 
 ### Choosing the user code
 
@@ -62,20 +87,38 @@ A different test is therefore a different `USER_C` or `USRCODEDIR`, with no chan
 
 ### Verilator and Icarus, side by side
 
-The same test bench on both simulators (2026-10-18, WSL2, Verilator 5.052, Icarus Verilog 13.0, single runs; wall-clock times depend on host load):
+The same test bench on both simulators (2026-10-20, WSL2, Verilator 5.052, Icarus Verilog 13.0, single runs; wall-clock times depend on host load):
 
 | | Verilator | Icarus |
 |---|---|---|
 | Host results (`===>` lines) | 30, identical | 30, identical |
 | LTSSM steps (`--->` lines) | 26 | 26 |
-| Link display lines (TL, DL) | 838 | 830 |
-| Simulated time at the end | 84 µs | 19.194 µs |
-| Wall-clock time | 2.4 s | 20.9 s |
-| Speed | 35 µs simulated per s | 0.92 µs simulated per s |
+| Link display lines (TL, DL) | 980 | 980 |
+| Simulated time at the end | 19.194 µs | 19.194 µs |
+| Wall-clock time | 0.7 s | 32.5 s |
+| Speed | 27 µs simulated per s | 0.59 µs simulated per s |
 | C models reached via | DPI-C | VPI |
 | Electrical idle on the line | `0` plus a side-band | `Z` on the wire |
 
-Both reach the same result through the same link-training steps. Verilator, compiled to a native executable, is about 38 times faster per simulated microsecond. The two simulators end at different simulated times; why is not pinned down yet. The one modelling difference between them is electrical idle (below), so that is where to look first.
+Same results, same link-training steps, same end time. Verilator, compiled to a native executable, is about 46 times faster.
+
+Both build `ltssm.c` with `LTSSM_ABBREVIATED` ([build defines](#build-defines)). Until 2026-10-20 only the Icarus library had it, so Verilator sent 1024 TS1 (65 µs more) and ended at 84 µs.
+
+### Build defines
+
+`LTSSM_ABBREVIATED` shortens pcieVHost's link training (`ltssm.c`): 16 TS1 in Polling.Active instead of the spec's 1024, and a Detect.Quiet timeout of 1500 cycles instead of 12 ms. The link reaches L0 through the same steps, only sooner. Both simulators use it.
+
+| Define | Set in | Effect | Origin |
+|---|---|---|---|
+| `LTSSM_ABBREVIATED` | `Makefile` (Verilator), `tools/build-vip.sh` (Icarus) | shortened link training, above | VIP |
+| `EXCLUDE_LTSSM` | `Makefile` | leaves the LTSSM out of the pcieVHost model; the user code links `ltssm.c` instead | VIP |
+| `VPROC_SV` | `Makefile`, `tools/build-vip.sh`, `tb.f` | VProc over SystemVerilog DPI-C (Verilator) | VIP |
+| `ICARUS` | `Makefile`, `tools/build-vip.sh` | VProc over VPI (Icarus) | VIP |
+| `EXTERN_VPI_TABLE` | `tools/build-vip.sh` (Icarus) | VProc takes its system-task table from pcieVHost's `veriuser.c` | VIP |
+| `VPROC_BYTE_ENABLE` | `Makefile`, `tb.f` | byte enables on the VProc bus, in VProc and pcieVHost | VIP |
+| `_REENTRANT` | `tools/build-vip.sh` (Icarus) | thread-safe C library: each VProc node runs in a thread | C library |
+| `VPROC`, `VPROC_PLI_VPI` | `Makefile`, `tools/build-vip.sh` | none in this VIP version | VIP |
+| `DUMP` | `Makefile` (`DUMP=1`) | `tb.sv` writes `tb.fst` | ours |
 
 ### From XSIM to Verilator, via Icarus
 
@@ -83,7 +126,7 @@ openPCIE runs its co-simulation on AMD's XSIM, because the encrypted Artix-7 har
 
 1. **Libraries built from source, per simulator.** XSIM loaded prebuilt `libcosimlnx.a` / `libpcielnx.a`. Verilator reaches the C models through DPI-C, Icarus through VPI, and the two need different builds of the same sources, so [`tools/build-vip.sh`](tools/build-vip.sh) builds both: `libcosimlnx.a` / `libpcielnx.a` for DPI-C, `libcosimica.a` / `libpcieica.a` for VPI. The VPI library also carries pcieVHost's `veriuser.c`, the table that registers the models' system tasks with Icarus.
 2. **Every referenced module must exist.** The pcieVHost wrappers instantiate `clkmux` and `Serialiser` (from pcieVHost's `verilog/lib`), which the earlier XSIM file list never compiled. Verilator wants every module the design references, so the VIP build now collects them.
-3. **Electrical idle: `Z` or a side-band.** A PCIE line that is electrically idle carries no signal, which a 4-state simulator (Icarus, XSIM) models as `Z`. Verilator is 2-state, it has no `Z`, so under Verilator `pcieVHostPipex1` drives idle as all zeros and adds two ports, `ElecIdleOut` and `ElecIdleIn`, for the models to tell each other. The test bench cross-connects them. Left open, the run still gives the same results, but it took 35.4 s instead of 2.4 s: the side-band is what keeps Verilator fast through link training. Icarus needs none of this; it has `Z`.
+3. **Electrical idle: `Z` or a side-band.** A PCIE line that is electrically idle carries no signal, which a 4-state simulator (Icarus, XSIM) models as `Z`. Verilator is 2-state, it has no `Z`, so under Verilator `pcieVHostPipex1` drives idle as all zeros and adds two ports, `ElecIdleOut` and `ElecIdleIn`, for the models to tell each other. The test bench cross-connects them. Left open, the run still gives the same results, but about 15 times slower (35.4 s instead of 2.4 s, 2026-10-18): the side-band is what keeps Verilator fast through link training. Icarus needs none of this; it has `Z`.
 4. **openPCIE's LTSSM patch does not belong here.** On openPCIE the model plays the EP, an upstream port, against a real `PCIE_2_1` downstream port, and the patch makes it spec-correct: an upstream port keeps sending Link/Lane = PAD in its TS1 ordered sets until the downstream port assigns the numbers. Upstream's model takes a shortcut that only works against another copy of itself. Our mock EP pairs the patched EP model with the model's own RC side, which still expects that shortcut, and the link deadlocks in Configuration.Start, on both simulators. Here the model plays the RC, so there is nothing for the patch to fix: we use upstream's `ltssm.c` as is, and both sides reach L0.
 5. **Macros before models.** The pcieVHost models use macros (`WsTimeScale`, `RegDel`, the comma symbols, the register map) defined in its headers. Under Verilator the first file in the list happened to pull them in for all others; Icarus has no such luck. [`tb.f`](tb.f) now names `allheaders.v` first, for both.
 6. **Portable delays.** Icarus rejected the test bench's `#(N * 1ps)` delays. The file's timescale is 1 ps, so plain numbers mean the same and work everywhere; the run limit is a 64-bit constant, as 10 ms in picoseconds overflows 32 bits.
@@ -133,26 +176,22 @@ Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
 
 The model can print the traffic of both link directions to the console, layer by layer; [`hex/ContDisps.hex`](hex/ContDisps.hex) selects what is shown.
 
-## Scope: MAC, DLL, TL and firmware
+## Scope: unit debug, then top-level validation
 
-The top-level simulation is about the MAC/LTSSM, DLL and TL RTL and the firmware above them. It drives the DUT at its PIPE interface, so the PHY below it, Cologne Chip's PIPE logic and the GateMate SerDes, is not in this simulation at all. That is deliberate: each part is tested where it can be tested best.
+Every layer is covered twice, on purpose. Block-level test benches debug each unit on its own. The top level then validates them together, with an independent host. This matters most for the PHY: it comes from Cologne Chip, and only the top level checks it against our MAC, DLL, TL and firmware.
 
-| Level | Where | What it proves | Link partner |
+| Level | Where | Purpose | Link partner |
 |---|---|---|---|
-| Top | `5.sim` (here) | MAC + DLL + TL RTL and the firmware: enumeration, configuration, PIO | `RCPIPEx1__pcieVHost`, at the PIPE |
-| DLL over PIPE + PHY | [`2.rtl/4.dll/sim`](../2.rtl/4.dll/sim) | DLL, MAC/LTSSM, PIPE and SerDes BFM end to end on the serial line; drives TLPs until our TL is in | a second copy of the same stack |
-| PIPE + PHY | [`2.rtl/1.phy/3.sim`](../2.rtl/1.phy/3.sim) | Cologne Chip's PIPE logic over the GateMate SerDes; the opensource [SerDes BFM](../2.rtl/1.phy/2.serdes-model) against the vendor model | the vendor's PIPE test case; the BFM, looped back |
+| Top | `5.sim` (here) | validates the units together: MAC + DLL + TL RTL and firmware (enumeration, configuration, PIO); with `PHY=rtl`, also Cologne Chip's PIPE and SerDes | `RCPIPEx1__pcieVHost` |
+| DLL over PIPE + PHY | [`2.rtl/4.dll/sim`](../2.rtl/4.dll/sim) | unit debug: DLL, MAC/LTSSM, PIPE and SerDes BFM on the serial line | a second copy of the same stack |
+| PIPE + PHY | [`2.rtl/1.phy/3.sim`](../2.rtl/1.phy/3.sim) | unit debug: Cologne Chip's PIPE logic over the GateMate SerDes; the [SerDes BFM](../2.rtl/1.phy/2.serdes-model) against the vendor model | the vendor's PIPE test case; the BFM, looped back |
 
-All of them, with how to run each and today's status: [Simulation, layer by layer](../2.rtl/README.md#simulation-layer-by-layer).
+How to run each, and today's status: [Simulation, layer by layer](../2.rtl/README.md#simulation-layer-by-layer).
 
-The SerDes BFM ([`2.rtl/1.phy/2.serdes-model`](../2.rtl/1.phy/2.serdes-model)) is what makes the PHY testable at all in open source: the vendor's SerDes model is under NDA, the opensource BFM is not, and it is checked against the vendor model ([equivalence checking](../2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md)).
+`PHY` sets the top level's depth:
 
-Why split it this way:
-
-- **Speed.** Below the PIPE, the SerDes runs at the serial bit rate, 2.5 Gb/s; the top level would spend most of its time on bits that tell nothing about a TLP. At the PIPE, eight symbols move per 31.25 MHz clock, and a full enumeration runs in seconds.
-- **One question per test bench.** When the top level fails, the fault is in the MAC, the DLL, the TL or the firmware, because the PHY has already been proven on its own. A failing link never has to be untangled across all layers at once.
-- **No NDA in the main flow.** The vendor SerDes model never has to be present for the top level, so anyone can run it.
-- **Each layer validated against an independent partner.** The PIPE against the vendor's PIPE test case, the SerDes BFM against the vendor model, the DLL over the PHY against a second instance of the stack, and MAC, DLL and TL against pcieVHost here.
+- **`vproc_rc`**: the host sits at the PIPE. Fast (eight symbols per 31.25 MHz clock), and a failure points at MAC, DLL, TL or firmware.
+- **`rtl`**: the real PHY is in, and the host drives the serial line. Slower (2.5 Gb/s bit rate), but it covers the whole stack. It runs on the open-source [SerDes BFM](../2.rtl/1.phy/2.serdes-model), which is checked against the vendor's NDA model ([equivalence checking](../2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md)), so anyone can run it.
 
 ### A host already proven against real silicon
 
