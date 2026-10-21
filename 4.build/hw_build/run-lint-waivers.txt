@@ -32,14 +32,22 @@ verilator ^%Warning-ZERODLY: 2\.rtl/1\.phy/2\.serdes-model/
 verilator ^%Warning-UNUSEDSIGNAL: csr/csr\.sv:[0-9]+:[0-9]+: Signal is not used: '(decoded_err|is_valid_addr|is_valid_rw)'
 verilator ^%Warning-MULTIDRIVEN: csr/csr\.sv:[0-9]+:[0-9]+: Variable written to in always_(comb|ff) also written by other process .*: '(field_combo|field_storage)'$
 
-# The TL (pcie_tl) is an empty box: it ties its outputs off and reads none of
-# its inputs, so the DLL's receive side, the SOC's TLP stream and the TL's
-# own clock and reset are unread, and the pcie_pkg constants for the TL are
-# unused
-verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/4\.dll/dll_if\.sv:[0-9]+:[0-9]+: Signal is not used: '(tx_tlp_ready|rx_[a-z_]+)'$
-verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/axis_if\.sv:[0-9]+:[0-9]+: Signal is not used: '(tdata|tkeep|tuser|tlast|tvalid)'$
-verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/pcie_tl\.sv:[0-9]+:[0-9]+: Signal is not used: '(clk|rst_n)'$
-verilator ^%Warning-UNUSEDPARAM: 2\.rtl/5\.tlp/pcie_pkg\.sv:[0-9]+:[0-9]+: Parameter is not used: '(TRN_KEEP_W|TRN_REM_W|TLP_TYPE_CPL|TLP_TYPE_CFG)'$
+# Descriptor names: a signal of a pcie_pkg header type (*_dw0 ... *_dw3,
+# *_hdr_*) reads only the fields it needs
+verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/[a-z_]+\.sv:[0-9]+:[0-9]+: Bits of signal are not used: '[a-z0-9_]*(_dw[0-9]+|_hdr_[a-z0-9_]+)'
+
+# AXI-Stream: the TL takes the TLP length from the header and supports none
+# of the s_axis_tx_tuser qualifiers (UG477 table 2-9); the SOC takes the
+# first two beats of a TLP and reads neither tkeep nor tuser of m_axis_rx
+verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/axis_if\.sv:[0-9]+:[0-9]+: Signal is not used: '(tkeep|tuser)'$
+
+# The DLL has no input for a half last word yet: a TLP with an odd number of
+# DWs goes out 4 bytes longer (#21)
+verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/pcie_tl\.sv:[0-9]+:[0-9]+: Signal is not used: 'tx_half'$
+
+# TRN_REM_W belongs to the TRN interface; the AXI-Stream interface of this
+# design uses tkeep
+verilator ^%Warning-UNUSEDPARAM: 2\.rtl/5\.tlp/pcie_pkg\.sv:[0-9]+:[0-9]+: Parameter is not used: 'TRN_REM_W'$
 
 # Cologne Chip submodule code (2.pipe/pipe_src) keeps its own style and is not
 # changed here: its style findings are waived. Findings that can be bugs

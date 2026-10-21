@@ -24,6 +24,7 @@ module pcie_stack #(
    input  logic                   tl_tx_tlp_valid,
    input  logic                   tl_tx_tlp_first,
    input  logic                   tl_tx_tlp_last,
+   input  logic                   tl_tx_tlp_last_half,
    output logic                   tl_tx_tlp_ready,
    input  logic             [7:0] tl_tx_hdr_credit,
    input  logic            [11:0] tl_tx_data_credit,
@@ -110,6 +111,7 @@ module pcie_stack #(
       .tl_tx_tlp_valid   ( tl_tx_tlp_valid   ),
       .tl_tx_tlp_first   ( tl_tx_tlp_first   ),
       .tl_tx_tlp_last    ( tl_tx_tlp_last    ),
+      .tl_tx_tlp_last_half ( tl_tx_tlp_last_half ),
       .tl_tx_tlp_ready   ( tl_tx_tlp_ready   ),
 
       .tl_tx_hdr_credit  ( tl_tx_hdr_credit  ),

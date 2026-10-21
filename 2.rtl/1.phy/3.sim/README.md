@@ -24,12 +24,12 @@ bash 2.rtl/1.phy/3.sim/run-phy.sh equiv --ref --cross
 
 One file, one `module tb_phy` per test, chosen at compile time:
 
-* **PIPE test** (default): the testbench and testcase of gatemate-pipe (`tb_ccfpga_serdes.v`, `testcase_pipe.v`, merged here). `DATA_BYTES` sets the PIPE width (`-Ptb_phy.DATA_BYTES=2` or `8`). The SerDes bring-up is done with `writeCfg` / `writeRegfile` tasks.
+* **PIPE test** (default): the testbench and testcase of gatemate-pipe (`tb_ccfpga_serdes.v`, `testcase_pipe.v`, merged here). `DATA_BYTES` sets the PIPE width (`-Ptb_phy.DATA_BYTES=2` or `8`). The SerDes bring-up is done with `writeCfg` / `writeRegfile` tasks. The SerDes is set up and clocked as in Cologne Chip's `ccfpga_pipe_wrapper.v` and in `phy_top`: `PLL_FCNTRL = 6'h1A`, a 62.5 MHz PLL clock, and the SerDes TX and RX core clock on the PIPE logic's `o_tx_clk`, the PLL clock divided by 2. testcase_pipe.v waits a fixed `#350` between sending a test packet and checking it; here the first packet measures that latency (13 PCLK cycles with the opensource BFM, 17 with the vendor model) and each of the 100 packets after it must come back with the same latency.
 * **Model check** (`TB_PHY_EQUIV`): the open model with its TX looped back to its RX. Training words (a comma and fillers) until the receiver aligns, then a marker word, which must come out intact; the latency is printed. With `HAVE_VENDOR_SERDES` the vendor model runs beside it, `CROSS_LINK` links the two.
 
 ## Known failure: `pipe16`
 
-The 16-bit PIPE gets its PCLK from a `CC_PLL` at 4x the SerDes core clock, which feeds a 4-to-1 multiplexer onto the 64-bit SerDes word. In gatemate-pipe (`ccfpga_pipe_logic.v`, 16-bit branch) that `CC_PLL` is commented out and PCLK is the core clock itself, so three of every four 16-bit words are lost. The fault is in the PIPE RTL ([#18](https://github.com/chili-chips-ba/openCologne-PCIE/issues/18)); the test passes once the PLL is back.
+The 16-bit PIPE gets its PCLK from a `CC_PLL` at 4x the SerDes core clock, which feeds a 4-to-1 multiplexer onto the 64-bit SerDes word. In gatemate-pipe (`ccfpga_pipe_logic.v`, 16-bit branch) that `CC_PLL` is commented out and PCLK is the SerDes PLL clock itself, 62.5 MHz instead of 125 MHz, so 16-bit words are lost. The fault is in the PIPE RTL ([#18](https://github.com/chili-chips-ba/openCologne-PCIE/issues/18)); the test passes once the PLL is back.
 
 ## The vendor model
 

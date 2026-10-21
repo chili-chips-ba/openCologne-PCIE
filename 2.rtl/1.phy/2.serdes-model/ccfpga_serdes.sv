@@ -425,15 +425,18 @@ module ccfpga_serdes
   end
 
   //=========================================================================
-  // PLL: line rate f_ref * N1*N2*N3*2 / M3, core clock = line rate / 80
+  // PLL: line rate f_ref * N1*N2*N3*2 / M3, PLL_CLK_O = line rate / (10 * D)
+  // with D = 2/4/6/8 from PLL_FCNTRL[5:4], recovered RX clock = line rate / 80
   //=========================================================================
   logic [5:0] cfg_main_divsel;
   logic [1:0] cfg_out_divsel;
+  logic [5:0] cfg_fcntrl;
 
   assign cfg_main_divsel = pll_div[11:6];
   assign cfg_out_divsel  = pll_div[13:12];
+  assign cfg_fcntrl      = pll_div[5:0];
 
-  integer n1, n2, n3, m3;
+  integer n1, n2, n3, m3, d_core;
 
   assign n1 = (cfg_main_divsel[2] == 1'b0) ? 1 : 2;
   assign n2 = (cfg_main_divsel[1:0] == 2'b00) ? 3 :
@@ -443,11 +446,15 @@ module ccfpga_serdes
               (cfg_main_divsel[4:3] == 2'b10) ? 4 :
               (cfg_main_divsel[4:3] == 2'b11) ? 5 : 1;
   assign m3 = (cfg_out_divsel == 2'b01) ? 2 : (cfg_out_divsel == 2'b11) ? 4 : 1;
+  assign d_core = (cfg_fcntrl[5:4] == 2'b00) ? 2 :
+                  (cfg_fcntrl[5:4] == 2'b01) ? 4 :
+                  (cfg_fcntrl[5:4] == 2'b10) ? 6 : 8;
 
   real  ref_period;
   real  ref_last_edge;
   real  ui;
   real  core_period;
+  real  pll_period;
 
   logic ref_seen;
 
@@ -478,6 +485,7 @@ module ccfpga_serdes
       ui = 0.4;
     end
     core_period = ui * 80.0;
+    pll_period  = ui * 10.0 * d_core;
   end
 
   logic pll_enabled;
@@ -506,8 +514,8 @@ module ccfpga_serdes
           if (pll_enabled) begin
             pll_locked = 1'b1;
             if (BHV_VERBOSE) begin
-              $display("[%0t] %m: PLL locked, line rate %.3f Gb/s, core clk %.3f MHz", $time,
-                       1.0 / ui, 1000.0 / core_period);
+              $display("[%0t] %m: PLL locked, line rate %.3f Gb/s, PLL clk %.3f MHz", $time,
+                       1.0 / ui, 1000.0 / pll_period);
             end
           end
         end
@@ -520,8 +528,8 @@ module ccfpga_serdes
   end
 
   always begin : core_clk_gen
-    if (pll_locked && (core_period > 0.0)) begin
-      #(core_period / 2.0);
+    if (pll_locked && (pll_period > 0.0)) begin
+      #(pll_period / 2.0);
       clk_core_pll_r = ~clk_core_pll_r;
     end
     else begin

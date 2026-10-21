@@ -51,10 +51,13 @@ Everything the PIPE layer and the PCIE stack above it can observe:
   sequence. Status registers of unmodelled blocks read back as "converged", so
   code that polls them completes.
 * **PLL** - line rate derived from `PLL_FCNTRL` / `PLL_MAIN_DIVSEL` /
-  `PLL_OUT_DIVSEL`: `f_line = f_ref * N1*N2*N3*2 / M3`, core clock
-  `= f_line / 80`. For the Gen1 setup (100 MHz reference, `MAIN_DIVSEL`
-  `6'b011011`, `OUT_DIVSEL` `2'b01`) that is 2.5 Gb/s and a 31.25 MHz core clock.
-  The reference period is measured at run time.
+  `PLL_OUT_DIVSEL`: `f_line = f_ref * N1*N2*N3*2 / M3`. `clk_core_pll_o` is
+  `f_line / (10 * D)`, with `D` = 2, 4, 6, 8 for `PLL_FCNTRL[5:4]` = 0 ... 3, as
+  measured on the vendor model with the 64-bit datapath; the recovered RX clock
+  is `f_line / 80`. For the Gen1 setup (100 MHz reference, `MAIN_DIVSEL`
+  `6'b011011`, `OUT_DIVSEL` `2'b01`) that is 2.5 Gb/s, and `clk_core_pll_o` is
+  62.5 MHz with `PLL_FCNTRL = 6'h1A` (Cologne Chip's `ccfpga_pipe_wrapper.v`)
+  or 31.25 MHz with the default 58. The reference period is measured at run time.
 * **TX** - 8b/10b encoding with running disparity, `tx_char_dispmode` /
   `tx_char_dispval` forcing, per-byte `tx_8b10b_bypass`, elastic TX buffer with
   overflow/underflow reporting, serializer, electrical idle, polarity inversion,

@@ -73,9 +73,10 @@ module phy_top #(
     output logic phy_rdy_n  // low once the SerDes TX is out of reset
 );
 
-  // SerDes settings, shared by both SerDes: the vendor model's defaults,
-  // with a 64-bit datapath and the comma aligned on a 32-bit word
-  localparam logic [5:0] PLL_FCNTRL         = 6'd58;
+  // SerDes settings, shared by both SerDes: as in Cologne Chip's
+  // ccfpga_pipe_wrapper.v, a 62.5 MHz PLL clock, a 64-bit datapath and the
+  // comma aligned on a 32-bit word
+  localparam logic [5:0] PLL_FCNTRL         = 6'h1A;
   localparam logic [5:0] PLL_MAIN_DIVSEL    = {1'b0, 2'b11, 1'b0, 2'b11};
   localparam logic [1:0] PLL_OUT_DIVSEL     = 2'b01;
   localparam logic [1:0] RX_DATAPATH_SEL    = 2'd3;
@@ -108,27 +109,17 @@ module phy_top #(
 
   assign phy_rdy_n = ~tx_resetdone;
 
-  // The SerDes core clocks, from the PIPE logic: CC_SERDES runs its TX and
-  // RX on o_tx_clk, the model on o_clk_core_tx and o_clk_core_rx
-`ifdef SYNTHESIS
+  // The SerDes TX and RX core clock, from the PIPE logic: the PLL clock
+  // divided by 2, the word rate
   logic tx_clk;
-`else
-  logic clk_core_tx, clk_core_rx_in;
-`endif
 
   ccfpga_pipe_logic #(
       .DATA_BYTES(DATA_BYTES)
   ) u_pipe_logic (
       .o_PCLK              (pipe.pclk),
-`ifdef SYNTHESIS
       .o_tx_clk            (tx_clk),
       .o_clk_core_tx       (  /*LINT:OK*/),
       .o_clk_core_rx       (  /*LINT:OK*/),
-`else
-      .o_tx_clk            (  /*LINT:OK*/),
-      .o_clk_core_tx       (clk_core_tx),
-      .o_clk_core_rx       (clk_core_rx_in),
-`endif
       .i_Reset             (pipe.reset_n),
       .i_PowerDown         (pipe.power_down),
       .i_TxDetectRx        (pipe.tx_detect_rx),
@@ -450,8 +441,8 @@ module phy_top #(
       .clk_ref_i           (clk_ref),
       .clk_reg_i           (clk_reg),
       .clk_cfg_i           (clk_cfg),
-      .clk_core_tx_i       (clk_core_tx),
-      .clk_core_rx_i       (clk_core_rx_in),
+      .clk_core_tx_i       (tx_clk),
+      .clk_core_rx_i       (tx_clk),
       .clk_core_rx_o       (clk_core_rx_rec),
       .reset_n_i           (rst_reg_n),
       .reset_reg_n_i       (rst_reg_n),

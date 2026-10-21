@@ -46,7 +46,8 @@
 //     then sends and receives the ordered sets and scrambled data on PIPE.
 //   - DLL (dll_logic, Cologne Chip): sequence numbers and LCRC, Ack/Nak and
 //     replay, flow-control DLLPs; it starts once the LTSSM is in L0.
-//   - TL (pcie_tl): an empty box for now.
+//   - TL (pcie_tl): flow control, the configuration space, and the TLPs to
+//     and from the SOC.
 //
 //   The data link is up (trn_link_up, UG477 trn_lnk_up) when the DLL is in
 //   DL_Active.
@@ -118,33 +119,34 @@ module pcie_core #(
       .NUMBER_OF_VIRTUAL_CHANNELS(1),
       .PATTERN_WIDTH             (64)
   ) u_dll (
-      .phy_clk          (pipe.pclk),
-      .phy_reset        (~mac_rst_n),
-      .phy_linkup       (mac_link_up && (ltssm_state == LTSSM_L0)),
-      .phy_rx_data      (mac_rx_data),
-      .phy_rx_data_k    (mac_rx_datak),                              // K flags for framing (#9)
-      .tl_tx_data       (dll.tx_data),
-      .tl_tx_tlp_valid  (dll.tx_tlp_valid),
-      .tl_tx_tlp_first  (dll.tx_tlp_first),
-      .tl_tx_tlp_last   (dll.tx_tlp_last),
-      .tl_tx_tlp_ready  (dll.tx_tlp_ready),
-      .tl_tx_hdr_credit (dll.tx_hdr_credit),
-      .tl_tx_data_credit(dll.tx_data_credit),
-      .tl_tx_update_type(dll.tx_update_type),
-      .tl_tx_packet_type(dll.tx_packet_type),
-      .tl_tx_dllp_valid (dll.tx_dllp_valid),
-      .phy_tx_data      (dll_tx_data),
-      .phy_tx_data_k    (dll_tx_datak),
-      .tl_rx_data       (dll.rx_data),
-      .tl_rx_tlp_valid  (dll.rx_tlp_valid),
-      .tl_rx_tlp_first  (dll.rx_tlp_first),
-      .tl_rx_tlp_last   (dll.rx_tlp_last),
-      .tl_rx_hdr_credit (dll.rx_hdr_credit),
-      .tl_rx_data_credit(dll.rx_data_credit),
-      .tl_rx_update_type(dll.rx_update_type),
-      .tl_rx_packet_type(dll.rx_packet_type),
-      .tl_rx_dllp_valid (dll.rx_dllp_valid),
-      .o_DL_State       (dll.dl_state)
+      .phy_clk            (pipe.pclk),
+      .phy_reset          (~mac_rst_n),
+      .phy_linkup         (mac_link_up && (ltssm_state == LTSSM_L0)),
+      .phy_rx_data        (mac_rx_data),
+      .phy_rx_data_k      (mac_rx_datak),                              // K flags for framing (#9)
+      .tl_tx_data         (dll.tx_data),
+      .tl_tx_tlp_valid    (dll.tx_tlp_valid),
+      .tl_tx_tlp_first    (dll.tx_tlp_first),
+      .tl_tx_tlp_last     (dll.tx_tlp_last),
+      .tl_tx_tlp_last_half(dll.tx_tlp_last_half),
+      .tl_tx_tlp_ready    (dll.tx_tlp_ready),
+      .tl_tx_hdr_credit   (dll.tx_hdr_credit),
+      .tl_tx_data_credit  (dll.tx_data_credit),
+      .tl_tx_update_type  (dll.tx_update_type),
+      .tl_tx_packet_type  (dll.tx_packet_type),
+      .tl_tx_dllp_valid   (dll.tx_dllp_valid),
+      .phy_tx_data        (dll_tx_data),
+      .phy_tx_data_k      (dll_tx_datak),
+      .tl_rx_data         (dll.rx_data),
+      .tl_rx_tlp_valid    (dll.rx_tlp_valid),
+      .tl_rx_tlp_first    (dll.rx_tlp_first),
+      .tl_rx_tlp_last     (dll.rx_tlp_last),
+      .tl_rx_hdr_credit   (dll.rx_hdr_credit),
+      .tl_rx_data_credit  (dll.rx_data_credit),
+      .tl_rx_update_type  (dll.rx_update_type),
+      .tl_rx_packet_type  (dll.rx_packet_type),
+      .tl_rx_dllp_valid   (dll.rx_dllp_valid),
+      .o_DL_State         (dll.dl_state)
   );
 
   assign trn_link_up = (dll.dl_state == DL_ACTIVE);

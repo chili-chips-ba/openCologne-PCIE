@@ -38,7 +38,7 @@ Only the C firmware changes in role; the user interface, the SOC and the VIP sta
 
 ### Simulation, layer by layer
 
-Three test benches cover the EP, each where its layer is checked best, against a link partner that does not share its code. The layers above build on the ones below. In depth, each one is described next to its sources.
+Four test benches cover the EP, each where its layer is checked best, against a link partner that does not share its code. The layers above build on the ones below. In depth, each one is described next to its sources.
 
 | Layer | Simulation | DUT | Checked against | Simulator | pcieVHost | Status (2026-10-18) |
 |---|---|---|---|---|---|---|
@@ -46,6 +46,7 @@ Three test benches cover the EP, each where its layer is checked best, against a
 | | `run-phy.sh equiv` | the opensource SerDes BFM | itself, looped back; the vendor model with `--ref` (NDA, not in the repo) | Icarus | no | passes: 400 words, 0 mismatches |
 | | `run-phy.sh pipe16` | the same, 16-bit | the vendor's PIPE test case | Icarus | no | fails: [#18](https://github.com/chili-chips-ba/openCologne-PCIE/issues/18) |
 | DLL over PIPE + PHY | [`4.dll/sim`](4.dll/sim) `run-dll-phy.sh` | DLL, MAC/LTSSM, PIPE and SerDes BFM, end to end on the serial line | a second copy of the same stack: training to L0, InitFC, TLPs both ways, Nak and replay, UpdateFC | Icarus | no | passes |
+| TL | [`5.tlp/sim`](5.tlp/sim) `run-tl.sh` | `pcie_tl` at its `dll_if` and AXI-Stream ports | a test bench in the roles of the DLL, the host and a PIO application: configuration space, Unsupported Requests, messages, ordering, flow control, random PIO traffic | Verilator | no | passes |
 | MAC + DLL + TL + firmware | [`5.sim`](../5.sim) | the EP at its PIPE; today the mock EP (`DUT=mock`) | `RCPIPEx1__pcieVHost`, the host: enumeration, BARs, PIO | Verilator or Icarus | 1.9.3: RC (host), EP (mock) | passes with the mock |
 
 How to read it: a failure is pinned to the layer that shows it, because every layer below has passed on its own. The PHY bench is permanent. `run-dll-phy.sh` drives TLPs into the DLL until our TL is in; then [`5.sim`](../5.sim) with `DUT=rtl` takes over that job, against an independent link partner ([why the split](../5.sim/README.md#scope-unit-debug-then-top-level-validation)).

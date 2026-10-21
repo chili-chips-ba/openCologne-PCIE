@@ -63,6 +63,7 @@ module tb_dll_wavecrux;
         .tl_tx_tlp_valid(tl_tx_tlp_valid),
         .tl_tx_tlp_first(tl_tx_tlp_first),
         .tl_tx_tlp_last(tl_tx_tlp_last),
+        .tl_tx_tlp_last_half(1'b0),
         .tl_tx_tlp_ready(tl_tx_tlp_ready),
 
         .tl_tx_hdr_credit(tl_tx_hdr_credit),

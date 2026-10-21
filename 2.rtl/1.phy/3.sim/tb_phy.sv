@@ -889,10 +889,6 @@ module tb_phy;
                ref_marker_tx_t, ref_marker_rx_t, ref_marker_rx_t - ref_marker_tx_t);
       $display("  delta (BHV - REF) = %.1f ns",
                (bhv_marker_rx_t - bhv_marker_tx_t) - (ref_marker_rx_t - ref_marker_tx_t));
-      $display("");
-      $display("  NOTE: testcase_pipe.v hard-codes a #350 wait between send and");
-      $display("        check, so this delta must stay small for that testcase");
-      $display("        to pass unmodified against the behavioural model.");
 `endif
 
       $display("");
@@ -973,7 +969,6 @@ module tb_phy ();
    // Used by PIPE Logic (SerDes)
 
    logic        clk_core_tx;
-   logic        clk_core_rx_in;   // rx core clock
    logic        clk_core_rx_rec;  // rx recovered clock
    logic        clk_core_pll;
 
@@ -1097,7 +1092,7 @@ module tb_phy ();
 
    // SerDes Config Parameter 
 
-   parameter  [5:0] PLL_FCNTRL               = 58;                      // (Default = 58 = T:20d)
+   parameter  [5:0] PLL_FCNTRL               = 6'h1A;                   // (Default = 58 = T:20d)
    parameter  [5:0] PLL_MAIN_DIVSEL          = {1'b0,2'b11,1'b0,2'b11}; // (Default = 27)
    parameter  [1:0] PLL_OUT_DIVSEL           = 2'b01;                   // (Default = 0 = T:1d)
 
@@ -1342,7 +1337,7 @@ module tb_phy ();
       .clk_reg_i             ( clk_reg            ),
       .clk_cfg_i             ( clk_cfg            ),
       .clk_core_tx_i         ( clk_core_tx        ),
-      .clk_core_rx_i         ( clk_core_rx_in     ),
+      .clk_core_rx_i         ( clk_core_tx        ),
       .clk_core_rx_o         ( clk_core_rx_rec    ),
       .reset_n_i             ( reset_n            ),
       .reset_reg_n_i         ( reset_reg_n        ),
@@ -1438,6 +1433,7 @@ module tb_phy ();
    )
    pipe_logic_inst ( 
       .o_PCLK               ( o_PCLK             ),
+      .o_tx_clk             ( clk_core_tx        ),
       .i_Reset              ( i_Reset            ),
       .i_PowerDown          ( i_PowerDown        ),
       .i_TxDetectRx         ( i_TxDetectRx       ),
@@ -1464,8 +1460,8 @@ module tb_phy ();
       .o_RxDataDecErr       ( o_RxDataDecErr     ),
       .i_clk_core_pll       ( clk_core_pll       ),
       .i_clk_core_rx_rec    ( clk_core_rx_rec    ),
-      .o_clk_core_tx        ( clk_core_tx        ),
-      .o_clk_core_rx        ( clk_core_rx_in     ),
+      .o_clk_core_tx        (                    ),
+      .o_clk_core_rx        (                    ),
       .o_pll_reset          ( pll_reset          ),
       .o_tx_reset           ( tx_reset           ),
       .i_tx_reset_done      ( tx_resetdone       ),
@@ -2026,6 +2022,28 @@ function [7:0] setControlByte(input integer pos);
                 8'hFE;
    end
 endfunction 
+
+integer                lat_pclk;
+logic [DATA_WIDTH-1:0] lat_word;
+
+task find_latency (input integer bytes);
+    begin
+    lat_word = (bytes == 2) ? {testdata[0], testdata[1]}
+                            : {testdata[7], testdata[6], testdata[5], testdata[4],
+                               testdata[3], testdata[2], testdata[1], testdata[0]};
+    lat_pclk = 0;
+    while ((o_RxData !== lat_word) && (lat_pclk < 200)) begin
+        @(posedge o_PCLK); #1;
+        lat_pclk = lat_pclk + 1;
+    end
+    if (o_RxData !== lat_word) begin
+        $display("ERROR: test data did not come back within 200 PCLK cycles.");
+        errors = errors + 1;
+        finalize;
+    end
+    $display("INFO: test data comes back %0d PCLK cycles after send_testdata.", lat_pclk);
+    end
+endtask
 
 task send_testdata (input integer bytes); 
     integer k;
@@ -2744,10 +2762,14 @@ status_flag_1 = 1'b1;
 
     // Normal Transmission Test
 
+    generate_data;
+    send_testdata(DATA_BYTES);
+    find_latency(DATA_BYTES);
+
     for (i = 0; i < 100 ; i = i + 1) begin
         generate_data;
         send_testdata(DATA_BYTES);
-        #350;
+        repeat (lat_pclk - 1) @(posedge o_PCLK);
         //#534;
         //#16;
         //#64;

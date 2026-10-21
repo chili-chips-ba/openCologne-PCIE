@@ -105,11 +105,63 @@ package pcie_pkg;
     logic [1:0] rsvd1;    // [1:0]
   } pcie_cfg_dw2_t;
 
+  typedef struct packed {
+    logic [15:0] requester_id;
+    logic [7:0]  tag;
+    logic [3:0]  last_be;
+    logic [3:0]  first_be;
+  } pcie_req_dw1_t;
+
+  typedef struct packed {
+    logic [15:0] requester_id;
+    logic [7:0]  tag;
+    logic [7:0]  msg_code;
+  } pcie_msg_dw1_t;
+
+  typedef struct packed {
+    logic [29:0] addr;
+    logic [1:0]  rsvd0;
+  } pcie_addr_dw_t;
+
+  localparam logic [1:0] TLP_FMT_3DW        = 2'b00;
+  localparam logic [1:0] TLP_FMT_4DW        = 2'b01;
+  localparam logic [1:0] TLP_FMT_3DW_DATA   = 2'b10;
+  localparam logic [1:0] TLP_FMT_4DW_DATA   = 2'b11;
+
+  localparam logic [4:0] TLP_TYPE_MEM       = 5'b00000;
+  localparam logic [4:0] TLP_TYPE_MEM_LK    = 5'b00001;
+  localparam logic [4:0] TLP_TYPE_IO        = 5'b00010;
+  localparam logic [4:0] TLP_TYPE_CPL_LK    = 5'b01011;
+  localparam logic [4:0] TLP_TYPE_FETCH_ADD = 5'b01100;
+  localparam logic [4:0] TLP_TYPE_SWAP      = 5'b01101;
+  localparam logic [4:0] TLP_TYPE_CAS       = 5'b01110;
+  localparam logic [1:0] TLP_TYPE_MSG       = 2'b10;
+
   // First beat of a TLP on the 64-bit bus
   typedef struct packed {
     logic [31:0]   dw1;  // [63:32]
     pcie_tlp_dw0_t dw0;  // [31:0]
   } pcie_trn_desc_t;
+
+  typedef struct packed {
+    logic [31:0] dw3;
+    logic [31:0] dw2;
+  } pcie_trn_desc2_t;
+
+  typedef logic [3:0][7:0] pcie_dw_bytes_t;
+
+  function automatic logic [31:0] dw_byte_swap(input pcie_dw_bytes_t dw);
+    return {dw[0], dw[1], dw[2], dw[3]};
+  endfunction
+
+  function automatic logic [TRN_DATA_W-1:0] trn_byte_swap(
+      input pcie_dw_bytes_t [TRN_DATA_W/32-1:0] beat);
+    logic [TRN_DATA_W/32-1:0][31:0] swapped;
+    for (int i = 0; i < TRN_DATA_W / 32; i++) begin
+      swapped[i] = dw_byte_swap(beat[i]);
+    end
+    return swapped;
+  endfunction
 
   // ---- AXI-Stream sideband --------------------------------------------------
 

@@ -9,7 +9,7 @@ module tb_dll_phy;
    localparam real CLKPERIOD_REG   =  8.0;
    localparam real CLKPERIOD_CFG   = 40.0;
    localparam real WIRE_DELAY_NS   = 10.0;
-   localparam real GLITCH_DELAY_NS = 320.0;
+   localparam real GLITCH_DELAY_NS = 176.0;
    localparam real GLITCH_PULSE_NS = 0.8;
    localparam real GLITCH_GAP_NS   = 3.2;
    localparam      GLITCH_PULSES   = 16;
@@ -100,6 +100,7 @@ module tb_dll_phy;
    logic                   tx_valid    [0:1];
    logic                   tx_first    [0:1];
    logic                   tx_last     [0:1];
+   logic                   tx_half     [0:1];
    logic                  tx_ready    [0:1];
    logic             [7:0] tx_hdr      [0:1];
    logic            [11:0] tx_dcr      [0:1];
@@ -134,6 +135,7 @@ module tb_dll_phy;
       .tl_tx_tlp_valid   ( tx_valid[EP]   ),
       .tl_tx_tlp_first   ( tx_first[EP]   ),
       .tl_tx_tlp_last    ( tx_last[EP]    ),
+      .tl_tx_tlp_last_half ( tx_half[EP]  ),
       .tl_tx_tlp_ready   ( tx_ready[EP]   ),
       .tl_tx_hdr_credit  ( tx_hdr[EP]     ),
       .tl_tx_data_credit ( tx_dcr[EP]     ),
@@ -172,6 +174,7 @@ module tb_dll_phy;
       .tl_tx_tlp_valid   ( tx_valid[RC]   ),
       .tl_tx_tlp_first   ( tx_first[RC]   ),
       .tl_tx_tlp_last    ( tx_last[RC]    ),
+      .tl_tx_tlp_last_half ( tx_half[RC]  ),
       .tl_tx_tlp_ready   ( tx_ready[RC]   ),
       .tl_tx_hdr_credit  ( tx_hdr[RC]     ),
       .tl_tx_data_credit ( tx_dcr[RC]     ),
@@ -252,6 +255,7 @@ module tb_dll_phy;
          sym_err_cnt <= sym_err_cnt + 1;
 
    localparam [7:0] STP = 8'hFB;
+   localparam [7:0] END = 8'hFD;
 
    function stp_in_word(input [DATA_WIDTH-1:0] d, input [DATA_BYTES-1:0] k);
       integer b;
@@ -268,6 +272,74 @@ module tb_dll_phy;
    always @(posedge pclk[EP])
       if (stp_in_word(ep.dll_tx_data, ep.dll_tx_datak))
          ep_stp_cnt <= ep_stp_cnt + 1;
+
+   integer rc_stp_cnt;
+   initial rc_stp_cnt = 0;
+   always @(posedge pclk[RC])
+      if (stp_in_word(rc.dll_tx_data, rc.dll_tx_datak))
+         rc_stp_cnt <= rc_stp_cnt + 1;
+
+   function [31:0] crc32_byte(input [31:0] c, input [7:0] b);
+      integer i;
+      begin
+         crc32_byte = c ^ {24'd0, b};
+         for (i = 0; i < 8; i = i + 1)
+            crc32_byte = crc32_byte[0] ? ((crc32_byte >> 1) ^ 32'hEDB88320) : (crc32_byte >> 1);
+      end
+   endfunction
+
+   integer line_tlps;
+   integer line_lcrc_err;
+   integer line_tlp_bytes [0:1];
+   initial begin
+      line_tlps     = 0;
+      line_lcrc_err = 0;
+   end
+
+   generate
+      for (g = 0; g < 2; g = g + 1) begin : line
+         logic [7:0]            tlp [0:255];
+         integer                cnt;
+         logic                  framed;
+         logic [DATA_WIDTH-1:0] d;
+         logic [DATA_BYTES-1:0] k;
+         logic [31:0]           crc;
+         integer                b, i;
+         initial begin
+            cnt    = 0;
+            framed = 1'b0;
+            line_tlp_bytes[g] = 0;
+         end
+         always @(posedge pclk[g]) begin
+            d = (g == EP) ? ep.dll_tx_data  : rc.dll_tx_data;
+            k = (g == EP) ? ep.dll_tx_datak : rc.dll_tx_datak;
+            for (b = 0; b < DATA_BYTES; b = b + 1) begin
+               if (k[b] && d[8*b +: 8] == STP) begin
+                  framed = 1'b1;
+                  cnt    = 0;
+               end
+               else if (framed && k[b] && d[8*b +: 8] == END) begin
+                  framed = 1'b0;
+                  crc    = 32'hFFFFFFFF;
+                  for (i = 0; i < cnt - 4; i = i + 1)
+                     crc = crc32_byte(crc, tlp[i]);
+                  crc = ~crc;
+                  line_tlps         = line_tlps + 1;
+                  line_tlp_bytes[g] = cnt - 6;
+                  if ({tlp[cnt-1], tlp[cnt-2], tlp[cnt-3], tlp[cnt-4]} !== crc) begin
+                     line_lcrc_err = line_lcrc_err + 1;
+                     $display("[%10.1f ns] ERROR: %s LCRC %h, expected %h", $realtime, g == EP ? "EP" : "RC",
+                              {tlp[cnt-1], tlp[cnt-2], tlp[cnt-3], tlp[cnt-4]}, crc);
+                  end
+               end
+               else if (framed) begin
+                  tlp[cnt] = d[8*b +: 8];
+                  cnt      = cnt + 1;
+               end
+            end
+         end
+      end
+   endgenerate
 
    integer errors;
    logic [DATA_WIDTH-1:0] tlp_words [0:15];
@@ -294,7 +366,7 @@ module tb_dll_phy;
       end
    endtask
 
-   task send_tlp(input integer s, input integer n);
+   task send_tlp(input integer s, input integer n, input logic half);
       integer i;
       begin
          wait_tx_ready(s);
@@ -304,12 +376,14 @@ module tb_dll_phy;
             tx_data[s]  = tlp_words[i];
             tx_first[s] = (i == 0);
             tx_last[s]  = (i == n - 1);
+            tx_half[s]  = (i == n - 1) && half;
             tick(s);
             #1;
          end
          tx_valid[s] = 1'b0;
          tx_first[s] = 1'b0;
          tx_last[s]  = 1'b0;
+         tx_half[s]  = 1'b0;
          tx_data[s]  = {DATA_WIDTH{1'b0}};
       end
    endtask
@@ -328,8 +402,9 @@ module tb_dll_phy;
       end
    endtask
 
-   task check_tlp_rx(input integer s, input integer n, input integer limit);
+   task check_tlp_rx(input integer s, input integer n, input logic half, input integer limit);
       integer t, i;
+      logic [DATA_WIDTH-1:0] m;
       begin
          t = 0;
          while (!rx_tvalid[s] && t < limit) begin
@@ -342,6 +417,8 @@ module tb_dll_phy;
          end
          else begin
             for (i = 0; i < n; i = i + 1) begin
+               m = (half && i == n - 1) ? {{(DATA_WIDTH/2){1'b0}}, {(DATA_WIDTH/2){1'b1}}}
+                                        : {DATA_WIDTH{1'b1}};
                if (i != 0 && !rx_tvalid[s]) begin
                   errors = errors + 1;
                   $display("[%10.1f ns] ERROR: word %0d not valid", $realtime, i);
@@ -354,13 +431,13 @@ module tb_dll_phy;
                   errors = errors + 1;
                   $display("[%10.1f ns] ERROR: word %0d last flag wrong", $realtime, i);
                end
-               if (rx_data[s] !== tlp_words[i]) begin
+               if ((rx_data[s] & m) !== (tlp_words[i] & m)) begin
                   errors = errors + 1;
-                  $display("[%10.1f ns] ERROR: word %0d expected %h got %h", $realtime, i, tlp_words[i], rx_data[s]);
+                  $display("[%10.1f ns] ERROR: word %0d expected %h got %h", $realtime, i, tlp_words[i] & m, rx_data[s] & m);
                end
                if (i != n - 1) tick(s);
             end
-            $display("[%10.1f ns]   %s received %0d words, checked", $realtime, s == EP ? "EP" : "RC", n);
+            $display("[%10.1f ns]   %s received %0d DW, checked", $realtime, s == EP ? "EP" : "RC", half ? 2 * n - 1 : 2 * n);
          end
          tick(s);
       end
@@ -388,6 +465,32 @@ module tb_dll_phy;
       end
    endtask
 
+   task tlp_once(input integer src, input integer n, input logic half);
+      integer dst, stp_at_start, sent, bytes;
+      begin
+         dst          = (src == EP) ? RC : EP;
+         stp_at_start = (src == EP) ? ep_stp_cnt : rc_stp_cnt;
+         send_tlp(src, n, half);
+         check_tlp_rx(dst, n, half, 4000);
+         wait_tx_ready(src);
+         repeat (40) tick(src);
+         sent  = ((src == EP) ? ep_stp_cnt : rc_stp_cnt) - stp_at_start;
+         bytes = half ? 8 * n - 4 : 8 * n;
+         if (sent != 1) begin
+            errors = errors + 1;
+            $display("[%10.1f ns] ERROR: %s sent the TLP %0d times", $realtime, src == EP ? "EP" : "RC", sent);
+         end
+         if (line_tlp_bytes[src] != bytes) begin
+            errors = errors + 1;
+            $display("[%10.1f ns] ERROR: %s put %0d TLP bytes on the line, expected %0d", $realtime,
+                     src == EP ? "EP" : "RC", line_tlp_bytes[src], bytes);
+         end
+         if (sent == 1 && line_tlp_bytes[src] == bytes)
+            $display("[%10.1f ns]   %s sent it once, %0d TLP bytes on the line", $realtime,
+                     src == EP ? "EP" : "RC", bytes);
+      end
+   endtask
+
    integer t;
    integer s;
    integer stp_before;
@@ -400,6 +503,7 @@ module tb_dll_phy;
          tx_valid[s] = 1'b0;
          tx_first[s] = 1'b0;
          tx_last[s]  = 1'b0;
+         tx_half[s]  = 1'b0;
          tx_hdr[s]   = 8'd0;
          tx_dcr[s]   = 12'd0;
          tx_upd[s]   = 2'd0;
@@ -444,15 +548,15 @@ module tb_dll_phy;
       tlp_words[0] = 64'h0001020304050607;
       tlp_words[1] = 64'h1011121314151617;
       tlp_words[2] = 64'h2021222324252627;
-      send_tlp(EP, 3);
-      check_tlp_rx(RC, 3, 4000);
+      send_tlp(EP, 3, 1'b0);
+      check_tlp_rx(RC, 3, 1'b0, 4000);
 
       tlp_words[0] = 64'hA0A1A2A3A4A5A6A7;
       tlp_words[1] = 64'hB0B1B2B3B4B5B6B7;
       tlp_words[2] = 64'hC0C1C2C3C4C5C6C7;
       tlp_words[3] = 64'hD0D1D2D3D4D5D6D7;
-      send_tlp(EP, 4);
-      check_tlp_rx(RC, 4, 4000);
+      send_tlp(EP, 4, 1'b0);
+      check_tlp_rx(RC, 4, 1'b0, 4000);
 
       tlp_words[0] = 64'hDEADBEEF12345678;
       tlp_words[1] = 64'hAABBCCDDEEFF0011;
@@ -460,22 +564,22 @@ module tb_dll_phy;
       tlp_words[3] = 64'h1122334455667788;
       tlp_words[4] = 64'hFFEEDDCCBBAA9988;
       tlp_words[5] = 64'h0102030405060708;
-      send_tlp(EP, 6);
-      check_tlp_rx(RC, 6, 4000);
+      send_tlp(EP, 6, 1'b0);
+      check_tlp_rx(RC, 6, 1'b0, 4000);
 
       $display("=== Step 3: RC -> EP, two TLPs ===");
       tlp_words[0] = 64'hCAFEF00D00000001;
       tlp_words[1] = 64'h0123456789ABCDEF;
       tlp_words[2] = 64'h7766554433221100;
-      send_tlp(RC, 3);
-      check_tlp_rx(EP, 3, 4000);
+      send_tlp(RC, 3, 1'b0);
+      check_tlp_rx(EP, 3, 1'b0, 4000);
 
       tlp_words[0] = 64'hCAFEF00D00000002;
       tlp_words[1] = 64'h5A5A5A5AA5A5A5A5;
       tlp_words[2] = 64'h0F0F0F0FF0F0F0F0;
       tlp_words[3] = 64'h3C3C3C3CC3C3C3C3;
-      send_tlp(RC, 4);
-      check_tlp_rx(EP, 4, 4000);
+      send_tlp(RC, 4, 1'b0);
+      check_tlp_rx(EP, 4, 1'b0, 4000);
 
       $display("=== Step 4: TLP corrupted on the EP -> RC wire, expect NAK and replay ===");
       tlp_words[0] = 64'h5555AAAA5555AAAA;
@@ -483,7 +587,7 @@ module tb_dll_phy;
       tlp_words[2] = 64'hFEDCBA0987654321;
       stp_before = ep_stp_cnt;
       fork
-         send_tlp(EP, 3);
+         send_tlp(EP, 3, 1'b0);
          begin
             @(posedge pclk[EP]);
             while (!stp_in_word(ep.mac_tx_data, ep.mac_tx_datak)) @(posedge pclk[EP]);
@@ -496,7 +600,7 @@ module tb_dll_phy;
             end
          end
       join
-      check_tlp_rx(RC, 3, 8000);
+      check_tlp_rx(RC, 3, 1'b0, 8000);
       wait_tx_ready(EP);
       $display("[%10.1f ns]   RC 8b/10b decoder flagged %0d symbol beats", $realtime, sym_err_cnt);
       if (ep_stp_cnt - stp_before < 2) begin
@@ -509,6 +613,63 @@ module tb_dll_phy;
       $display("=== Step 5: UpdateFC-P DLLP, EP -> RC ===");
       send_dllp(EP, 8'd10, 12'd200, 2'b00, 2'b10);
       check_dllp_rx(RC, 8'd10, 12'd200, 2'b00, 2'b10);
+
+      $display("=== Step 6: TLPs with an odd number of DW, the last word half ===");
+      tlp_words[0] = 64'h0000000F_01000000;
+      tlp_words[1] = 64'hDEADDEAD_12345678;
+      tlp_once(EP, 2, 1'b1);
+      tlp_words[0] = 64'h00000F01_02000040;
+      tlp_words[1] = 64'hA5A5A5A5_0BADF00D;
+      tlp_words[2] = 64'hEEEEEEEE_C0FFEE00;
+      tlp_once(EP, 3, 1'b1);
+      tlp_words[0] = 64'h11111111_22222222;
+      tlp_words[1] = 64'h33333333_44444444;
+      tlp_words[2] = 64'h55555555_66666666;
+      tlp_words[3] = 64'hBAD0BAD0_77777777;
+      tlp_once(EP, 4, 1'b1);
+      tlp_words[0] = 64'h0000000F_01000001;
+      tlp_words[1] = 64'hFFFFFFFF_87654321;
+      tlp_once(RC, 2, 1'b1);
+      tlp_words[0] = 64'h0102030405060708;
+      tlp_words[1] = 64'h090A0B0C0D0E0F10;
+      tlp_words[2] = 64'h99999999_11121314;
+      tlp_once(RC, 3, 1'b1);
+      tlp_words[0] = 64'hA0A1A2A3A4A5A6A7;
+      tlp_words[1] = 64'hB0B1B2B3B4B5B6B7;
+      tlp_words[2] = 64'hC0C1C2C3C4C5C6C7;
+      tlp_once(EP, 3, 1'b0);
+
+      $display("=== Step 7: odd-DW TLP corrupted on the EP -> RC wire, expect NAK and replay ===");
+      tlp_words[0] = 64'h5555AAAA5555AAAA;
+      tlp_words[1] = 64'h1234567890ABCDEF;
+      tlp_words[2] = 64'h77777777_FEDCBA09;
+      stp_before = ep_stp_cnt;
+      fork
+         send_tlp(EP, 3, 1'b1);
+         begin
+            @(posedge pclk[EP]);
+            while (!stp_in_word(ep.mac_tx_data, ep.mac_tx_datak)) @(posedge pclk[EP]);
+            #(GLITCH_DELAY_NS);
+            repeat (GLITCH_PULSES) begin
+               serial_glitch = 1'b1;
+               #(GLITCH_PULSE_NS);
+               serial_glitch = 1'b0;
+               #(GLITCH_GAP_NS);
+            end
+         end
+      join
+      check_tlp_rx(RC, 3, 1'b1, 8000);
+      wait_tx_ready(EP);
+      repeat (40) tick(EP);
+      if (ep_stp_cnt - stp_before < 2) begin
+         errors = errors + 1;
+         $display("[%10.1f ns] ERROR: EP did not replay the TLP", $realtime);
+      end
+      else
+         $display("[%10.1f ns]   EP sent the TLP %0d times, NAK and replay worked", $realtime, ep_stp_cnt - stp_before);
+
+      $display("[%10.1f ns] LINE : %0d TLPs, LCRC checked, %0d wrong", $realtime, line_tlps, line_lcrc_err);
+      errors = errors + line_lcrc_err;
 
       if (ltssm[EP] != L0 || ltssm[RC] != L0) begin
          errors = errors + 1;

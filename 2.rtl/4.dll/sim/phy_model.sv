@@ -92,7 +92,7 @@ module phy_model #(
    output logic                   TX_SERIO_N
    );
 
-   localparam  [5:0] PLL_FCNTRL         = 58;
+   localparam  [5:0] PLL_FCNTRL         = 6'h1A;
    localparam  [5:0] PLL_MAIN_DIVSEL    = {1'b0,2'b11,1'b0,2'b11};
    localparam  [1:0] PLL_OUT_DIVSEL     = 2'b01;
    localparam  [1:0] RX_DATAPATH_SEL    = 3;
@@ -102,7 +102,7 @@ module phy_model #(
    localparam  [9:0] ALIGN_COMMA_ENABLE = 10'b1111111111;
    localparam  [1:0] ALIGN_COMMA_WORD   = 2'b11;
 
-   logic        clk_core_pll, clk_core_rx_rec, clk_core_tx, clk_core_rx_in;
+   logic        clk_core_pll, clk_core_rx_rec, tx_clk;
    logic        reset_core_pll_n;
    logic        pll_reset;
    logic        tx_reset, tx_pcs_reset, tx_pma_reset;
@@ -234,7 +234,7 @@ module phy_model #(
       .DATA_BYTES ( DATA_BYTES )
    ) pipe_logic_inst (
       .o_PCLK               ( o_PCLK             ),
-      .o_tx_clk             (                    ),
+      .o_tx_clk             ( tx_clk             ),
       .i_Reset              ( i_Reset            ),
       .i_PowerDown          ( i_PowerDown        ),
       .i_TxDetectRx         ( i_TxDetectRx       ),
@@ -260,8 +260,8 @@ module phy_model #(
       .o_RxDataDecErr       ( o_RxDataDecErr     ),
       .i_clk_core_pll       ( clk_core_pll       ),
       .i_clk_core_rx_rec    ( clk_core_rx_rec    ),
-      .o_clk_core_tx        ( clk_core_tx        ),
-      .o_clk_core_rx        ( clk_core_rx_in     ),
+      .o_clk_core_tx        (                    ),
+      .o_clk_core_rx        (                    ),
       .o_pll_reset          ( pll_reset          ),
       .o_tx_reset           ( tx_reset           ),
       .i_tx_reset_done      ( tx_resetdone       ),
@@ -328,8 +328,8 @@ module phy_model #(
       .clk_ref_i            ( clk_ref            ),
       .clk_reg_i            ( clk_reg            ),
       .clk_cfg_i            ( clk_cfg            ),
-      .clk_core_tx_i        ( clk_core_tx        ),
-      .clk_core_rx_i        ( clk_core_rx_in     ),
+      .clk_core_tx_i        ( tx_clk             ),
+      .clk_core_rx_i        ( tx_clk             ),
       .clk_core_rx_o        ( clk_core_rx_rec    ),
       .reset_n_i            ( reset_n            ),
       .reset_reg_n_i        ( reset_n            ),
