@@ -1,6 +1,6 @@
 # eduBOS5 RISC-V core
 
-Chili.CHIPS' RV32I core, the CPU of `riscv_pcie_soc`. Developed on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/2.rtl/0.common.opensource/src/CPU.eduBOS5), with its docs, formal proofs and WaveCrux views. These files are an unchanged copy from openPCIE `d8df0aa`:
+Chili.CHIPS' RV32I core, the CPU of `riscv_pcie_soc`. Developed on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/2.rtl/0.common.opensource/src/CPU.eduBOS5), with its docs, formal proofs and WaveCrux views. These files are an unchanged copy from openPCIE `4be1b8d`. Its `STORE_WAITS_RDY` ([openPCIE#40](https://github.com/chili-chips-ba/openPCIE/issues/40)) is left at 0 here: stores do not wait, as before.
 
 | file | content |
 |---|---|
