@@ -54,6 +54,50 @@ static bool IsDispEnabled(const pPcieModelState_t const state, const int rx, int
 }
 
 // -------------------------------------------------------------------------
+// TapTl() / TapDll()  (openCologne-PCIE)
+//
+// Write each TLP (one DW per write, byte 0 in bits 31:24, without framing,
+// sequence number and LCRC) and each DLLP (its 4 bytes, without CRC) to the
+// HDL tap addresses, in zero time. pcieVHost.v queues them and plays them
+// out one DW per clock on its Tlp*/Dllp* ports. Nullified TLPs (EDB) are
+// not tapped.
+//
+// -------------------------------------------------------------------------
+
+static void TapTl(const pPcieModelState_t const state, const pPkt_t const pkt, const bool rx)
+{
+    int end, last, idx;
+
+    for (end = 1; pkt->data[end] != EDB && pkt->data[end] != END; end++)
+        ;
+
+    if (pkt->data[end] == EDB)
+        return;
+
+    // STP, 2 sequence bytes, TLP, 4 LCRC bytes, END
+    last = end - 5;
+
+    for (idx = 3; idx + 3 <= last; idx += 4)
+    {
+        uint32_t dw = ((pkt->data[idx]   & 0xff) << 24) | ((pkt->data[idx+1] & 0xff) << 16) |
+                      ((pkt->data[idx+2] & 0xff) <<  8) |  (pkt->data[idx+3] & 0xff);
+        int      addr = (idx == 3)        ? (rx ? TAP_TLP_RX_SOP : TAP_TLP_TX_SOP) :
+                        (idx + 3 == last) ? (rx ? TAP_TLP_RX_EOP : TAP_TLP_TX_EOP) :
+                                            (rx ? TAP_TLP_RX     : TAP_TLP_TX);
+
+        VWrite(addr, dw, 1, state->thisnode);
+    }
+}
+
+static void TapDll(const pPcieModelState_t const state, const pPkt_t const pkt, const bool rx)
+{
+    uint32_t dw = ((pkt->data[1] & 0xff) << 24) | ((pkt->data[2] & 0xff) << 16) |
+                  ((pkt->data[3] & 0xff) <<  8) |  (pkt->data[4] & 0xff);
+
+    VWrite(rx ? TAP_DLLP_RX : TAP_DLLP_TX, dw, 1, state->thisnode);
+}
+
+// -------------------------------------------------------------------------
 // ConfigDispFormat()
 //
 // Enable or disable link display colour formatting
@@ -415,6 +459,8 @@ void DispDll(const pPcieModelState_t const state, const pPkt_t const pkt, const 
     bool dllen   = IsDispEnabled(state, rx, DISPDL | DISPALL);
     bool is_down = (rx && state->Endpoint) | (!rx && !state->Endpoint);
 
+    TapDll(state, pkt, rx);
+
     sprintf(prefixstr, "%sPCIE%s%d%s", is_down ? fmtdnstr : fmtupstr, is_down ? "D" : "U", rx ? state->usrconf.BackNodeNum : state->thisnode, fmtnormstr);
 
     if (phyen)
@@ -528,6 +574,8 @@ void DispTl(const pPcieModelState_t const state, const pPkt_t const pkt, const b
     uint32_t data_offset;
 
     int is_down = (rx && state->Endpoint) | (!rx && !state->Endpoint);
+
+    TapTl(state, pkt, rx);
 
     // Create marker suffix
     sprintf(prefixstr, "%sPCIE%s%d%s", is_down ? fmtdnstr : fmtupstr, is_down ? "D" : "U", rx ? state->usrconf.BackNodeNum : state->thisnode, fmtnormstr);

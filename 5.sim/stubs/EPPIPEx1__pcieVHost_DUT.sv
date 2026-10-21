@@ -69,21 +69,22 @@ module EPPIPEx1__pcieVHost_DUT
 );
 
 //--------------------------------------------------------------
-// The mock EP: a pcieVHost in EP mode at VProc node 2
+// The mock EP: a pcieVHost in EP mode at VProc node 2. Its other ports,
+// left open here, are the link at the PIPE, Data Link and Transaction
+// layers as the EP sees it: tb.dut.bfm_pcie is the EP's decoder page of a
+// dump (see models/PIPEx1__pcieVHost.sv)
 //--------------------------------------------------------------
 
-  pcieVHostPipex1 #(
+  PIPEx1__pcieVHost #(
     .NodeNum                           (2),
-    .EndPoint                          (1),
-    .DataWidth                         (DataWidth)
+    .EndPoint                          (1'b1),
+    .DataWidth                         (DataWidth),
+    .DllBytes                          (DataWidth/8)
   ) bfm_pcie
   (
     .pclk                              (pclk),
     .pcieclk                           (pcieclk),
     .nreset                            (rst_n),
-
-    .Gen2ClkSel                        (),
-    .ClkOut                            (),
 
 `ifdef VERILATOR
     .ElecIdleOut                       (elec_idle_out),
@@ -92,9 +93,50 @@ module EPPIPEx1__pcieVHost_DUT
 
     .TxData                            (txdata),
     .TxDataK                           (txdatak),
-
     .RxData                            (rxdata),
-    .RxDataK                           (rxdatak)
+    .RxDataK                           (rxdatak),
+
+    .pipe_dn_pclk                      (),
+    .pipe_dn_data                      (),
+    .pipe_dn_datak                     (),
+    .pipe_up_pclk                      (),
+    .pipe_up_data                      (),
+    .pipe_up_datak                     (),
+
+    .dll_clk                           (pclk),
+    .dll_rx_data                       (),
+    .dll_rx_tlp_valid                  (),
+    .dll_rx_tlp_first                  (),
+    .dll_rx_tlp_last                   (),
+    .dll_rx_hdr_credit                 (),
+    .dll_rx_data_credit                (),
+    .dll_rx_update_type                (),
+    .dll_rx_packet_type                (),
+    .dll_rx_dllp_valid                 (),
+    .dllp_clk                          (),
+    .dllp_dn_data                      (),
+    .dllp_dn_valid                     (),
+    .dllp_up_data                      (),
+    .dllp_up_valid                     (),
+
+    .tx_clk                            (),
+    .tx_tlp_data                       (),
+    .tx_tlp_sop                        (),
+    .tx_tlp_eop                        (),
+    .tx_tlp_valid                      (),
+    .tx_peer_data                      (),
+    .tx_peer_sop                       (),
+    .tx_peer_eop                       (),
+    .tx_peer_valid                     (),
+    .rx_clk                            (),
+    .rx_tlp_data                       (),
+    .rx_tlp_sop                        (),
+    .rx_tlp_eop                        (),
+    .rx_tlp_valid                      (),
+    .rx_peer_data                      (),
+    .rx_peer_sop                       (),
+    .rx_peer_eop                       (),
+    .rx_peer_valid                     ()
    );
 
 endmodule

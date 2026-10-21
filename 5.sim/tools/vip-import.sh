@@ -13,6 +13,8 @@
 #   - pcieVHost.v: VProc's BE and Burst ports, left open (we build VProc with
 #     VPROC_BYTE_ENABLE)
 #   - test_defs.v: `fatal calls tb.Fatal, our test bench top
+#   - pcieVHost: transaction taps, TLP and DLLP ports
+#     (models/pcievhost/pcievhost-taps.patch)
 #   - pcie_vhost_map.v: generated from pcie_vhost_map.h, as upstream's make
 #     files do
 #   - rv32: openPCIE's rv32-openpcie.patch (models/rv32)
@@ -81,6 +83,9 @@ sed -i -E '/^\s*\.RD\s*\(RD\),$/a\
            .BurstFirst     (),\
            .BurstLast      (),\
 `endif' "$F"
+
+# change: transaction taps, TLP and DLLP ports (models/pcievhost/README.md)
+patch -s --no-backup-if-mismatch -p1 -d "$P" < "$HERE/../models/pcievhost/pcievhost-taps.patch"
 
 # change: the register map, generated from the C header
 sed "s/0x/32'h/;s/#/\`/;s/DEFINES/AUTO GENERATED. DO NOT EDIT!/;" "$P/src/pcie_vhost_map.h" \

@@ -1,0 +1,148 @@
+<mxfile host="drawio">
+  <diagram id="taps" name="pcieVHost taps">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1460" pageHeight="860" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- containers -->
+        <mxCell id="wrap" value="PIPEx1__pcieVHost  (our wrapper, models/PIPEx1__pcieVHost.sv; both sides: RCPIPEx1__pcieVHost EndPoint=0, mock EP EndPoint=1)" style="rounded=1;arcSize=2;whiteSpace=wrap;html=0;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="1080" height="820" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipex1" value="pcieVHostPipex1  (upstream PIPE wrapper)" style="rounded=1;arcSize=2;whiteSpace=wrap;html=0;fillColor=#ccccff;strokeColor=#6666cc;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="660" height="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="vhost" value="PcieVhost  (pcieVHost.v)" style="rounded=1;arcSize=2;whiteSpace=wrap;html=0;fillColor=#b3b3ff;strokeColor=#4d4dcc;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="60" y="100" width="620" height="580" as="geometry"/>
+        </mxCell>
+
+        <!-- C side -->
+        <mxCell id="cmodel" value="pcieVHost C model&#xa;(pcie.c, pcie_utils.c, displink.c)&#xa;&#xa;TX: send loop -&gt; DispTl / DispDll&#xa;RX: ProcessInput -&gt; DispTl / DispDll&#xa;&#xa;+ TapTl() / TapDll()" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#003366;strokeColor=#001a33;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+          <mxGeometry x="80" y="140" width="270" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="taptag" value="ours" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="290" y="280" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="vproc" value="VProc (node 1: RC, node 2: mock EP)&#xa;VWrite(TAP_*, word, delta=1): zero time" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#6666ff;strokeColor=#3333cc;fontColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="340" width="270" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="link" value="LinkOut0 / LinkIn0&#xa;8b/10b symbols, x1 lane" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#6666ff;strokeColor=#3333cc;fontColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="590" width="270" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- HDL taps -->
+        <mxCell id="update" value="always @(Update)&#xa;case (Addr): TAP_TLP_TX_SOP .. TAP_DLLP_RX&#xa;-&gt; push_back()" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="140" width="270" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="q1" value="TlpTxQ[$]" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;size=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="235" width="125" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="q2" value="TlpRxQ[$]" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;size=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="535" y="235" width="125" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="q3" value="DllpTxQ[$]" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;size=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="295" width="125" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="q4" value="DllpRxQ[$]" style="shape=cylinder3;whiteSpace=wrap;html=0;boundedLbl=1;size=8;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="535" y="295" width="125" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="pop" value="always @(posedge Clk)&#xa;pop_front(): one entry per clock" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="370" width="270" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ports" value="TlpTx* / TlpRx*  (Data, Sop, Eop, Valid)&#xa;DllpTx* / DllpRx*  (Data, Valid)&#xa;one DW per clock, byte 0 in [31:24]" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="455" width="270" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="pack" value="PIPE packing&#xa;symbols &lt;-&gt; TxData / RxData (DataWidth)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#6666ff;strokeColor=#3333cc;fontColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="720" width="270" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- wrapper side -->
+        <mxCell id="dlldrv" value="Data Link driver (RC -&gt; EP traffic)&#xa;TLPs: dll_q[$], DllBytes per dll_clk, byte 0 in [7:0]&#xa;DLLPs: dllp_q[$] -&gt; packet/update_type, hdr/data_credit" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="730" y="140" width="340" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="names" value="Decoder names (assign)&#xa;tx_* = RC -&gt; EP TLPs, peer = EP -&gt; RC&#xa;rx_* = EP -&gt; RC TLPs, peer = RC -&gt; EP&#xa;dllp_dn_*, dllp_up_*" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="730" y="420" width="340" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipenames" value="pipe_dn_* / pipe_up_*  (pclk, data, datak)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="730" y="720" width="340" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- outside -->
+        <mxCell id="o_tl" value="dll_rx_*  (TLPs, DLLP credits)&#xa;-&gt; TL under test (dll_if RX)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="150" width="290" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="o_dec" value="tx_*, rx_*, dllp_*&#xa;-&gt; WaveCrux TLP decoder, DLLP rows" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="435" width="290" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="o_pipe" value="pipe_dn_*, pipe_up_*&#xa;&lt;-&gt; EP (mock or RTL)&#xa;-&gt; WaveCrux PIPE / DLL decoders" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="715" width="290" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- legend -->
+        <mxCell id="lg1" value="upstream (wyvernSemi)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#6666ff;strokeColor=#3333cc;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="30" width="140" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg2" value="ours" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="30" width="60" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg3" value="ports" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="30" width="70" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg4" value="dn = RC -&gt; EP, up = EP -&gt; RC" style="text;html=0;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="62" width="290" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="cmodel" target="vproc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="tap writes" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="vproc" target="update">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="370" y="370"/><mxPoint x="370" y="175"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="update" target="q1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3b" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="update" target="q2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="q3" target="pop">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4b" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="q4" target="pop">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="pop" target="ports">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="TlpTx/Rx*, DllpTx/Rx*" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="ports" target="dlldrv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="700" y="470"/><mxPoint x="700" y="180"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="ports" target="names">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="symbols" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;endArrow=block;strokeWidth=2;fontSize=11;" edge="1" parent="1" source="vproc" target="link">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="link" target="pack">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="pack" target="pipenames">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="dlldrv" target="o_tl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=block;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="names" target="o_dec">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=0;startArrow=block;endArrow=block;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="pipenames" target="o_pipe">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

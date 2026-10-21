@@ -67,8 +67,8 @@ interface dll_if #(
   // TL -> DLL: the flow-control DLLP to send
   logic [       7:0] tx_hdr_credit;
   logic [      11:0] tx_data_credit;
-  logic [       1:0] tx_update_type;
-  logic [       1:0] tx_packet_type;  // P, NP, Cpl
+  logic [       1:0] tx_update_type;  // DLLP Type[5:4]: 00 P, 01 NP, 10 Cpl
+  logic [       1:0] tx_packet_type;  // DLLP Type[7:6]: 01 InitFC1, 11 InitFC2, 10 UpdateFC
   logic              tx_dllp_valid;
 
   // DLL -> TL: TLPs
@@ -80,8 +80,8 @@ interface dll_if #(
   // DLL -> TL: a flow-control DLLP received
   logic [       7:0] rx_hdr_credit;
   logic [      11:0] rx_data_credit;
-  logic [       1:0] rx_update_type;
-  logic [       1:0] rx_packet_type;
+  logic [       1:0] rx_update_type;  // as tx_update_type
+  logic [       1:0] rx_packet_type;  // as tx_packet_type
   logic              rx_dllp_valid;
 
   logic [       2:0] dl_state;  // DLL -> TL

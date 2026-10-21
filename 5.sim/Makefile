@@ -89,10 +89,12 @@ LDLIBS         = -Wl,-whole-archive $(USERLIB) -Wl,-no-whole-archive \
                  -L$(VIP_DIR)/lib -lcosimlnx -lpcielnx \
                  -lpthread -lrt -ldl -rdynamic
 
-# DUMP=1: tb.fst, written natively (Verilator --trace-fst, vvp -fst)
+# DUMP=1: tb.fst, written natively (Verilator --trace-fst, vvp -fst); depth 3
+# reaches the decoder pages, tb.u_rc (RC) and tb.dut.bfm_pcie (EP); tb.vlt keeps the
+# upstream models out of it
 DUMP          ?= 0
 ifeq ($(DUMP),1)
-  VLTDUMP      = --trace-fst --trace-depth 1 +define+DUMP
+  VLTDUMP      = --trace-fst --trace-depth 3 +define+DUMP tb.vlt
   ICADUMP      = -DDUMP
   VVPDUMP      = -fst
 endif

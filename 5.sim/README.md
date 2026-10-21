@@ -6,6 +6,7 @@
 * [Running the co-simulation](#running-the-co-simulation)
   * [Modeling options: DUT, PHY, CPU](#modeling-options-dut-phy-cpu)
   * [WaveCrux decoders](#wavecrux-decoders)
+  * [Transaction taps: a test platform at every layer](#transaction-taps-a-test-platform-at-every-layer)
   * [Choosing the user code](#choosing-the-user-code)
   * [Verilator and Icarus, side by side](#verilator-and-icarus-side-by-side)
   * [Build defines](#build-defines)
@@ -37,7 +38,7 @@ make SIM=icarus run      # Icarus Verilog
 make DUMP=1 run          # also write tb.fst
 ```
 
-`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset. [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
+`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset, and the decoder pages of both pcieVHosts (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input on one page per side (PIPE, DLL, TLPs), under the names WaveCrux auto-binds. [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
 
 The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
@@ -65,7 +66,32 @@ Three sets of decoders, one per layer, that complement each other:
 | Our TLP decoder (free) | every TLP named, each completion paired with its request | [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp), moving to wavecrux-decoders ([PR #13](https://github.com/Ferrite-Engineering/wavecrux-decoders/pull/13)) |
 | WaveCrux Pro PCIe TLP analysis | latency, timeouts, Base Spec rule checks, bus statistics | [WaveCrux docs](https://github.com/Ferrite-Engineering/wavecrux/blob/main/docs-site/docs/protocol-decoders.md#pcie-tlp-analysis) |
 
-Here today: Ferrite's DLL decoder already names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads a TLP DW stream, which exists once `DUT=rtl` does.
+Here today: Ferrite's DLL decoder names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads the host's TLP stream from `tb.u_rc` (prefix `tx_` for RC -> EP, `rx_` for EP -> RC): transaction taps we added to pcieVHost ([details](models/pcievhost/README.md#transaction-taps-our-change)).
+
+### Transaction taps: a test platform at every layer
+
+Each pcieVHost reports every TLP and DLLP it sends and receives on ports of its own: [transaction taps](models/pcievhost/README.md#transaction-taps-our-change) we added to the model. Our wrapper [`PIPEx1__pcieVHost`](models/PIPEx1__pcieVHost.sv) offers each packet at three layers, from one run, all always present. Both sides use it: the host `RCPIPEx1__pcieVHost` (`EndPoint=0`) and the mock EP `EPPIPEx1__pcieVHost_DUT` (`EndPoint=1`). Each side has its decoder page, with the same names, by link direction (dn = RC -> EP, up = EP -> RC): `tb.u_rc` and `tb.dut.bfm_pcie`. A packet shows on both, a link latency apart.
+
+<p align="center">
+<img alt="Inside PIPEx1__pcieVHost, used by both sides: the pcieVHost C model writes each TLP and DLLP through VProc, in zero time, into four SV queues in pcieVHost.v, which play them out one per clock on TlpTx/TlpRx/DllpTx/DllpRx ports; our wrapper turns them into dll_rx beats for a TL under test and into the names WaveCrux decoders auto-bind, next to the PIPE link" width="100%" src="../0.doc/5.sim/pcievhost-taps.drawio.png">
+</p>
+
+| Layer | Ports of `tb.u_rc`, `tb.dut.bfm_pcie` | For |
+|---|---|---|
+| PIPE | `pipe_dn_*`, `pipe_up_*` (`pclk`, `data`, `datak`) | the link; PIPE and DLL decoders |
+| Data Link | `dll_rx_*`, on `dll_clk`: TLPs (`data`, `tlp_valid`, `tlp_first`, `tlp_last`) and DLLPs (`hdr_credit`, `data_credit`, `update_type`, `packet_type`, `dllp_valid`) | RC -> EP traffic as an EP's DLL hands it to its TL (`dll_if` RX side): drives a TL under test |
+| Data Link | `dllp_dn_*`, `dllp_up_*` | every DLLP, one word each |
+| Transaction | `tx_*` (RC -> EP), `rx_*` (EP -> RC) | the TLP decoder |
+
+The `dll_rx_*` fields follow Cologne Chip's DLL ([DLL draft v2](../2.rtl/0.doc/260711-DLL_draft_v2.pdf), slides 7 and 9): TLP byte 0 in `data[7:0]`, the first byte on the wire; DLLP Type = {`packet_type`, `update_type`, 0, VC}, so `packet_type` 01 InitFC1, 11 InitFC2, 10 UpdateFC, and `update_type` 00 P, 01 NP, 10 Cpl. Like that DLL, every DLLP raises `dllp_valid`.
+
+What it gives us:
+
+- **RTL driven from the model.** `dll_rx_*` has the shape of `dll_if`'s RX side, so a TL can be tested without the MAC and DLL below it, on its own clock.
+- **A reference for the DUT.** What the host sent and received, packet by packet, to compare against the DUT's own TL and DLL interfaces once `DUT=rtl` is in.
+- **Self-checking tests.** A checker reads the taps, not the console log.
+- **Decoder fixtures from an open simulator.** Verilator and Icarus give the same TLPs at the same times (50 each way in the enumeration run), with expected values from the model, not from a decoder.
+- **Any link partner.** The host's taps work with the mock EP and the EP RTL alike; with the mock EP, both ends of the link are tapped.
 
 ### Choosing the user code
 
@@ -146,6 +172,7 @@ The upstream files are copied in [`vip`](vip/README.md), with these changes made
 |---|---|---|
 | pcieVHost `verilog/pcieVHost/pcieVHost.v` | VProc `BE` and `Burst` ports, left open | we build VProc with `VPROC_BYTE_ENABLE` |
 | pcieVHost `verilog/headers/test_defs.v` | `` `fatal`` calls `tb.Fatal` | our test bench top is `tb` |
+| pcieVHost `src/displink.c`, `src/pcie_vhost_map.h`, `pcieVHost.v`, `pcieVHostPipex1.v` | transaction taps: TLP and DLLP ports ([`pcievhost-taps.patch`](models/pcievhost/pcievhost-taps.patch)) | waveform decoders need the TLP stream; the model keeps it in C |
 | pcieVHost `verilog/headers/pcie_vhost_map.v` | added: generated from `src/pcie_vhost_map.h` | upstream's make files generate it |
 | pcieVHost `src/ltssm.c` | none: upstream as is | openPCIE's LTSSM patch deadlocks here (step 4 above) |
 | [`models/cosim/mem_model.sv`](models/cosim/mem_model.sv) | wraps upstream `mem_model.v` (as `f_mem_model.v`) in Verilator `lint_off` pragmas | keeps third-party code out of our lint |
@@ -195,7 +222,7 @@ How to run each, and today's status: [Simulation, layer by layer](../2.rtl/READM
 
 ### A host already proven against real silicon
 
-`RCPIPEx1__pcieVHost` is the pcieVHost model in a thin wrapper of ours ([`models/RCPIPEx1__pcieVHost.sv`](models/RCPIPEx1__pcieVHost.sv)) around upstream's `pcieVHostPipex1`, fixed to the RC role. The same model and PIPE wrapper were validated on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/5.sim) against the AMD `PCIE_2_1` hard macro: link training, flow control, TLPs and completions, end to end. There the roles were the other way round, the model the EP and the hard macro the RC. What that run established is that the model and the AMD hard macro speak the same PCIE. An EP that passes against this model in simulation therefore stands a better chance of working on the first try in hardware, when a physical Artix-7, running openPCIE as the RC, drives our GateMate EP over the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb).
+`RCPIPEx1__pcieVHost` is the pcieVHost model in our wrapper [`PIPEx1__pcieVHost`](models/PIPEx1__pcieVHost.sv), around upstream's `pcieVHostPipex1`, fixed to the RC role ([`models/RCPIPEx1__pcieVHost.sv`](models/RCPIPEx1__pcieVHost.sv)). The same model and PIPE wrapper were validated on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/5.sim) against the AMD `PCIE_2_1` hard macro: link training, flow control, TLPs and completions, end to end. There the roles were the other way round, the model the EP and the hard macro the RC. What that run established is that the model and the AMD hard macro speak the same PCIE. An EP that passes against this model in simulation therefore stands a better chance of working on the first try in hardware, when a physical Artix-7, running openPCIE as the RC, drives our GateMate EP over the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb).
 
 ## VProc Software
 

@@ -20,6 +20,7 @@ $VIP_DIR/hdl/clkmux.v
 $VIP_DIR/hdl/Serialiser.v
 $VIP_DIR/hdl/pcieVHost.v
 $VIP_DIR/hdl/pcieVHostPipex1.v
+models/PIPEx1__pcieVHost.sv
 models/RCPIPEx1__pcieVHost.sv
 
 // DUT: the mock EP (make DUT=mock)

@@ -146,12 +146,24 @@ module tb #(
   );
 
 //--------------------------------------------------------------
-// Host: RCPIPEx1__pcieVHost, a pcieVHost in RC mode at VProc node 1
+// Host: RCPIPEx1__pcieVHost, a pcieVHost in RC mode at VProc node 1. Its
+// ports are the RC's decoder page of the dump (tb.u_rc): the link at the
+// PIPE, Data Link and Transaction layers, under the names WaveCrux
+// auto-binds. The mock EP has the same, as it sees the link
+// (tb.dut.bfm_pcie)
 //--------------------------------------------------------------
+
+  // Data Link: RC -> EP TLPs as a DLL hands them to its TL, on pclk; for a
+  // TL under test without the MAC and DLL below it (nothing reads them yet)
+  logic [PIPE_DATAWIDTH-1:0]           dll_rx_data;
+  logic                                dll_rx_tlp_valid;
+  logic                                dll_rx_tlp_first;
+  logic                                dll_rx_tlp_last;
 
   RCPIPEx1__pcieVHost #(
     .NodeNum                           (1),
-    .DataWidth                         (PIPE_DATAWIDTH)
+    .DataWidth                         (PIPE_DATAWIDTH),
+    .DllBytes                          (PIPE_DATAWIDTH/8)
   ) u_rc
   (
     .pcieclk                           (pcieclk),
@@ -163,11 +175,54 @@ module tb #(
     .ElecIdleIn                        (elec_idle_up),
 `endif
 
+    // PIPE: the link, and its copies by direction for the decoders
     .TxData                            (downdata),
     .TxDataK                           (downdatak),
-
     .RxData                            (updata),
-    .RxDataK                           (updatak)
+    .RxDataK                           (updatak),
+    .pipe_dn_pclk                      (),
+    .pipe_dn_data                      (),
+    .pipe_dn_datak                     (),
+    .pipe_up_pclk                      (),
+    .pipe_up_data                      (),
+    .pipe_up_datak                     (),
+
+    // Data Link
+    .dll_clk                           (pclk),
+    .dll_rx_data                       (dll_rx_data),
+    .dll_rx_tlp_valid                  (dll_rx_tlp_valid),
+    .dll_rx_tlp_first                  (dll_rx_tlp_first),
+    .dll_rx_tlp_last                   (dll_rx_tlp_last),
+    .dll_rx_hdr_credit                 (),
+    .dll_rx_data_credit                (),
+    .dll_rx_update_type                (),
+    .dll_rx_packet_type                (),
+    .dll_rx_dllp_valid                 (),
+    .dllp_clk                          (),
+    .dllp_dn_data                      (),
+    .dllp_dn_valid                     (),
+    .dllp_up_data                      (),
+    .dllp_up_valid                     (),
+
+    // Transaction: for waveform decoders, read from the dump
+    .tx_clk                            (),
+    .tx_tlp_data                       (),
+    .tx_tlp_sop                        (),
+    .tx_tlp_eop                        (),
+    .tx_tlp_valid                      (),
+    .tx_peer_data                      (),
+    .tx_peer_sop                       (),
+    .tx_peer_eop                       (),
+    .tx_peer_valid                     (),
+    .rx_clk                            (),
+    .rx_tlp_data                       (),
+    .rx_tlp_sop                        (),
+    .rx_tlp_eop                        (),
+    .rx_tlp_valid                      (),
+    .rx_peer_data                      (),
+    .rx_peer_sop                       (),
+    .rx_peer_eop                       (),
+    .rx_peer_valid                     ()
   );
 
 // Top level fatal task, which can be called from anywhere in verilog code.
@@ -181,11 +236,14 @@ end
 endtask
 
 // FST waveform, for WaveCrux and GTKWave (make DUMP=1 run): the signals of
-// this level, i.e. the PIPE link both ways, its clocks and reset
+// this level, i.e. the PIPE link both ways, its clocks and reset, and the
+// host's ports (u_rc), the decoder page
 `ifdef DUMP
 initial begin
     $dumpfile("tb.fst");
     $dumpvars(1, tb);
+    $dumpvars(1, tb.u_rc);
+    $dumpvars(1, tb.dut.bfm_pcie);
 end
 `endif
 

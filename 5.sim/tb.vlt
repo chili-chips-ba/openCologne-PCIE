@@ -1,0 +1,12 @@
+// SPDX-FileCopyrightText: 2026 Chili.CHIPS
+//
+// SPDX-License-Identifier: BSD-3-Clause
+//
+// Config file for the 5.sim test bench on Verilator (make DUMP=1): trace tb
+// and the host's ports (tb.u_rc, the decoder page), not the inside of the
+// upstream models or the mock EP, which keeps tb.fst small.
+
+`verilator_config
+
+tracing_off -file "*/vip/hdl/*"
+tracing_off -file "*/stubs/*"
