@@ -110,7 +110,7 @@ module tlp_rx_dispatch
 
   function automatic logic [1:0] be_first_on(input logic [3:0] be);
     logic [1:0] pos;
-    priority casez (be)
+    casez (be)
       4'b???1: pos = 2'd0;
       4'b??10: pos = 2'd1;
       4'b?100: pos = 2'd2;
@@ -121,7 +121,7 @@ module tlp_rx_dispatch
 
   function automatic logic [1:0] be_last_on(input logic [3:0] be);
     logic [1:0] pos;
-    priority casez (be)
+    casez (be)
       4'b1???: pos = 2'd0;
       4'b01??: pos = 2'd1;
       4'b001?: pos = 2'd2;

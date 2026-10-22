@@ -32,9 +32,9 @@ verilator ^%Warning-ZERODLY: 2\.rtl/1\.phy/2\.serdes-model/
 verilator ^%Warning-UNUSEDSIGNAL: csr/csr\.sv:[0-9]+:[0-9]+: Signal is not used: '(decoded_err|is_valid_addr|is_valid_rw)'
 verilator ^%Warning-MULTIDRIVEN: csr/csr\.sv:[0-9]+:[0-9]+: Variable written to in always_(comb|ff) also written by other process .*: '(field_combo|field_storage)'$
 
-# Descriptor names: a signal of a pcie_pkg header type (*_dw0 ... *_dw3,
-# *_hdr_*) reads only the fields it needs
-verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/[a-z_]+\.sv:[0-9]+:[0-9]+: Bits of signal are not used: '[a-z0-9_]*(_dw[0-9]+|_hdr_[a-z0-9_]+)'
+# Descriptor names: a signal or function argument of a pcie_pkg header type
+# (*_dw0 ... *_dw3, *_hdr_*) reads only the fields it needs
+verilator ^%Warning-UNUSEDSIGNAL: 2\.rtl/5\.tlp/[a-z_]+\.sv:[0-9]+:[0-9]+: Bits of (signal|function variable) are not used: '[a-z0-9_]*(_dw[0-9]+|_hdr_[a-z0-9_]+)'
 
 # AXI-Stream: the TL takes the TLP length from the header and supports none
 # of the s_axis_tx_tuser qualifiers (UG477 table 2-9); the SOC takes the

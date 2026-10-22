@@ -130,7 +130,7 @@ package tl_pkg;
   endfunction
 
   function automatic logic [11:0] tlp_data_credits(input pcie_tlp_dw0_t hdr_dw0);
-    return tlp_has_data(hdr_dw0) ? 12'(({1'b0, tlp_length_dw(hdr_dw0)} + 12'd3) >> 2) : 12'd0;
+    return tlp_has_data(hdr_dw0) ? ({1'b0, tlp_length_dw(hdr_dw0)} + 12'd3) >> 2 : 12'd0;
   endfunction
 
   function automatic logic [11:0] tlp_total_dw(input pcie_tlp_dw0_t hdr_dw0);
