@@ -36,6 +36,8 @@ Open-source simulators only: Verilator (default) or Icarus Verilog. From `5.sim`
 make run                 # Verilator
 make SIM=icarus run      # Icarus Verilog
 make DUMP=1 run          # also write tb.fst
+make DUT=rtl run         # our EP RTL + firmware, the host at the PIPE
+make DUT=rtl PHY=rtl run # the same with the real PHY, the host on the serial line
 ```
 
 `DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset, and the decoder pages of both pcieVHosts (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input on one page per side (PIPE, DLL, TLPs), under the names WaveCrux auto-binds. [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
@@ -50,7 +52,9 @@ With `DUT=rtl` the host program is [`usercode/VUserMain1_rtl.cpp`](usercode/VUse
 - its InitFC credits are fixed ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)): the first UpdateFC of our TL then looks to the host like a jump of 233 header credits, and the host stops;
 - a TLP that arrives right after another one is dropped without a Nak.
 
-With these three worked around locally, the run ends with `===> Finished with no errors` and `fw_pass` set.
+With these three worked around locally, the run ends with `===> Finished with no errors` and `fw_pass` set, with `PHY=rtl` too.
+
+With `PHY=rtl`, `tb.sv` puts `top` under the host: `phy_top` with Cologne Chip's PIPE logic and the opensource SerDes BFM ([`phy.f`](phy.f)), on a 2.5 Gb/s serial line. The host is then upstream's `PcieVhostSerial`, at node 1 with the same host program, without the transaction taps of our PIPE wrapper. It runs with `Gen2Clk = 1` and twice the Gen1 clocks (500 MHz, 5 GHz), which it divides by 2 at Gen1: with `Gen2Clk = 0` its `generate` block drives the bit clock twice, once straight and once halved (the `else` has no `begin`/`end`), and under Verilator the line ran at 1.25 Gb/s.
 
 ### Modeling options: DUT, PHY, CPU
 
@@ -59,7 +63,7 @@ Three `make` switches choose the models, as in the [block diagram](#introduction
 | Switch | Values | Selects | Today |
 |---|---|---|---|
 | `DUT` | `mock` (default), `rtl` | the EP: a second pcieVHost in EP mode (`EPPIPEx1__pcieVHost_DUT`, node 2), or our MAC + DLL + TL RTL with firmware | both; `rtl` stops in FC init, [above](#running-the-co-simulation) |
-| `PHY` | `vproc_rc`, `rtl` | the `phy_top` socket: the host `RCPIPEx1__pcieVHost` (node 1), or the real PHY | not a switch yet; the host is wired in |
+| `PHY` | `vproc_rc`, `rtl` | the `phy_top` socket: the host `RCPIPEx1__pcieVHost` (node 1), or the real PHY | both, with `DUT=rtl`; `rtl`: the host is `PcieVhostSerial`, [above](#running-the-co-simulation) |
 | `CPU` | `rtl`, `vproc`, `iss` | the SOC CPU, with `DUT=rtl`: eduBOS5 RTL, a native C/C++ program at node 0, or the rv32 ISS ([below](#the-cpu-node-three-ways-to-run-the-socs-software)) | not a switch yet; needs `DUT=rtl` |
 
 `SIM` (`verilator`, `icarus`) and `DUMP` (`0`, `1`) choose the simulator and the waveform, not the models.
@@ -199,7 +203,7 @@ The top-level test bench drives the DUT's PCIE link with the [pcieVHost](https:/
 <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost at VProc node 1 on top, driving the DUT at its 64-bit PIPE interface below it: MAC, DLL and TL RTL, the CSR registers and the SOC CPU socket (soc_cpu.VPROC at node 0, or eduBOS5)" width=1000 src="../0.doc/5.sim/tb-structure.drawio.png">
 </p>
 
-The picture is forward-looking: it shows the final setup, with the EP RTL in place, to guide developers in building it. Parts of it do not exist yet: `PHY=rtl`, the real `phy_top` under the host, and the `CPU=rtl | vproc | iss` switch. With `DUT=rtl`, `tb.sv` puts `pcie_top` (MAC + DLL + TL + SOC with eduBOS5) under the host, which sits in the `phy_top` socket; with `DUT=mock` it connects the host straight to the mock EP.
+The picture is forward-looking: it shows the final setup, with the EP RTL in place, to guide developers in building it. Part of it does not exist yet: the `CPU=rtl | vproc | iss` switch. With `DUT=rtl`, `tb.sv` puts `pcie_top` (MAC + DLL + TL + SOC with eduBOS5) under the host, which sits in the `phy_top` socket, or with `PHY=rtl` all of `top`, the host on the serial line; with `DUT=mock` it connects the host straight to the mock EP.
 
 Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
 

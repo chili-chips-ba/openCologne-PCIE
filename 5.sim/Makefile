@@ -45,6 +45,24 @@ else ifneq ($(DUT),mock)
   $(error DUT must be mock or rtl (got "$(DUT)"))
 endif
 
+# ---- PHY ----------------------------------------------------------------------
+#   vproc_rc  (default) the host at the PIPE, in the phy_top socket
+#   rtl       the real PHY, with DUT=rtl: top (phy_top, Cologne Chip's PIPE logic,
+#             the opensource SerDes BFM, phy.f); the host on the serial line
+PHY           ?= vproc_rc
+ifeq ($(PHY),rtl)
+  ifneq ($(DUT),rtl)
+    $(error PHY=rtl needs DUT=rtl)
+  endif
+  DUT_FILES   += phy.f
+  DUT_VLT     += +define+PHY_RTL -F phy.f
+  DUT_ICA     += -DPHY_RTL
+  DUT_OBJ      = _rtl_phy
+  PHY_DEFS     = -DPHY_RTL
+else ifneq ($(PHY),vproc_rc)
+  $(error PHY must be vproc_rc or rtl (got "$(PHY)"))
+endif
+
 # ---- user code ----------------------------------------------------------------
 # ltssm.c, the link-training helper, is part of the Icarus pcieVHost library;
 # for Verilator it is compiled with the user code
@@ -87,6 +105,7 @@ else ifeq ($(SIM),icarus)
 else
   $(error SIM must be verilator or icarus (got "$(SIM)"))
 endif
+DEFS          += $(PHY_DEFS)
 
 VOBJS          = $(addprefix $(OBJDIR)/, $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(notdir $(USER_ALL)))))
 
@@ -177,7 +196,7 @@ else
 endif
 
 help:
-	@echo "make [SIM=verilator|icarus] [DUT=mock|rtl]   build the models and the simulation"
+	@echo "make [SIM=verilator|icarus] [DUT=mock|rtl] [PHY=vproc_rc|rtl]   build the models and the simulation"
 	@echo "make [SIM=verilator|icarus] run    build and run"
 	@echo "make DUMP=1 run                    also write tb.fst (WaveCrux: tb.DLL-PIPE.wavecrux)"
 	@echo "make clean                         remove obj/"

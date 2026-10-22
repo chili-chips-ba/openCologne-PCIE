@@ -146,7 +146,9 @@ extern "C" void VUserMain1(int node)
     vp1->write(LINK_STATE, 0, 0);
 
     pcie->configurePcie(CONFIG_ENABLE_SKIPS, 20000);
+#ifndef PHY_RTL
     pcie->configurePcie(CONFIG_DISABLE_8B10B);
+#endif
 
     vp1->regIrq(ResetDeasserted);
 

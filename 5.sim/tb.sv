@@ -130,7 +130,6 @@ module tb #(
   localparam  HALF_BRD_PERIOD_PS        = 50_000; // 10 MHz board clock
 
   logic       clk_brd;
-  logic       phy_rdy_n;
   logic       link_up;
   logic       fw_pass;
 
@@ -140,6 +139,64 @@ module tb #(
       #(HALF_BRD_PERIOD_PS) clk_brd = ~clk_brd;
     end
   end
+
+`ifdef PHY_RTL
+  localparam  HALF_SER_PERIOD_PS        = 100;    // 5 GHz: the host divides it to 2.5 GHz at Gen1
+  localparam  HALF_PCIE2_PERIOD_PS      = 1_000;  // 500 MHz: the host divides it to 250 MHz at Gen1
+  localparam  HALF_REF_PERIOD_PS        = 5_000;  // 100 MHz PCIE REFCLK
+  localparam  HALF_CFG_PERIOD_PS        = 20_000; // 25 MHz SerDes model config clock
+
+  logic       serclk;
+  logic       pcieclk2;
+  logic       refclk;
+  logic       clk_cfg;
+  logic       ser_dn;
+  logic       ser_up;
+  logic       ser_up_n;
+
+  initial begin
+    serclk = 1'b0;
+    forever begin
+      #(HALF_SER_PERIOD_PS) serclk = ~serclk;
+    end
+  end
+
+  initial begin
+    pcieclk2 = 1'b0;
+    forever begin
+      #(HALF_PCIE2_PERIOD_PS) pcieclk2 = ~pcieclk2;
+    end
+  end
+
+  initial begin
+    refclk = 1'b0;
+    forever begin
+      #(HALF_REF_PERIOD_PS) refclk = ~refclk;
+    end
+  end
+
+  initial begin
+    clk_cfg = 1'b0;
+    forever begin
+      #(HALF_CFG_PERIOD_PS) clk_cfg = ~clk_cfg;
+    end
+  end
+
+  top dut
+  (
+    .clk_brd                           (clk_brd),
+    .perst_n                           (rst_n),
+    .refclk                            (refclk),
+    .clk_cfg                           (clk_cfg),
+    .ser_rxp                           (ser_dn),
+    .ser_rxn                           (~ser_dn),
+    .ser_txp                           (ser_up),
+    .ser_txn                           (ser_up_n),
+    .link_up                           (link_up),
+    .fw_pass                           (fw_pass)
+  );
+`else
+  logic       phy_rdy_n;
 
   pipe_if #(.DATA_BYTES(PIPE_DATAWIDTH/8)) pipe_mac ();
 
@@ -175,6 +232,7 @@ module tb #(
     .trn_link_up                       (link_up),
     .fw_pass                           (fw_pass)
   );
+`endif
 
   always @(link_up) $display("%t tb: trn_link_up = %b", $time, link_up);
   always @(fw_pass) $display("%t tb: fw_pass = %b", $time, fw_pass);
@@ -215,6 +273,53 @@ module tb #(
   logic                                dll_rx_tlp_first;
   logic                                dll_rx_tlp_last;
 
+`ifdef PHY_RTL
+  PcieVhostSerial #(
+    .LinkWidth                         (1),
+    .NodeNum                           (1),
+    .EndPoint                          (0),
+    .Gen2Clk                           (1)
+  ) u_rc
+  (
+    .Clk                               (pcieclk2),
+    .SerClk                            (serclk),
+    .notReset                          (rst_n),
+    .ClkOut                            (),
+    .SerClkOut                         (),
+    .LinkIn0                           (ser_up),
+    .LinkIn1                           (1'b0),
+    .LinkIn2                           (1'b0),
+    .LinkIn3                           (1'b0),
+    .LinkIn4                           (1'b0),
+    .LinkIn5                           (1'b0),
+    .LinkIn6                           (1'b0),
+    .LinkIn7                           (1'b0),
+    .LinkIn8                           (1'b0),
+    .LinkIn9                           (1'b0),
+    .LinkIn10                          (1'b0),
+    .LinkIn11                          (1'b0),
+    .LinkIn12                          (1'b0),
+    .LinkIn13                          (1'b0),
+    .LinkIn14                          (1'b0),
+    .LinkIn15                          (1'b0),
+    .LinkOut0                          (ser_dn),
+    .LinkOut1                          (),
+    .LinkOut2                          (),
+    .LinkOut3                          (),
+    .LinkOut4                          (),
+    .LinkOut5                          (),
+    .LinkOut6                          (),
+    .LinkOut7                          (),
+    .LinkOut8                          (),
+    .LinkOut9                          (),
+    .LinkOut10                         (),
+    .LinkOut11                         (),
+    .LinkOut12                         (),
+    .LinkOut13                         (),
+    .LinkOut14                         (),
+    .LinkOut15                         ()
+  );
+`else
   RCPIPEx1__pcieVHost #(
     .NodeNum                           (1),
     .DataWidth                         (PIPE_DATAWIDTH),
@@ -279,6 +384,7 @@ module tb #(
     .rx_peer_eop                       (),
     .rx_peer_valid                     ()
   );
+`endif
 
 // Top level fatal task, which can be called from anywhere in verilog code.
 // via the `fatal definition in pciedispheader.v. Any data logging, error
