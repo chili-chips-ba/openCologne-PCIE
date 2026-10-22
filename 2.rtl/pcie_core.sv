@@ -40,25 +40,30 @@
 //   pcie_core: the soft PCIE stack, everything between the PIPE interface and
 //   the SOC, as in the RTL block diagram (0.doc/2.rtl/block-diagram.drawio):
 //
-//     pipe <-> MAC <-> DLL <-- dll --> TL <-> s_axis_tx / m_axis_rx, cfg
+//     pipe <-> MAC <-> DLL <-- dll --> TL <-- trn --> trn_bridge <-> s_axis_tx / m_axis_rx
+//                                       \--- cfg ---------------------------------> SOC
 //
 //   - MAC (ccfpga_LTSSM_logic, Cologne Chip): the LTSSM trains the link,
 //     then sends and receives the ordered sets and scrambled data on PIPE.
 //   - DLL (dll_logic, Cologne Chip): sequence numbers and LCRC, Ack/Nak and
 //     replay, flow-control DLLPs; it starts once the LTSSM is in L0.
 //   - TL (pcie_tl): flow control, the configuration space, and the TLPs to
-//     and from the SOC.
+//     and from the SOC, on the TRN bus of the PCIE_2_1 hard block (trn_if).
+//   - trn_bridge (openPCIE): AXI-Stream to and from TRN, and the SOC's TX
+//     throttle. There is no power management: the link state it sees is L0.
 //
 //   The data link is up (trn_link_up, UG477 trn_lnk_up) when the DLL is in
 //   DL_Active.
 //==========================================================================
 
-module pcie_core #(
+module pcie_core
+  import pcie_pkg::*;
+#(
     parameter int DATA_BYTES = 8
 ) (
     input logic pipe_rst_n,  // PIPE Reset#
     input logic mac_rst_n,   // PCLK: MAC and DLL
-    input logic core_rst_n,  // PCLK: TL
+    input logic core_rst_n,  // PCLK: TL and trn_bridge
 
     pipe_if.mac pipe,
 
@@ -72,6 +77,7 @@ module pcie_core #(
 
   localparam logic [4:0] LTSSM_L0  = 5'b01010;        // ccfpga_LTSSM_fsm
   localparam logic [2:0] DL_ACTIVE = 3'b011;          // dll_fsm
+  localparam logic [2:0] PM_L0     = 3'b000;          // UG477 cfg_pcie_link_state
 
   localparam int         DATA_W    = DATA_BYTES * 8;
 
@@ -83,6 +89,11 @@ module pcie_core #(
   logic [DATA_BYTES-1:0] dll_tx_datak;
 
   dll_if #(.DATA_BYTES(DATA_BYTES)) dll ();
+
+  trn_if #(
+      .DATA_W(TRN_DATA_W),
+      .REM_W (TRN_REM_W)
+  ) trn ();
 
   // The MAC drives PIPE Reset#
   assign pipe.reset_n = pipe_rst_n;
@@ -152,12 +163,20 @@ module pcie_core #(
   assign trn_link_up = (dll.dl_state == DL_ACTIVE);
 
   pcie_tl u_tl (
-      .clk      (pipe.pclk),
-      .rst_n    (core_rst_n),
-      .dll      (dll),
-      .s_axis_tx(s_axis_tx),
-      .m_axis_rx(m_axis_rx),
-      .cfg      (cfg)
+      .clk  (pipe.pclk),
+      .rst_n(core_rst_n),
+      .dll  (dll),
+      .trn  (trn),
+      .cfg  (cfg)
+  );
+
+  trn_bridge u_trn_bridge (
+      .s_axis_tx          (s_axis_tx),
+      .m_axis_rx          (m_axis_rx),
+      .trn                (trn),
+      .cfg_pcie_link_state(PM_L0),
+      .clk62m5            (pipe.pclk),
+      .core_rst_n         (core_rst_n)
   );
 
 endmodule

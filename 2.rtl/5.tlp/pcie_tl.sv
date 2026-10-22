@@ -38,17 +38,21 @@
 //--------------------------------------------------------------------------
 // Description:
 //   pcie_tl: the Transaction Layer. The TL sits
-//   between the DLL (dll_if) and the SOC, and has the same user interface as
-//   the AMD PCIE_2_1 hard block in EP mode (UG477): TLPs as two AXI-Stream
-//   streams, and the cfg sideband. Its job:
+//   between the DLL (dll_if) and trn_bridge, and has the same user interface
+//   as the AMD PCIE_2_1 hard block in EP mode (UG477): TLPs on the TRN bus
+//   (trn_if), and the cfg sideband. trn_bridge, as on openPCIE, turns the TRN
+//   bus into the two AXI-Stream streams of the SOC. Its job:
 //
 //   - flow control: send UpdateFC credits to the DLL, and hold a
 //     TLP back until the link partner has advertised room for it;
 //   - the configuration space: answer Configuration Requests itself (Vendor
 //     and Device ID, BAR0, the capability list), and capture the bus, device
 //     and function number the host assigns (cfg);
-//   - the rest: hand Memory Requests to the SOC on m_axis_rx, and send its
-//     Completions from s_axis_tx.
+//   - the rest: hand Memory Requests to the SOC on TRN RX, and send its
+//     Completions from TRN TX. A TX TLP waits in a buffer that holds TX_SLOTS
+//     TLPs of the largest payload the EP supports (128 bytes) until it can
+//     go; trn.tbuf_av is the number of free slots, and trn_bridge throttles
+//     the SOC on it, as on PCIE_2_1.
 //==========================================================================
 
 module pcie_tl
@@ -68,6 +72,7 @@ module pcie_tl
     parameter logic [11:0] INIT_NPD         = 12'd8,
     parameter int          P_ADDR_W         = 7,
     parameter int          NP_ADDR_W        = 6,
+    parameter int          TX_ADDR_W        = 6,
     parameter logic [ 1:0] ASPM_SUPPORT     = 2'b01,
     parameter logic [ 2:0] L0S_EXIT_LATENCY = 3'b111,
     parameter logic [ 2:0] L1_EXIT_LATENCY  = 3'b111,
@@ -80,79 +85,87 @@ module pcie_tl
 
     dll_if.tl dll,
 
-    axis_if.slave  s_axis_tx,  // TLPs from the SOC (tuser: pcie_tx_tuser_t)
-    axis_if.master m_axis_rx,  // TLPs to the SOC   (tuser: pcie_rx_tuser_t)
+    trn_if.core trn,  // TLPs to and from trn_bridge
 
     cfg_if.core cfg  // status sideband to the SOC
 );
 
-  localparam logic [TRN_KEEP_W-1:0] KEEP_ALL    = '1;
-  localparam logic [TRN_KEEP_W-1:0] KEEP_LOW_DW = KEEP_ALL >> (TRN_KEEP_W / 2);
+  localparam int TX_TLP_WORDS = (4 + 128 / 4) * 32 / TRN_DATA_W;
+  localparam int TX_SLOTS     = ((1 << TX_ADDR_W) - 1) / TX_TLP_WORDS;
 
-  logic                  dl_up;
-  logic                  dl_inactive;
+  logic               dl_up;
+  logic               dl_inactive;
+  logic               tdst_rdy;
 
-  tl_beat_t              rx;
-  tl_beat_t              tx;
-  logic                  tx_half;
-  fc_dllp_t              rx_dllp;
-  fc_dllp_t              tx_dllp;
+  tl_beat_t           rx;
+  tl_beat_t           tx;
+  logic               tx_half;
+  fc_dllp_t           rx_dllp;
+  fc_dllp_t           tx_dllp;
 
-  tl_beat_t              app_tx;
-  logic                  app_tx_ready;
-  logic                  app_tx_mid;
-  tl_app_rx_t            app_rx;
-  pcie_rx_tuser_t        rx_tuser;
+  tl_qwr_t            app_q_wr;
+  tl_qrd_t            app_q_rd;
+  logic               app_q_sof;
+  logic               app_q_done;
+  logic        [ 5:0] app_tlps;
+  logic        [ 5:0] tbuf_av;
+  tl_beat_t           app_tx;
+  logic               app_tx_ready;
+  logic               app_tx_mid;
+  tl_app_rx_t         app_rx;
+  logic               app_rx_mid;
 
-  tl_qwr_t               p_wr;
-  tl_qwr_t               np_wr;
-  logic                  p_full;
-  logic                  np_full;
-  logic                  p_commit;
-  logic                  np_commit;
-  logic                  p_pop;
-  logic                  np_pop;
-  tl_qrd_t               p_rd;
-  tl_qrd_t               np_rd;
-  logic                  p_done;
-  logic                  np_done;
-  logic                  np_ready;
+  tl_qwr_t            p_wr;
+  tl_qwr_t            np_wr;
+  logic               p_full;
+  logic               np_full;
+  logic               p_commit;
+  logic               np_commit;
+  logic               p_pop;
+  logic               np_pop;
+  tl_qrd_t            p_rd;
+  tl_qrd_t            np_rd;
+  logic               p_done;
+  logic               np_done;
+  logic               np_ready;
 
-  fc_cred_t              p_alloc;
-  fc_cred_t              np_alloc;
-  fc_rel_t               rx_rel;
-  fc_rel_t               dp_rel;
-  fc_rel_t               consume;
-  fc_tx_t         [ 2:0] tx_fc;
+  fc_cred_t           p_alloc;
+  fc_cred_t           np_alloc;
+  fc_rel_t            rx_rel;
+  fc_rel_t            dp_rel;
+  fc_rel_t            consume;
+  fc_tx_t      [ 2:0] tx_fc;
 
-  logic                  rx_err_malformed;
-  logic                  rx_err_overflow;
-  logic                  dp_ev_ur;
-  logic                  dp_ev_poisoned;
-  tl_err_t               err;
-  tl_cfg_acc_t           cfg_acc;
-  logic           [31:0] cfg_rdata;
-  tl_id_t                id;
-  tl_sspl_t              sspl;
-  tl_cfg_t               tl_cfg;
-  logic                  msg_nonfatal;
-  logic                  msg_fatal;
+  logic               rx_err_malformed;
+  logic               rx_err_overflow;
+  logic               dp_ev_ur;
+  logic               dp_ev_poisoned;
+  tl_err_t            err;
+  tl_cfg_acc_t        cfg_acc;
+  logic        [31:0] cfg_rdata;
+  tl_id_t             id;
+  tl_sspl_t           sspl;
+  tl_cfg_t            tl_cfg;
+  logic               msg_nonfatal;
+  logic               msg_fatal;
 
-  logic                  cpl_ready;
-  logic                  cpl_hold;
-  logic                  cpl_req;
-  tl_cpl_t               cpl;
-  tl_src_t               int_src;
-  logic                  int_ready;
+  logic               cpl_ready;
+  logic               cpl_hold;
+  logic               cpl_req;
+  tl_cpl_t            cpl;
+  tl_src_t            int_src;
+  logic               int_ready;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       dl_up       <= 1'b0;
       dl_inactive <= 1'b1;
+      tdst_rdy    <= 1'b0;
     end
     else begin
       dl_up       <= (dll.dl_state == DL_INITFC2) || (dll.dl_state == DL_ACTIVE);
       dl_inactive <= (dll.dl_state == DL_INACTIVE);
+      tdst_rdy    <= (dll.dl_state == DL_ACTIVE);
     end
   end
 
@@ -179,33 +192,62 @@ module pcie_tl
   assign dll.tx_hdr_credit    = tx_dllp.cred.hdr;
   assign dll.tx_data_credit   = tx_dllp.cred.data;
 
+  assign trn.link_up          = (dll.dl_state == DL_ACTIVE);
+  assign trn.tdst_rdy         = tdst_rdy;
+  assign trn.tbuf_av          = tbuf_av;
+
+  assign app_q_wr.en          = trn.tsrc_rdy && trn.tdst_rdy;
+  assign app_q_wr.drop        = 1'b0;
+  assign app_q_wr.word.last   = trn.teof;
+  assign app_q_wr.word.data   = {trn.td[31:0], trn.td[63:32]};
+  assign app_q_sof            = app_q_wr.en && trn.tsof;
+
+  always_ff @(posedge clk or negedge dl_up) begin
+    if (!dl_up) begin
+      app_tlps <= 6'd0;
+    end
+    else begin
+      app_tlps <= app_tlps + {5'd0, app_q_sof} - {5'd0, app_q_done};
+    end
+  end
+
+  assign tbuf_av = 6'(TX_SLOTS) - app_tlps;
+
   always_ff @(posedge clk or negedge dl_up) begin
     if (!dl_up) begin
       app_tx_mid <= 1'b0;
     end
-    else if (s_axis_tx.tvalid && s_axis_tx.tready) begin
-      app_tx_mid <= !s_axis_tx.tlast;
+    else if (app_tx.valid && app_tx_ready) begin
+      app_tx_mid <= !app_tx.last;
     end
   end
 
-  assign app_tx.valid        = s_axis_tx.tvalid;
-  assign app_tx.first        = !app_tx_mid;
-  assign app_tx.last         = s_axis_tx.tlast;
-  assign app_tx.data         = s_axis_tx.tdata;
-  assign s_axis_tx.tready    = app_tx_ready;
+  assign app_tx.valid = app_tx_mid ? app_q_rd.valid : app_q_rd.avail;
+  assign app_tx.first = !app_tx_mid;
+  assign app_tx.last  = app_q_rd.head.last;
+  assign app_tx.data  = app_q_rd.head.data;
 
-  assign rx_tuser.bar_hit    = {2'b00, app_rx.bar_hit};
-  assign rx_tuser.err_fwd    = app_rx.poisoned;
-  assign rx_tuser.ecrc_err   = 1'b0;
+  always_ff @(posedge clk or negedge dl_up) begin
+    if (!dl_up) begin
+      app_rx_mid <= 1'b0;
+    end
+    else if (app_rx.valid && trn.rdst_rdy) begin
+      app_rx_mid <= !app_rx.last;
+    end
+  end
 
-  assign m_axis_rx.tdata     = app_rx.data;
-  assign m_axis_rx.tkeep     = (app_rx.last && app_rx.half) ? KEEP_LOW_DW : KEEP_ALL;
-  assign m_axis_rx.tuser     = rx_tuser;
-  assign m_axis_rx.tlast     = app_rx.last;
-  assign m_axis_rx.tvalid    = app_rx.valid;
+  assign trn.rd              = {app_rx.data[31:0], app_rx.data[63:32]};
+  assign trn.rrem            = !(app_rx.last && app_rx.half);
+  assign trn.rsof            = !app_rx_mid;
+  assign trn.reof            = app_rx.last;
+  assign trn.rsrc_rdy        = app_rx.valid;
+  assign trn.rsrc_dsc        = 1'b0;
+  assign trn.rerrfwd         = app_rx.poisoned;
+  assign trn.recrc_err       = 1'b0;
+  assign trn.rbar_hit        = {1'b0, app_rx.bar_hit};
 
   assign cfg.msg_err_fatal   = 1'b0;
-  assign cfg.tx_buf_avail    = {5'd0, dll.tx_tlp_ready};
+  assign cfg.tx_buf_avail    = tbuf_av;
   assign cfg.bus_number      = tl_cfg.bus_number;
   assign cfg.device_number   = tl_cfg.device_number;
   assign cfg.function_number = 3'd0;
@@ -257,6 +299,19 @@ module pcie_tl
       .done   (np_done)
   );
 
+  tlp_queue #(
+      .ADDR_W(TX_ADDR_W)
+  ) u_app_queue (
+      .clk    (clk),
+      .rst_n  (dl_up),
+      .wr     (app_q_wr),
+      .wr_full(  /*LINT:OK*/),
+      .commit (  /*LINT:OK*/),
+      .pop    (app_tx_ready),
+      .rd     (app_q_rd),
+      .done   (app_q_done)
+  );
+
   tlp_order u_order (
       .clk      (clk),
       .rst_n    (dl_up),
@@ -278,7 +333,7 @@ module pcie_tl
       .np_ready     (np_ready),
       .np_pop       (np_pop),
       .app_rx       (app_rx),
-      .app_rx_ready (m_axis_rx.tready),
+      .app_rx_ready (trn.rdst_rdy),
       .memory_enable(tl_cfg.memory_enable),
       .bar0_base    (tl_cfg.bar0_base),
       .cfg_acc      (cfg_acc),

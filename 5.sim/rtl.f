@@ -15,6 +15,7 @@
 
 // Interfaces
 ../2.rtl/5.tlp/axis_if.sv
+../2.rtl/5.tlp/trn_if.sv
 ../2.rtl/5.tlp/cfg_if.sv
 ../2.rtl/6.soc/mem_if.sv
 ../2.rtl/2.pipe/pipe_if.sv
@@ -34,6 +35,10 @@
 ../2.rtl/5.tlp/cpl_gen.sv
 ../2.rtl/5.tlp/fc_credit.sv
 ../2.rtl/5.tlp/tlp_tx_arbiter.sv
+../2.rtl/5.tlp/trn_bridge.sv
+../2.rtl/5.tlp/trn_rx.sv
+../2.rtl/5.tlp/trn_tx.sv
+../2.rtl/5.tlp/trn_tx_throttle.sv
 ../2.rtl/6.soc/riscv_pcie_soc.sv
 ../2.rtl/6.soc/soc_csr.sv
 ../4.build/csr_build/generated-files/csr.sv

@@ -28,7 +28,7 @@ To its user, our EP looks exactly like the AMD Artix-7 EP, the `PCIE_2_1` hard m
 |---|---|
 | `PCIE_2_1` hard macro: TL, DLL, LTSSM, MAC | our soft RTL: TL ([5.tlp](5.tlp)), DLL ([4.dll](4.dll)), MAC/LTSSM ([3.mac](3.mac)) |
 | `phy_top`: `mac2phy` + GTP wrapper + `GTPE2` hard macros | `phy_top`: Cologne Chip soft wrapper ([2.pipe](2.pipe)) + GateMate SerDes `CC_SERDES` ([1.phy](1.phy)), with the open [SerDes BFM](1.phy/2.serdes-model) for simulation |
-| `trn_if`, `axis_if`, `cfg_if`, `pcie_pkg` | the same ([5.tlp](5.tlp)) |
+| `trn_bridge`, `trn_if`, `axis_if`, `cfg_if`, `pcie_pkg` | the same ([5.tlp](5.tlp)); `trn_bridge` unchanged, on the TRN bus of our TL instead of `PCIE_2_1` |
 | SOC `riscv_pcie_soc` + PeakRDL CSR | the same ([6.soc](6.soc)), with the Rx window capturing any TLP, as an EP must see Memory requests |
 | eduBOS5 RISC-V core | copied from openPCIE, unchanged ([`6.soc/CPU.eduBOS5`](6.soc/CPU.eduBOS5)) |
 | co-sim VIP: VProc, pcieVHost as the EP, rv32 ISS | the same in [5.sim](../5.sim), pcieVHost as the RC; upstream copies in [`5.sim/vip`](../5.sim/vip/README.md) |
@@ -46,7 +46,7 @@ Four test benches cover the EP, each where its layer is checked best, against a 
 | | `run-phy.sh equiv` | the opensource SerDes BFM | itself, looped back; the vendor model with `--ref` (NDA, not in the repo) | Icarus | no | passes: 400 words, 0 mismatches |
 | | `run-phy.sh pipe16` | the same, 16-bit | the vendor's PIPE test case | Icarus | no | fails: [#18](https://github.com/chili-chips-ba/openCologne-PCIE/issues/18) |
 | DLL over PIPE + PHY | [`4.dll/sim`](4.dll/sim) `run-dll-phy.sh` | DLL, MAC/LTSSM, PIPE and SerDes BFM, end to end on the serial line | a second copy of the same stack: training to L0, InitFC, TLPs both ways, Nak and replay, UpdateFC | Icarus | no | passes |
-| TL | [`5.tlp/sim`](5.tlp/sim) `run-tl.sh` | `pcie_tl` at its `dll_if` and AXI-Stream ports | a test bench in the roles of the DLL, the host and a PIO application: configuration space, Unsupported Requests, messages, ordering, flow control, random PIO traffic | Verilator | no | passes |
+| TL | [`5.tlp/sim`](5.tlp/sim) `run-tl.sh` | `pcie_tl` with `trn_bridge`, at `dll_if` and the AXI-Stream ports of `trn_bridge` | a test bench in the roles of the DLL, the host and a PIO application: configuration space, Unsupported Requests, messages, ordering, flow control, random PIO traffic | Verilator | no | passes |
 | MAC + DLL + TL + firmware | [`5.sim`](../5.sim) | the EP at its PIPE; today the mock EP (`DUT=mock`) | `RCPIPEx1__pcieVHost`, the host: enumeration, BARs, PIO | Verilator or Icarus | 1.9.3: RC (host), EP (mock) | passes with the mock |
 
 How to read it: a failure is pinned to the layer that shows it, because every layer below has passed on its own. The PHY bench is permanent. `run-dll-phy.sh` drives TLPs into the DLL until our TL is in; then [`5.sim`](../5.sim) with `DUT=rtl` takes over that job, against an independent link partner ([why the split](../5.sim/README.md#scope-unit-debug-then-top-level-validation)).

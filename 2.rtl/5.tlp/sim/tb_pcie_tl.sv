@@ -82,6 +82,7 @@ module tb_pcie_tl;
     dll_if #(.DATA_BYTES(DATA_BYTES)) dll ();
     axis_if #(.DATA_W(TRN_DATA_W), .USER_W($bits(pcie_tx_tuser_t))) s_axis_tx ();
     axis_if #(.DATA_W(TRN_DATA_W), .USER_W($bits(pcie_rx_tuser_t))) m_axis_rx ();
+    trn_if #(.DATA_W(TRN_DATA_W), .REM_W(TRN_REM_W)) trn ();
     cfg_if cfg ();
 
     pcie_tl #(
@@ -96,9 +97,17 @@ module tb_pcie_tl;
         .clk(clk),
         .rst_n(!reset),
         .dll(dll),
+        .trn(trn),
+        .cfg(cfg)
+    );
+
+    trn_bridge u_trn_bridge (
         .s_axis_tx(s_axis_tx),
         .m_axis_rx(m_axis_rx),
-        .cfg(cfg)
+        .trn(trn),
+        .cfg_pcie_link_state(3'b000),
+        .clk62m5(clk),
+        .core_rst_n(!reset)
     );
 
     assign tl_tx_data           = dll.tx_data;
@@ -570,6 +579,17 @@ module tb_pcie_tl;
                 app_tx_last  <= 1'b0;
                 app_tx_keep  <= 8'h00;
             end
+        end
+    end
+
+    always @(posedge clk) begin
+        if (!reset && trn.tsrc_rdy && trn.tdst_rdy && dut.u_app_queue.wr_full) begin
+            errors = errors + 1;
+            $display("[%0t] ERROR: TRN TX word from trn_bridge lost, the TX buffer is full", $time);
+        end
+        if (!reset && cfg.tx_buf_avail > dut.TX_SLOTS) begin
+            errors = errors + 1;
+            $display("[%0t] ERROR: tbuf_av %0d above the %0d TX slots", $time, cfg.tx_buf_avail, dut.TX_SLOTS);
         end
     end
 
@@ -1076,7 +1096,7 @@ module tb_pcie_tl;
         $display("=== Step 12: ordering, non-posted waits for earlier posted ===");
         app_rx_ready = 1'b0;
         base_app = app_wr;
-        mem_wr(BAR0 + 32'h80, 1, 32'h5555_AAAA);
+        mem_wr(BAR0 + 32'h80, 2, 32'h5555_AAAA);
         cfg_rd(8'd3, 3'd0, 10'h000, 8'h11);
         expect_no_tx(200);
         app_rx_ready = 1'b1;
@@ -1100,7 +1120,7 @@ module tb_pcie_tl;
         base_app = app_wr;
         for (n = 0; n < INIT_PH + 1; n = n + 1) begin
             rx_no_count = (n == INIT_PH);
-            mem_wr(BAR0 + 32'h100 + n * 4, 1, 32'hC000_0000 + n);
+            mem_wr(BAR0 + 32'h100 + n * 8, 2, 32'hC000_0000 + n);
         end
         rx_no_count = 1'b0;
         wait_cycles(20);
@@ -1156,26 +1176,31 @@ module tb_pcie_tl;
 
         $display("=== Step 18: application request needs Bus Master Enable ===");
         cfg_write(10'h001, 4'b0011, 32'h0000_0002);
-        atx_data[atx_wr % 256]      = {dw_req(16'h0300, 8'h00, 4'b0000, 4'b1111), dw0(3'b010, 5'b00000, 3'd0, 1'b0, 1'b0, 2'b00, 10'd1)};
-        atx_first[atx_wr % 256]     = 1'b1;
-        atx_last[atx_wr % 256]      = 1'b0;
-        atx_keep[atx_wr % 256]      = 8'hFF;
-        atx_data[(atx_wr+1) % 256]  = {32'h0000_0042, dw_addr(32'h8000_0000)};
-        atx_first[(atx_wr+1) % 256] = 1'b0;
-        atx_last[(atx_wr+1) % 256]  = 1'b1;
-        atx_keep[(atx_wr+1) % 256]  = 8'hFF;
-        atx_wr = atx_wr + 2;
+        for (m = 0; m < 5; m = m + 1) begin
+            atx_data[atx_wr % 256]      = {dw_req(16'h0300, 8'h00, 4'b0000, 4'b1111), dw0(3'b010, 5'b00000, 3'd0, 1'b0, 1'b0, 2'b00, 10'd1)};
+            atx_first[atx_wr % 256]     = 1'b1;
+            atx_last[atx_wr % 256]      = 1'b0;
+            atx_keep[atx_wr % 256]      = 8'hFF;
+            atx_data[(atx_wr+1) % 256]  = {32'h0000_0042 + m, dw_addr(32'h8000_0000 + 4 * m)};
+            atx_first[(atx_wr+1) % 256] = 1'b0;
+            atx_last[(atx_wr+1) % 256]  = 1'b1;
+            atx_keep[(atx_wr+1) % 256]  = 8'hFF;
+            atx_wr = atx_wr + 2;
+        end
         expect_no_tx(200);
+        check("TX buffer full: tbuf_av", cfg.tx_buf_avail, 6'd1);
+        check("trn_bridge holds the SOC back", atx_rd < atx_wr, 1'b1);
         cfg_wr(8'd3, 3'd0, 10'h001, 4'b0011, 32'h0000_0006, 8'h15);
         seen_mwr = 0;
         seen_cpl = 0;
-        for (n = 0; n < 2; n = n + 1) begin
+        for (n = 0; n < 6; n = n + 1) begin
             tx_wait(2000, got);
-            if (got && t0[7:0] == 8'h40 && t1[63:32] == 32'h0000_0042) seen_mwr = seen_mwr + 1;
+            if (got && t0[7:0] == 8'h40 && t1[63:32] == 32'h0000_0042 + seen_mwr) seen_mwr = seen_mwr + 1;
             if (got && t0[7:0] == 8'h0A && t1[23:16] == 8'h15) seen_cpl = seen_cpl + 1;
         end
-        check("application MWr sent after BME", seen_mwr, 1);
+        check("application MWrs sent in order after BME", seen_mwr, 5);
         check("completion of the Command write", seen_cpl, 1);
+        check("TX buffer empty again: tbuf_av", cfg.tx_buf_avail, dut.TX_SLOTS);
 
         $display("=== Step 19: random traffic with application back-pressure ===");
         for (n = 0; n < 1024; n = n + 1) shadow[n] = app_mem[n];

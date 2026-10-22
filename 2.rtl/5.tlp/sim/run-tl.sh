@@ -29,6 +29,7 @@ ${VERILATOR} --binary --timing -Wno-fatal -Wno-lint -Wno-style --timescale 1ns/1
     "${TLP}/pcie_pkg.sv" \
     "${TLP}/tl_pkg.sv" \
     "${TLP}/axis_if.sv" \
+    "${TLP}/trn_if.sv" \
     "${TLP}/cfg_if.sv" \
     "${RTL}/4.dll/dll_if.sv" \
     "${TLP}/tlp_queue.sv" \
@@ -40,6 +41,10 @@ ${VERILATOR} --binary --timing -Wno-fatal -Wno-lint -Wno-style --timescale 1ns/1
     "${TLP}/fc_credit.sv" \
     "${TLP}/tlp_tx_arbiter.sv" \
     "${TLP}/pcie_tl.sv" \
+    "${TLP}/trn_rx.sv" \
+    "${TLP}/trn_tx.sv" \
+    "${TLP}/trn_tx_throttle.sv" \
+    "${TLP}/trn_bridge.sv" \
     "${HERE}/tb_pcie_tl.sv" > verilator.log 2>&1 || { cat verilator.log; exit 1; }
 
 ./obj/tb_pcie_tl +seed="${SEED}"
