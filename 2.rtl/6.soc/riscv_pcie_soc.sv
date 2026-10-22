@@ -369,22 +369,24 @@ module riscv_pcie_soc
           s_axis_tx.tvalid <= 1'b0;
         end
         SEND_CYCLE_1: begin
-          s_axis_tx.tdata  <= pcie_trn_desc_t'{dw1: tx_header1, dw0: tx_dw0};
-          s_axis_tx.tkeep  <= 8'hFF;
-          s_axis_tx.tvalid <= 1'b1;
-          s_axis_tx.tlast  <= 1'b0;
-          if (s_axis_tx.tready) begin
-            tx_state <= SEND_CYCLE_2;
+          if (s_axis_tx.tvalid && s_axis_tx.tready) begin
+            s_axis_tx.tdata <= {tx_data, tx_header2};
+            s_axis_tx.tkeep <= tx_dw0.fmt[1] ? 8'hFF : 8'h0F;  // with data: DW2 + payload
+            s_axis_tx.tlast <= 1'b1;
+            tx_state        <= SEND_CYCLE_2;
+          end
+          else begin
+            s_axis_tx.tdata  <= pcie_trn_desc_t'{dw1: tx_header1, dw0: tx_dw0};
+            s_axis_tx.tkeep  <= 8'hFF;
+            s_axis_tx.tvalid <= 1'b1;
+            s_axis_tx.tlast  <= 1'b0;
           end
         end
         SEND_CYCLE_2: begin
-          s_axis_tx.tdata  <= {tx_data, tx_header2};
-          s_axis_tx.tkeep  <= tx_dw0.fmt[1] ? 8'hFF : 8'h0F;  // with data: DW2 + payload
-          s_axis_tx.tvalid <= 1'b1;
-          s_axis_tx.tlast  <= 1'b1;
-
-          if (s_axis_tx.tready) begin
-            tx_state <= IDLE;
+          if (s_axis_tx.tvalid && s_axis_tx.tready) begin
+            s_axis_tx.tvalid <= 1'b0;
+            s_axis_tx.tlast  <= 1'b0;
+            tx_state         <= IDLE;
           end
         end
       endcase

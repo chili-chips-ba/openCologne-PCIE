@@ -42,7 +42,15 @@ make DUMP=1 run          # also write tb.fst
 
 The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
-The DUT is selected with `DUT`: the EP RTL + firmware (`DUT=rtl`, once the TL exists), or the mock `EPPIPEx1__pcieVHost_DUT`, a second pcieVHost in EP mode ([`stubs`](stubs/README.md); `DUT=mock`, the default for now). The host is `RCPIPEx1__pcieVHost`, a pcieVHost in RC mode at node 1, running [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp). A passing run shows the link train to L0 on both sides, then the host enumerate the EP: Vendor and Device ID, class code, all six BARs sized and assigned, the capability list walked, ending with `===> Finished with no errors`. The host program ends the simulation itself when it is done.
+The DUT is selected with `DUT`: the EP RTL + firmware (`DUT=rtl`: [`rtl.f`](rtl.f), with the host in the `phy_top` socket through [`models/phy_vproc_rc.sv`](models/phy_vproc_rc.sv)), or the mock `EPPIPEx1__pcieVHost_DUT`, a second pcieVHost in EP mode ([`stubs`](stubs/README.md); `DUT=mock`, the default for now). The host is `RCPIPEx1__pcieVHost`, a pcieVHost in RC mode at node 1, running [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp). A passing run shows the link train to L0 on both sides, then the host enumerate the EP: Vendor and Device ID, class code, all six BARs sized and assigned, the capability list walked, ending with `===> Finished with no errors`. The host program ends the simulation itself when it is done.
+
+With `DUT=rtl` the host program is [`usercode/VUserMain1_rtl.cpp`](usercode/VUserMain1_rtl.cpp): the same enumeration for our one BAR0 (4 KB), Memory Space and Bus Master enabled, then DWORD writes and reads in BAR0 that the firmware serves, all checked, with scrambling on. Today the run stops in flow-control initialisation, on gatemate-pipe's DLL:
+
+- it repeats InitFC1/InitFC2 only every 34 µs, and pcieVHost leaves its own FC init only after one more complete set of InitFC DLLPs, so the host never sends a TLP;
+- its InitFC credits are fixed ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)): the first UpdateFC of our TL then looks to the host like a jump of 233 header credits, and the host stops;
+- a TLP that arrives right after another one is dropped without a Nak.
+
+With these three worked around locally, the run ends with `===> Finished with no errors` and `fw_pass` set.
 
 ### Modeling options: DUT, PHY, CPU
 
@@ -50,7 +58,7 @@ Three `make` switches choose the models, as in the [block diagram](#introduction
 
 | Switch | Values | Selects | Today |
 |---|---|---|---|
-| `DUT` | `mock` (default), `rtl` | the EP: a second pcieVHost in EP mode (`EPPIPEx1__pcieVHost_DUT`, node 2), or our MAC + DLL + TL RTL with firmware | `mock` only; `rtl` waits for the TL |
+| `DUT` | `mock` (default), `rtl` | the EP: a second pcieVHost in EP mode (`EPPIPEx1__pcieVHost_DUT`, node 2), or our MAC + DLL + TL RTL with firmware | both; `rtl` stops in FC init, [above](#running-the-co-simulation) |
 | `PHY` | `vproc_rc`, `rtl` | the `phy_top` socket: the host `RCPIPEx1__pcieVHost` (node 1), or the real PHY | not a switch yet; the host is wired in |
 | `CPU` | `rtl`, `vproc`, `iss` | the SOC CPU, with `DUT=rtl`: eduBOS5 RTL, a native C/C++ program at node 0, or the rv32 ISS ([below](#the-cpu-node-three-ways-to-run-the-socs-software)) | not a switch yet; needs `DUT=rtl` |
 
@@ -191,7 +199,7 @@ The top-level test bench drives the DUT's PCIE link with the [pcieVHost](https:/
 <img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost at VProc node 1 on top, driving the DUT at its 64-bit PIPE interface below it: MAC, DLL and TL RTL, the CSR registers and the SOC CPU socket (soc_cpu.VPROC at node 0, or eduBOS5)" width=1000 src="../0.doc/5.sim/tb-structure.drawio.png">
 </p>
 
-The picture is forward-looking: it shows the final setup, with the EP RTL in place, to guide developers in building it. Parts of it do not exist yet: `top`, with the host in the `phy_top` socket, `pcie_core` (MAC + DLL + TL) and the `CPU=rtl | vproc | iss` switch. Today `tb.sv` connects the host straight to the mock EP (`DUT=mock`).
+The picture is forward-looking: it shows the final setup, with the EP RTL in place, to guide developers in building it. Parts of it do not exist yet: `PHY=rtl`, the real `phy_top` under the host, and the `CPU=rtl | vproc | iss` switch. With `DUT=rtl`, `tb.sv` puts `pcie_top` (MAC + DLL + TL + SOC with eduBOS5) under the host, which sits in the `phy_top` socket; with `DUT=mock` it connects the host straight to the mock EP.
 
 Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
 

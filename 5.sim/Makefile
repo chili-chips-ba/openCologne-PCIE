@@ -28,11 +28,19 @@
 SIM           ?= verilator
 
 # ---- DUT ----------------------------------------------------------------------
-#   mock     EPPIPEx1__pcieVHost_DUT (default until the EP RTL exists)
-#   rtl      the EP RTL + firmware
+#   mock     EPPIPEx1__pcieVHost_DUT (default)
+#   rtl      the EP RTL + firmware: pcie_top (rtl.f), the host in the phy_top
+#            socket (models/phy_vproc_rc.sv), host program VUserMain1_rtl.cpp;
+#            the firmware is copied in for the run
 DUT           ?= mock
 ifeq ($(DUT),rtl)
-  $(error DUT=rtl: the EP RTL (TL in 2.rtl/5.tlp) is not there yet; use DUT=mock)
+  USER_C      ?= VUserMain1_rtl.cpp
+  DUT_FILES    = rtl.f
+  DUT_VLT      = +define+DUT_RTL --timescale 1ps/1ps -F rtl.f
+  DUT_ICA      = -DDUT_RTL
+  DUT_OBJ      = _rtl
+  FW_IN        = cp $(CURDIR)/../4.build/sw_build/firmware.hex firmware.hex &&
+  FW_OUT       = rm -f firmware.hex;
 else ifneq ($(DUT),mock)
   $(error DUT must be mock or rtl (got "$(DUT)"))
 endif
@@ -60,7 +68,7 @@ VVP           ?= vvp
 
 CPPSTD         = -std=c++20
 INCLPATHS      = -I$(USRCODEDIR) -I$(VIP_DIR)/include
-OBJDIR         = $(CURDIR)/obj/$(SIM)
+OBJDIR         = $(CURDIR)/obj/$(SIM)$(DUT_OBJ)
 USERLIB        = $(OBJDIR)/libuser.a
 
 ifeq ($(SIM),verilator)
@@ -106,7 +114,7 @@ endif
 VLTFLAGS       = --binary -sv --timing --top-module tb -Mdir $(OBJDIR) $(VLTDUMP) \
                  -Wno-fatal -Wno-WIDTH -Wno-lint -Wno-style                     \
                  +define+VPROC_SV +define+VPROC_BYTE_ENABLE                      \
-                 -F tb.f $(USRSIMFLAGS)                                         \
+                 $(DUT_VLT) -F tb.f $(USRSIMFLAGS)                              \
                  -MAKEFLAGS "--quiet CFG_LDFLAGS_VERILATED="                    \
                  -CFLAGS "$(CPPSTD) -Wno-attributes"                            \
                  -LDFLAGS "$(LDLIBS)"
@@ -115,7 +123,7 @@ VLTFLAGS       = --binary -sv --timing --top-module tb -Mdir $(OBJDIR) $(VLTDUMP
 # The same file list, with $VIP_DIR filled in; mem_model.sv is left out, as
 # this test bench does not instantiate it
 ICA_FILES      = $(OBJDIR)/tb.icarus.f
-ICAFLAGS       = -g2012 -DVPROC_BYTE_ENABLE $(ICADUMP) -s tb -c $(ICA_FILES) $(USRSIMFLAGS)
+ICAFLAGS       = -g2012 -DVPROC_BYTE_ENABLE $(DUT_ICA) $(ICADUMP) -s tb -c $(ICA_FILES) $(USRSIMFLAGS)
 
 # =============================================================================
 # TARGETS
@@ -152,8 +160,8 @@ $(VPROC_SO): $(USERLIB)
 	    -Wl,-whole-archive $(USERLIB) -L$(VIP_DIR)/lib -lpcieica -lcosimica -Wl,-no-whole-archive \
 	    -L$(ICA_LIB) -lvpi -lrt -ldl
 
-$(ICA_FILES): tb.f FORCE | $(OBJDIR)
-	@sed -e 's#$$VIP_DIR#$(VIP_DIR)#g' -e '/mem_model\.sv/d' $< > $@
+$(ICA_FILES): tb.f $(DUT_FILES) FORCE | $(OBJDIR)
+	@sed -e 's#$$VIP_DIR#$(VIP_DIR)#g' -e '/mem_model\.sv/d' $(DUT_FILES) tb.f > $@
 
 $(SIMEXE): $(VPROC_SO) $(ICA_FILES) FORCE
 	@$(IVERILOG) -o $@ $(ICAFLAGS)
@@ -163,9 +171,9 @@ FORCE:
 
 run: all
 ifeq ($(SIM),verilator)
-	@cd $(CURDIR) && $(SIMEXE)
+	@cd $(CURDIR) && $(FW_IN) $(SIMEXE); s=$$?; $(FW_OUT) exit $$s
 else
-	@cd $(CURDIR) && $(VVP) -n -M $(OBJDIR) -m VProc $(SIMEXE) $(VVPDUMP)
+	@cd $(CURDIR) && $(FW_IN) $(VVP) -n -M $(OBJDIR) -m VProc $(SIMEXE) $(VVPDUMP); s=$$?; $(FW_OUT) exit $$s
 endif
 
 help:

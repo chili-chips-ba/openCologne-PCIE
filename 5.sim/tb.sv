@@ -121,10 +121,64 @@ module tb #(
 
 //--------------------------------------------------------------
 // DUT: the EP, at its PIPE interface. Either the EP RTL + firmware
-// (make DUT=rtl, once it exists) or the mock EPPIPEx1__pcieVHost_DUT,
-// a pcieVHost in EP mode (make DUT=mock)
+// (make DUT=rtl): pcie_top, with the host in the phy_top socket
+// (phy_vproc_rc), or the mock EPPIPEx1__pcieVHost_DUT, a pcieVHost in EP
+// mode (make DUT=mock)
 //--------------------------------------------------------------
 
+`ifdef DUT_RTL
+  localparam  HALF_BRD_PERIOD_PS        = 50_000; // 10 MHz board clock
+
+  logic       clk_brd;
+  logic       phy_rdy_n;
+  logic       link_up;
+  logic       fw_pass;
+
+  initial begin
+    clk_brd = 1'b0;
+    forever begin
+      #(HALF_BRD_PERIOD_PS) clk_brd = ~clk_brd;
+    end
+  end
+
+  pipe_if #(.DATA_BYTES(PIPE_DATAWIDTH/8)) pipe_mac ();
+
+  phy_vproc_rc #(
+    .DATA_BYTES                        (PIPE_DATAWIDTH/8)
+  ) u_phy
+  (
+    .pclk                              (pclk),
+    .rst_n                             (rst_n),
+    .pipe                              (pipe_mac),
+    .phy_rdy_n                         (phy_rdy_n),
+    .host_txdata                       (downdata),
+    .host_txdatak                      (downdatak),
+`ifdef VERILATOR
+    .host_elec_idle                    (elec_idle_down),
+    .ep_elec_idle                      (elec_idle_up),
+`else
+    .host_elec_idle                    (1'b0),
+    .ep_elec_idle                      (),
+`endif
+    .host_rxdata                       (updata),
+    .host_rxdatak                      (updatak)
+  );
+
+  pcie_top dut
+  (
+    .clk_brd                           (clk_brd),
+    .perst_n                           (rst_n),
+    .pipe_mac                          (pipe_mac),
+    .phy_rdy_n                         (phy_rdy_n),
+    .clk_reg                           (),
+    .rst_reg_n                         (),
+    .trn_link_up                       (link_up),
+    .fw_pass                           (fw_pass)
+  );
+
+  always @(link_up) $display("%t tb: trn_link_up = %b", $time, link_up);
+  always @(fw_pass) $display("%t tb: fw_pass = %b", $time, fw_pass);
+`else
   EPPIPEx1__pcieVHost_DUT #(
     .DataWidth                         (PIPE_DATAWIDTH)
   ) dut
@@ -144,6 +198,7 @@ module tb #(
     .rxdata                            (downdata),
     .rxdatak                           (downdatak)
   );
+`endif
 
 //--------------------------------------------------------------
 // Host: RCPIPEx1__pcieVHost, a pcieVHost in RC mode at VProc node 1. Its
@@ -243,7 +298,9 @@ initial begin
     $dumpfile("tb.fst");
     $dumpvars(1, tb);
     $dumpvars(1, tb.u_rc);
+`ifndef DUT_RTL
     $dumpvars(1, tb.dut.bfm_pcie);
+`endif
 end
 `endif
 
