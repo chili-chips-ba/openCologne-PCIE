@@ -5,7 +5,7 @@
     {
       "kind": "signal",
       "id": "ocpcie-0",
-      "ref": "1145",
+      "ref": "1152",
       "path": "tb.dut.u_core.wavecrux.ltssm_name",
       "name": "ltssm_name",
       "color": 4288585374,
@@ -15,7 +15,7 @@
     {
       "kind": "signal",
       "id": "ocpcie-1",
-      "ref": "1146",
+      "ref": "1153",
       "path": "tb.dut.u_core.wavecrux.dl_name",
       "name": "dl_name",
       "color": 4288585374,
@@ -85,14 +85,14 @@
       "config": {
         "bindings": {
           "clk": "28",
-          "tlp_data": "1397",
-          "tlp_sop": "1398",
-          "tlp_eop": "1399",
-          "tlp_valid": "1400",
-          "peer_data": "1401",
-          "peer_sop": "1402",
-          "peer_eop": "1403",
-          "peer_valid": "1404"
+          "tlp_data": "1404",
+          "tlp_sop": "1405",
+          "tlp_eop": "1406",
+          "tlp_valid": "1407",
+          "peer_data": "1408",
+          "peer_sop": "1409",
+          "peer_eop": "1410",
+          "peer_valid": "1411"
         },
         "parameters": {}
       }
@@ -154,15 +154,15 @@
         "bindings": {
           "clk": "29",
           "rst_n": "49",
-          "tlp_data": "1147",
+          "tlp_data": "1154",
           "tlp_sop": "109",
           "tlp_eop": "110",
           "tlp_valid": "108",
-          "peer_data": "1148",
+          "peer_data": "1155",
           "peer_sop": "98",
           "peer_eop": "99",
           "peer_valid": "97",
-          "peer_keep": "1149"
+          "peer_keep": "1156"
         },
         "parameters": {
           "data_width": "64"
@@ -176,18 +176,18 @@
         "bindings": {
           "clk": "29",
           "rst_n": "49",
-          "tlp_data": "980",
+          "tlp_data": "985",
           "tlp_sop": "129",
           "tlp_eop": "130",
           "tlp_valid": "131",
-          "peer_data": "1098",
+          "peer_data": "1105",
           "peer_sop": "119",
           "peer_eop": "120",
           "peer_valid": "121",
-          "tlp_ready": "134",
-          "tlp_keep": "1070",
+          "tlp_ready": "135",
+          "tlp_keep": "1075",
           "peer_ready": "126",
-          "peer_keep": "1150"
+          "peer_keep": "1157"
         },
         "parameters": {
           "data_width": "64"
@@ -200,13 +200,13 @@
       "config": {
         "bindings": {
           "user_clk_out": "29",
-          "user_reset_out": "1151",
+          "user_reset_out": "1158",
           "m_axis_rx_tdata": "56",
           "m_axis_rx_tkeep": "57",
           "m_axis_rx_tlast": "59",
           "m_axis_rx_tvalid": "60",
           "m_axis_rx_tready": "61",
-          "m_axis_rx_tuser": "1152",
+          "m_axis_rx_tuser": "1159",
           "s_axis_tx_tdata": "70",
           "s_axis_tx_tkeep": "71",
           "s_axis_tx_tlast": "73",
@@ -223,9 +223,9 @@
       "config": {
         "bindings": {
           "clk": "29",
-          "instruction": "1177",
-          "valid": "1210",
-          "pc": "1220"
+          "instruction": "1184",
+          "valid": "1217",
+          "pc": "1227"
         },
         "parameters": {
           "xlen": "32",
@@ -292,14 +292,14 @@
       "config": {
         "bindings": {
           "clk": "28",
-          "tlp_data": "1401",
-          "tlp_sop": "1402",
-          "tlp_eop": "1403",
-          "tlp_valid": "1404",
-          "peer_data": "1397",
-          "peer_sop": "1398",
-          "peer_eop": "1399",
-          "peer_valid": "1400"
+          "tlp_data": "1408",
+          "tlp_sop": "1409",
+          "tlp_eop": "1410",
+          "tlp_valid": "1411",
+          "peer_data": "1404",
+          "peer_sop": "1405",
+          "peer_eop": "1406",
+          "peer_valid": "1407"
         },
         "parameters": {}
       }

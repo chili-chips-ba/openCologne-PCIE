@@ -5,7 +5,7 @@
     {
       "kind": "signal",
       "id": "ocpcie-0",
-      "ref": "1163",
+      "ref": "1169",
       "path": "tb.dut.u_pcie_top.u_core.wavecrux.ltssm_name",
       "name": "ltssm_name",
       "color": 4288585374,
@@ -15,7 +15,7 @@
     {
       "kind": "signal",
       "id": "ocpcie-1",
-      "ref": "1164",
+      "ref": "1170",
       "path": "tb.dut.u_pcie_top.u_core.wavecrux.dl_name",
       "name": "dl_name",
       "color": 4288585374,
@@ -132,15 +132,15 @@
         "bindings": {
           "clk": "67",
           "rst_n": "75",
-          "tlp_data": "1165",
+          "tlp_data": "1171",
           "tlp_sop": "128",
           "tlp_eop": "129",
           "tlp_valid": "127",
-          "peer_data": "1166",
+          "peer_data": "1172",
           "peer_sop": "117",
           "peer_eop": "118",
           "peer_valid": "116",
-          "peer_keep": "1167"
+          "peer_keep": "1173"
         },
         "parameters": {
           "data_width": "64"
@@ -154,18 +154,18 @@
         "bindings": {
           "clk": "67",
           "rst_n": "75",
-          "tlp_data": "999",
+          "tlp_data": "1003",
           "tlp_sop": "148",
           "tlp_eop": "149",
           "tlp_valid": "150",
-          "peer_data": "1117",
+          "peer_data": "1123",
           "peer_sop": "138",
           "peer_eop": "139",
           "peer_valid": "140",
-          "tlp_ready": "153",
-          "tlp_keep": "1089",
+          "tlp_ready": "154",
+          "tlp_keep": "1093",
           "peer_ready": "145",
-          "peer_keep": "1168"
+          "peer_keep": "1174"
         },
         "parameters": {
           "data_width": "64"
@@ -178,13 +178,13 @@
       "config": {
         "bindings": {
           "user_clk_out": "67",
-          "user_reset_out": "1169",
+          "user_reset_out": "1175",
           "m_axis_rx_tdata": "82",
           "m_axis_rx_tkeep": "83",
           "m_axis_rx_tlast": "85",
           "m_axis_rx_tvalid": "86",
           "m_axis_rx_tready": "87",
-          "m_axis_rx_tuser": "1170",
+          "m_axis_rx_tuser": "1176",
           "s_axis_tx_tdata": "89",
           "s_axis_tx_tkeep": "90",
           "s_axis_tx_tlast": "92",
@@ -201,9 +201,9 @@
       "config": {
         "bindings": {
           "clk": "67",
-          "instruction": "1195",
-          "valid": "1228",
-          "pc": "1238"
+          "instruction": "1201",
+          "valid": "1234",
+          "pc": "1244"
         },
         "parameters": {
           "xlen": "32",

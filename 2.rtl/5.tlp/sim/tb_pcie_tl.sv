@@ -591,6 +591,10 @@ module tb_pcie_tl;
             errors = errors + 1;
             $display("[%0t] ERROR: tbuf_av %0d above the %0d TX slots", $time, cfg.tx_buf_avail, dut.TX_SLOTS);
         end
+        if (!reset && dl_state == DL_ACTIVE && dut.app_q_mid && !trn.tdst_rdy) begin
+            errors = errors + 1;
+            $display("[%0t] ERROR: TRN TX tdst_rdy low inside a TLP", $time);
+        end
     end
 
     reg [DATA_WIDTH-1:0] t0;
@@ -1094,29 +1098,29 @@ module tb_pcie_tl;
         check_updatefc;
 
         $display("=== Step 12: ordering, non-posted waits for earlier posted ===");
-        app_rx_ready = 1'b0;
+        app_rx_ready <= 1'b0;
         base_app = app_wr;
         mem_wr(BAR0 + 32'h80, 2, 32'h5555_AAAA);
         cfg_rd(8'd3, 3'd0, 10'h000, 8'h11);
         expect_no_tx(200);
-        app_rx_ready = 1'b1;
+        app_rx_ready <= 1'b1;
         expect_cpl(8'h11, 3'b000, 1'b1, {DEVICE_ID, VENDOR_ID}, 12'd4, 7'd0, 16'h0300);
         check("posted delivered before the read completed", app_wr, base_app + 1);
 
         $display("=== Step 13: ordering, posted passes a blocked non-posted ===");
-        app_rx_ready = 1'b0;
+        app_rx_ready <= 1'b0;
         base_app = app_wr;
         mem_rd(BAR0 + 32'h80, 1, 8'h12, 4'b1111, 4'b0000);
         msg(8'h50, 3'b100, 1'b1, 32'h0000_0123);
         wait_cycles(50);
         check("posted message passed the blocked read", dut.u_cfg_space.sspl_value, 8'h23);
         check("read still waiting for the application", app_wr, base_app);
-        app_rx_ready = 1'b1;
+        app_rx_ready <= 1'b1;
         tx_wait(2000, got);
         check("CplD for the blocked read", t1[63:32], 32'h5555_AAAA);
 
         $display("=== Step 14: receiver overflow ===");
-        app_rx_ready = 1'b0;
+        app_rx_ready <= 1'b0;
         base_app = app_wr;
         for (n = 0; n < INIT_PH + 1; n = n + 1) begin
             rx_no_count = (n == INIT_PH);
@@ -1124,7 +1128,7 @@ module tb_pcie_tl;
         end
         rx_no_count = 1'b0;
         wait_cycles(20);
-        app_rx_ready = 1'b1;
+        app_rx_ready <= 1'b1;
         wait_app(base_app + INIT_PH, 500);
         wait_cycles(50);
         check("posted TLPs accepted up to the credit limit", app_wr - base_app, INIT_PH);
@@ -1246,7 +1250,7 @@ module tb_pcie_tl;
         end
         collect_reads;
         stress = 1'b0;
-        app_rx_ready = 1'b1;
+        app_rx_ready <= 1'b1;
         wait_cycles(50);
         check("random reads completed with the right data", cpl_ok, rd_cnt);
         m = 0;
@@ -1282,6 +1286,38 @@ module tb_pcie_tl;
         wait_cycles(20);
         check("UpdateFC NPH after DL_Down", upd_hdr[FC_NP], exp_np_hdr % 256);
         check("UpdateFC NPD after DL_Down", upd_data[FC_NP], exp_np_data % 4096);
+
+        $display("=== Step 21: DL_Down in the middle of a TLP on TRN RX ===");
+        @(posedge clk);
+        #1 dl_up = 1'b0;
+        dl_state = DL_INACTIVE;
+        wait_cycles(10);
+        link_up(8'd0, 12'd0);
+        cfg_wr(8'd3, 3'd0, 10'h004, 4'b1111, BAR0, 8'h31);
+        expect_cpl(8'h31, 3'b000, 1'b0, 32'h0, 12'd4, 7'd0, 16'h0300);
+        cfg_wr(8'd3, 3'd0, 10'h001, 4'b0011, 32'h0000_0006, 8'h32);
+        expect_cpl(8'h32, 3'b000, 1'b0, 32'h0, 12'd4, 7'd0, 16'h0300);
+        base_app = app_wr;
+        app_rx_ready <= 1'b0;
+        mem_wr(BAR0 + 32'h200, 4, 32'h7777_0000);
+        wait_cycles(30);
+        @(posedge clk);
+        #1 dl_up = 1'b0;
+        dl_state = DL_INACTIVE;
+        wait_cycles(10);
+        app_rx_ready <= 1'b1;
+        wait_cycles(30);
+        link_up(8'd0, 12'd0);
+        cfg_wr(8'd3, 3'd0, 10'h004, 4'b1111, BAR0, 8'h33);
+        expect_cpl(8'h33, 3'b000, 1'b0, 32'h0, 12'd4, 7'd0, 16'h0300);
+        cfg_wr(8'd3, 3'd0, 10'h001, 4'b0011, 32'h0000_0006, 8'h34);
+        expect_cpl(8'h34, 3'b000, 1'b0, 32'h0, 12'd4, 7'd0, 16'h0300);
+        mem_wr(BAR0 + 32'h300, 2, 32'h1111_2222);
+        wait_app(base_app + 2, 300);
+        check("SOC TLPs: cut one and next", app_wr - base_app, 2);
+        check("cut TLP padded to its length", app_len[base_app % 64], 4);
+        check("next TLP whole", app_len[(base_app + 1) % 64], 3);
+        check("next TLP data", word_dw((base_app + 1) % 64, 3), 32'h1111_2222);
 
         wait_cycles(20);
         $display("=== SUMMARY: %0d errors ===", errors);

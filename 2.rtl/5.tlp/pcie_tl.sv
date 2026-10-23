@@ -52,7 +52,10 @@
 //     Completions from TRN TX. A TX TLP waits in a buffer that holds TX_SLOTS
 //     TLPs of the largest payload the EP supports (128 bytes) until it can
 //     go; trn.tbuf_av is the number of free slots, and trn_bridge throttles
-//     the SOC on it, as on PCIE_2_1.
+//     the SOC on it, as on PCIE_2_1. As there, a TLP the TL has begun to
+//     take is taken whole, and trn.tdst_rdy drops between TLPs while no slot
+//     is free; a TLP that DL_Down cuts short on TRN RX ends with
+//     trn.rsrc_dsc.
 //==========================================================================
 
 module pcie_tl
@@ -108,6 +111,10 @@ module pcie_tl
   logic               app_q_sof;
   logic               app_q_done;
   logic        [ 5:0] app_tlps;
+  logic        [ 5:0] app_tlps_next;
+  logic               app_q_mid;
+  logic               app_q_mid_next;
+  logic               tx_room;
   logic        [ 5:0] tbuf_av;
   tl_beat_t           app_tx;
   logic               app_tx_ready;
@@ -165,7 +172,7 @@ module pcie_tl
     else begin
       dl_up       <= (dll.dl_state == DL_INITFC2) || (dll.dl_state == DL_ACTIVE);
       dl_inactive <= (dll.dl_state == DL_INACTIVE);
-      tdst_rdy    <= (dll.dl_state == DL_ACTIVE);
+      tdst_rdy    <= (dll.dl_state == DL_ACTIVE) && tx_room;
     end
   end
 
@@ -207,7 +214,20 @@ module pcie_tl
       app_tlps <= 6'd0;
     end
     else begin
-      app_tlps <= app_tlps + {5'd0, app_q_sof} - {5'd0, app_q_done};
+      app_tlps <= app_tlps_next;
+    end
+  end
+
+  assign app_tlps_next  = app_tlps + {5'd0, app_q_sof} - {5'd0, app_q_done};
+  assign app_q_mid_next = app_q_wr.en ? !trn.teof : app_q_mid;
+  assign tx_room        = app_q_mid_next || (app_tlps_next < 6'(TX_SLOTS));
+
+  always_ff @(posedge clk or negedge dl_up) begin
+    if (!dl_up) begin
+      app_q_mid <= 1'b0;
+    end
+    else begin
+      app_q_mid <= app_q_mid_next;
     end
   end
 
@@ -227,8 +247,11 @@ module pcie_tl
   assign app_tx.last  = app_q_rd.head.last;
   assign app_tx.data  = app_q_rd.head.data;
 
-  always_ff @(posedge clk or negedge dl_up) begin
-    if (!dl_up) begin
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      app_rx_mid <= 1'b0;
+    end
+    else if (trn.rsrc_dsc) begin
       app_rx_mid <= 1'b0;
     end
     else if (app_rx.valid && trn.rdst_rdy) begin
@@ -241,7 +264,7 @@ module pcie_tl
   assign trn.rsof            = !app_rx_mid;
   assign trn.reof            = app_rx.last;
   assign trn.rsrc_rdy        = app_rx.valid;
-  assign trn.rsrc_dsc        = 1'b0;
+  assign trn.rsrc_dsc        = app_rx_mid && !dl_up;
   assign trn.rerrfwd         = app_rx.poisoned;
   assign trn.recrc_err       = 1'b0;
   assign trn.rbar_hit        = {1'b0, app_rx.bar_hit};
