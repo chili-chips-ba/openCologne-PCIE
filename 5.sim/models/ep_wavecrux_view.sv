@@ -159,7 +159,7 @@ module ep_wavecrux_view
       PRE_CONFIG_COMPLETE:             ltssm_text = "pre Config.Complete";
       PRE_CONFIG_IDLE:                 ltssm_text = "pre Config.Idle";
       CONFIG_LINKWIDTH_START_LINKNUM:  ltssm_text = "Config.Linkwidth.Start link#";
-      CONFIG_LINKWIDTH_ACCEPT_LANENUM: ltssm_name = "Config.Linkwidth.Accept lane#";
+      CONFIG_LINKWIDTH_ACCEPT_LANENUM: ltssm_text = "Config.Linkwidth.Accept lane#";
       RECOVERY_RCVRCFG:                ltssm_text = "Recovery.RcvrCfg";
       RECOVERY_IDLE:                   ltssm_text = "Recovery.Idle";
       PRE_L0:                          ltssm_text = "pre L0";
@@ -170,7 +170,7 @@ module ep_wavecrux_view
       PRE_DETECT_QUIET:                ltssm_text = "pre Detect.Quiet";
       PRE_POLLING_CONFIG:              ltssm_text = "pre Polling.Configuration";
       PRE_CONFIG_LINKWIDTH_START_CNT:  ltssm_text = "pre Config.Linkwidth.Start cnt";
-      PRE_CONFIG_LINKWIDTH_ACCEPT_CNT: ltssm_name = "pre Config.Linkwidth.Accept cnt";
+      PRE_CONFIG_LINKWIDTH_ACCEPT_CNT: ltssm_text = "pre Config.Linkwidth.Accept cnt";
       default:                         ltssm_text = "?";
     endcase
   end

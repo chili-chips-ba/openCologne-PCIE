@@ -127,7 +127,7 @@ As on the host's page, dn is RC -> EP and up is EP -> RC. The Pro TLP decoder ta
 
 The sessions open the FST from this directory: [`tb_rtl.EP-layers.wavecrux`](tb_rtl.EP-layers.wavecrux) (all boundaries, Pro), [`tb_rtl.EP-free.wavecrux`](tb_rtl.EP-free.wavecrux) (the free decoders only) and, for `PHY=rtl`, [`tb_rtl_phy.EP-serial.wavecrux`](tb_rtl_phy.EP-serial.wavecrux). They need WaveCrux 1.1.0, with the [wcx-pcie](https://github.com/Ferrite-Engineering/wavecrux-decoders/releases/tag/pcie-v0.2.0) 0.2.0 and the [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp) plugins added under **Settings -> Extensions -> Decoder Plugins**, the plugin notice accepted (until then the decoder rows stay empty, without a message), and a Pro licence for the Pro rows. A session binds its decoders by signal number, the FST handle, and a change to the RTL can renumber them: then run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py).
 
-The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far left, with the layer of every row, is not WaveCrux's: we added it to the screenshots, because WaveCrux names a decoder row only by its decoder (`PCIe TLP #1`, in its own name column next to ours). Link training, flow-control init and the MAC findings are from the repo as it is. The rest are from a run with the three DLL issues [above](#running-the-co-simulation) worked around locally, as without them no TLP gets through: InitFC repeated every 0.1 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)), the TL given the DLL's fixed InitFC credits ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)) and a gap after every write of the host ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)). Where a picture shows a stretch too long for the decoders' labels, a zoomed one follows it.
+The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far left, with the layer of every row, is not WaveCrux's: we added it to the screenshots, because WaveCrux names a decoder row only by its decoder (`PCIe TLP #1`, in its own name column next to ours). Link training, flow-control init and the MAC findings are from the repo as it is. The rest are from a run with the three DLL issues [above](#running-the-co-simulation) worked around locally, as without them no TLP gets through: InitFC repeated every 0.1 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)), the TL given the DLL's fixed InitFC credits ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)) and a gap after every write of the host ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)). Where a picture shows a stretch too long for the decoders' labels, a zoomed one follows it. WaveCrux rounds the labels of its time ruler, so on a zoomed picture several ticks can carry the same label; the text gives the exact times.
 
 **The whole run.** Host on top, then the request path down to the CPU, then the answer path back up:
 
@@ -138,7 +138,7 @@ The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far l
 - 103 µs, the first MWr32 and MRd32 to BAR0 (c) go on to the SOC. The SOC takes the MRd32 only at 345 µs (d): until then eduBOS5 clears its PIO memory (`pio_mem` in [`main.c`](../3.sw/EP/main.c), 256 words, 11 instructions each: the firmware is built without `-O`). The CPU row is full from the moment it leaves reset, with the link.
 - 345 to 499 µs, PIO, one request at a time, 24 µs each, almost all of it in the firmware; `fw_pass` at 370.7 µs (e).
 
-Zoomed in on the CPU row, the loop that clears `pio_mem`. On top, a later turn of it (80 to 82 µs): the PC runs through `0x58c` to `0x5b4` again and again. Below, the RISC-V decoder's table with its first turn, from 74.29 µs: 11 instructions per word, and the loop counter read from the stack and written back on every turn (`lw a4, -20(s0)`, `sw a5, -20(s0)`), as a build without `-O` makes it. One word takes 1 µs, the 256 of them about 250 µs:
+Zoomed in on the CPU row, the loop that clears `pio_mem`. On top, a later turn of it (80 to 82 µs): the PC runs through `0x58c` to `0x5b4` again and again. Below, the RISC-V decoder's table with its first turn, from 74.29 µs: 11 instructions per word, and the loop counter read from the stack and written back on every turn (`lw a4, -20(s0)`, `sw a5, -20(s0)`), as a build without `-O` makes it. One word takes 1 µs, the 256 of them about 250 µs. WaveCrux 1.1.0 draws the headings of this table out of line with its columns; in the picture we moved them over their columns:
 
 <img alt="WaveCrux, the CPU clearing pio_mem: PC, instruction and store address, and the RISC-V decoder's disassembly of one turn of the loop" src="../0.doc/5.sim/wavecrux-ep-cpu-loop.png" width=900 />
 
@@ -150,7 +150,7 @@ Zoomed in on 68.85 to 70.45 µs, through Configuration: the host's `TS1 link=0 l
 
 <img alt="WaveCrux, the TS1 of Config.Linkwidth and Config.Lanenum, both sides" src="../0.doc/5.sim/wavecrux-ep-link-zoom.png" width=900 />
 
-The flow-control init is [#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25) as it happens: the EP sends one InitFC1 set when it enters DL_Init FC1, one InitFC2 set in FC2, and goes to DL_Active at 73.55 µs on the host's InitFC2. The host keeps repeating its InitFC2 set, every 0.18 µs, waiting for one more set of the EP, which never comes; for the rest of the run the EP sends only an UpdateFC every 30 µs, and no TLP crosses `dll_if`:
+The flow-control init is [#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25) as it happens: the EP sends one InitFC1 set when it enters DL_Init FC1, one InitFC2 set in FC2, and goes to DL_Active at 73.55 µs on the host's InitFC2 (0.2 µs later than in the run above, where #25 is worked around). The host keeps repeating its InitFC2 set, every 0.18 µs, waiting for one more set of the EP, which never comes; for the rest of the run the EP sends only an UpdateFC every 30 µs, and no TLP crosses `dll_if`:
 
 <img alt="WaveCrux, flow-control init: one InitFC1 set and one InitFC2 set from the EP, the host repeating its InitFC2" src="../0.doc/5.sim/wavecrux-ep-fc-init.png" width=900 />
 
@@ -196,6 +196,8 @@ Zoomed in, from top to bottom: the CfgRd0 at the PIPE and after the MAC (74.08 t
 **A memory read, down to the firmware and back.** The last request, MRd32 of BAR0 + 0x010 (a: the host sends it, b: the SOC takes it, c: the SOC sends the CplD, d: the host has it):
 
 <img alt="WaveCrux, MRd32 to BAR0 and its CplD: 26 us, almost all of it firmware" src="../0.doc/5.sim/wavecrux-ep-mrd.png" width=900 />
+
+Its two ends, zoomed in: on top a to b, the MRd32 from the link down to the SOC; below c to d, the CplD from the SOC back to the link:
 
 <img alt="WaveCrux, the two ends of the MRd32: down to the SOC, and the CplD back up" src="../0.doc/5.sim/wavecrux-ep-mrd-ends.png" width=900 />
 

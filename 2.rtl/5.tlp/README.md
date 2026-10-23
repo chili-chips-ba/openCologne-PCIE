@@ -205,15 +205,15 @@ On every beat of `m_axis_rx` the test bench also checks `tkeep` against the leng
 
 ## Viewing the TL in WaveCrux
 
-The top-level run, `make DUT=rtl DUMP=1 run` in [5.sim](../../5.sim/README.md#viewing-the-ep-in-wavecrux), puts the WaveCrux Pro PCIe TLP decoder on both sides of the TL: on `dll_if` (`tb.dut.u_core.wavecrux.dll_*`, each DW in the byte order the TL reads) and on `trn_if` (`trn_*`), and its Xilinx 7 Series preset on the AXI-Stream of `trn_bridge` (`m_axis_rx_*`, `s_axis_tx_*`), the ports of `PCIE_2_1`. Each instance takes both directions and pairs every completion with its request. The pictures are from the run with the DLL issues worked around locally, as described there; the column on their far left, with the layer of every row, is ours, added to the screenshots.
+The top-level run, `make DUT=rtl DUMP=1 run` in [5.sim](../../5.sim/README.md#viewing-the-ep-in-wavecrux), puts the WaveCrux Pro PCIe TLP decoder on both sides of the TL: on `dll_if` (`tb.dut.u_core.wavecrux.dll_*`, each DW in the byte order the TL reads) and on `trn_if` (`trn_*`), and its Xilinx 7 Series preset on the AXI-Stream of `trn_bridge` (`m_axis_rx_*`, `s_axis_tx_*`), the interface of AMD's 7 Series PCIe core (PG054), which `trn_bridge` builds on the TRN ports of `PCIE_2_1`. Each instance takes both directions and pairs every completion with its request. The pictures are from the run with the DLL issues worked around locally, as described there; the column on their far left, with the layer of every row, is ours, added to the screenshots.
 
 **Enumeration at `dll_if`.** The decoder learns the Type 0 header from the reads, names every register, and gives each completion the request it answers:
 
 <img alt="WaveCrux Pro PCIe TLP decoder at dll_if: the configuration requests of the enumeration and their completions" src="./images/wavecrux-tl-table.png" width=900 />
 
-The host reads the IDs (`0x00011234`: Device ID 0001, Vendor ID 1234), the class code (`0xFF000000`) and the header type, then sizes the BARs: it writes 0xFFFFFFFF and reads back `BAR0 = 0xFFFFF000`, 4 KB of 32-bit memory (`BAR0_SIZE_BITS`), and 0 for BAR1 to BAR5. None of this reaches `trn_if`: `config_space` answers, `cpl_gen` builds the completions, 11 PCLK after the request.
+The host reads the IDs (`0x00011234`: Device ID 0001, Vendor ID 1234), the class code (`0xFF000000`) and the header type, then sizes the BARs: it writes 0xFFFFFFFF and reads back `BAR0 = 0xFFFFF000`, 4 KB of 32-bit memory (`BAR0_SIZE_BITS`), and 0 for BAR1 to BAR5 (the picture ends at BAR4). None of this reaches `trn_if`: `config_space` answers, `cpl_gen` builds the completions, 11 PCLK after the request.
 
-**Memory requests go on to the SOC.** The first MWr32 and MRd32 to BAR0 pass from `dll_if` to `trn_if` in 6 PCLK (`tlp_rx_handler`, the queues, `tlp_order`, `tlp_rx_dispatch`), and on to the AXI-Stream with `bar_hit` BAR0. The decoder flags the MRd32 red at both: a completion timeout, as its CplD comes 264 µs later and the decoder's default limit is 50 µs:
+**Memory requests go on to the SOC.** The first MWr32 and MRd32 to BAR0 pass from `dll_if` to `trn_if` in 6 PCLK (`tlp_rx_handler`, the queues, `tlp_order`, `tlp_rx_dispatch`), and the MWr32 on to the AXI-Stream with `bar_hit` BAR0 (the MRd32 gets there only at 345 µs, below). The decoder flags the MRd32 red at `dll_if` and `trn_if`: a completion timeout, as its CplD comes 264 µs later and the decoder's default limit is 50 µs:
 
 <img alt="WaveCrux, the first MWr32 and MRd32 to BAR0, from the link to the AXI-Stream of the SOC" src="./images/wavecrux-tl-mem.png" width=900 />
 
