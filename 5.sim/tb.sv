@@ -396,15 +396,44 @@ begin
 end
 endtask
 
+`ifdef PHY_RTL
+  // The serial line by direction, under the name the wcx-pcie serial-line
+  // decoders bind (line): RC -> EP and EP -> RC
+  logic       ser_dn_line;
+  logic       ser_up_line;
+
+  assign ser_dn_line = ser_dn;
+  assign ser_up_line = ser_up;
+`endif
+
 // FST waveform, for WaveCrux and GTKWave (make DUMP=1 run): the signals of
 // this level, i.e. the PIPE link both ways, its clocks and reset, and the
-// host's ports (u_rc), the decoder page
+// host's ports (u_rc), the decoder page. With DUT=rtl, the EP's decoder
+// pages instead of the mock's: its layer boundaries (pcie_core.wavecrux,
+// models/ep_wavecrux_view.sv) and the SOC CPU's retired instructions
+// (riscv_pcie_soc.cpu_view), in a file of their own
 `ifdef DUMP
 initial begin
+`ifdef DUT_RTL
+`ifdef PHY_RTL
+    $dumpfile("tb_rtl_phy.fst");
+`else
+    $dumpfile("tb_rtl.fst");
+`endif
+`else
     $dumpfile("tb.fst");
+`endif
     $dumpvars(1, tb);
     $dumpvars(1, tb.u_rc);
-`ifndef DUT_RTL
+`ifdef DUT_RTL
+`ifdef PHY_RTL
+    $dumpvars(2, tb.dut.u_pcie_top.u_core.wavecrux);
+    $dumpvars(1, tb.dut.u_pcie_top.u_soc.cpu_view);
+`else
+    $dumpvars(2, tb.dut.u_core.wavecrux);
+    $dumpvars(1, tb.dut.u_soc.cpu_view);
+`endif
+`else
     $dumpvars(1, tb.dut.bfm_pcie);
 `endif
 end

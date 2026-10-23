@@ -203,6 +203,30 @@ Build products and the waveform go to `$SERDES_BUILD_DIR/tl` (default `~/.cache/
 
 On every beat of `m_axis_rx` the test bench also checks `tkeep` against the length in the header, and that `ecrc_err` is 0. On every clock it checks that no TRN TX word from `trn_bridge` finds the TX buffer full, and that `tbuf_av` never exceeds `TX_SLOTS`.
 
+## Viewing the TL in WaveCrux
+
+The top-level run, `make DUT=rtl DUMP=1 run` in [5.sim](../../5.sim/README.md#viewing-the-ep-in-wavecrux), puts the WaveCrux Pro PCIe TLP decoder on both sides of the TL: on `dll_if` (`tb.dut.u_core.wavecrux.dll_*`, each DW in the byte order the TL reads) and on `trn_if` (`trn_*`), and its Xilinx 7 Series preset on the AXI-Stream of `trn_bridge` (`m_axis_rx_*`, `s_axis_tx_*`), the ports of `PCIE_2_1`. Each instance takes both directions and pairs every completion with its request. The pictures are from the run with the DLL issues worked around locally, as described there; the column on their far left, with the layer of every row, is ours, added to the screenshots.
+
+**Enumeration at `dll_if`.** The decoder learns the Type 0 header from the reads, names every register, and gives each completion the request it answers:
+
+<img alt="WaveCrux Pro PCIe TLP decoder at dll_if: the configuration requests of the enumeration and their completions" src="./images/wavecrux-tl-table.png" width=900 />
+
+The host reads the IDs (`0x00011234`: Device ID 0001, Vendor ID 1234), the class code (`0xFF000000`) and the header type, then sizes the BARs: it writes 0xFFFFFFFF and reads back `BAR0 = 0xFFFFF000`, 4 KB of 32-bit memory (`BAR0_SIZE_BITS`), and 0 for BAR1 to BAR5. None of this reaches `trn_if`: `config_space` answers, `cpl_gen` builds the completions, 11 PCLK after the request.
+
+**Memory requests go on to the SOC.** The first MWr32 and MRd32 to BAR0 pass from `dll_if` to `trn_if` in 6 PCLK (`tlp_rx_handler`, the queues, `tlp_order`, `tlp_rx_dispatch`), and on to the AXI-Stream with `bar_hit` BAR0. The decoder flags the MRd32 red at both: a completion timeout, as its CplD comes 264 µs later and the decoder's default limit is 50 µs:
+
+<img alt="WaveCrux, the first MWr32 and MRd32 to BAR0, from the link to the AXI-Stream of the SOC" src="./images/wavecrux-tl-mem.png" width=900 />
+
+**Where the MRd32 waits.** `trn_bridge` takes both of its beats from the TL at once (TRN RX `dst_rdy` drops only after them), so it leaves the TL's queue, and its credit goes back to the host, right away (a). It waits in `trn_bridge` with `m_axis_rx_tvalid` high until the SOC raises `tready` at 345.46 µs (b): the firmware is still clearing its PIO memory and has not yet released the MWr32 before it. The CplD leaves the SOC 23.8 µs later (c):
+
+<img alt="WaveCrux, the MRd32 waiting in trn_bridge for the SOC" src="./images/wavecrux-tl-wait.png" width=900 />
+
+The Pro decoders' table, filtered on the address of these requests, BAR0 + 0x010, tells the same and names each TLP: the MWr32 (tag 0x16), this MRd32 (0x17) and the last read of the address (0x1D), at `dll_if` (`PCIe TLP #1`), `trn_if` (`#2`) and the AXI-Stream. The latency of this MRd32 is 264.4 µs at `trn_if`, that of the last read 24.4 µs; at the AXI-Stream it is 23.8 µs for both, which is the firmware alone (built without `-O`). The `bar_hit`, `latency` and `tag` columns are further right in the same table; we put them next to the label:
+
+<img alt="WaveCrux Pro PCIe TLP decoders, the requests to BAR0 + 0x010 and their completions at dll_if, trn_if and the AXI-Stream" src="../../0.doc/5.sim/wavecrux-ep-mrd-table.png" width=900 />
+
+Its Start column gives the share of the TL and `trn_bridge`: 6 PCLK from `dll_if` to `trn_if` and 1 PCLK on to the AXI-Stream on the way in (the MWr32), and on the way out 1 PCLK in `trn_bridge` and 7 in the TL's TX buffer, which takes a TLP whole before it sends it (the CplD of tag 0x1D). A host whose completion timeout is short (the default range of the Base Specification starts at 50 µs) could give up on the first read.
+
 ## References
 - [PCI Express Base Specification Revision 2.1](../../0.doc/PCIE-base-spec.Rev2-1.pdf)
 - [PCIe Primer by Simon Southwell](../../0.doc/pcie-primer.Simon-Southwell.pdf)

@@ -7,6 +7,7 @@
   * [Modeling options: DUT, PHY, CPU](#modeling-options-dut-phy-cpu)
   * [WaveCrux decoders](#wavecrux-decoders)
   * [Transaction taps: a test platform at every layer](#transaction-taps-a-test-platform-at-every-layer)
+  * [Viewing the EP in WaveCrux](#viewing-the-ep-in-wavecrux)
   * [Choosing the user code](#choosing-the-user-code)
   * [Verilator and Icarus, side by side](#verilator-and-icarus-side-by-side)
   * [Build defines](#build-defines)
@@ -38,9 +39,10 @@ make SIM=icarus run      # Icarus Verilog
 make DUMP=1 run          # also write tb.fst
 make DUT=rtl run         # our EP RTL + firmware, the host at the PIPE
 make DUT=rtl PHY=rtl run # the same with the real PHY, the host on the serial line
+make DUT=rtl DUMP=1 run  # also write tb_rtl.fst: every layer of the EP, for WaveCrux
 ```
 
-`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset, and the decoder pages of both pcieVHosts (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input on one page per side (PIPE, DLL, TLPs), under the names WaveCrux auto-binds. [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
+`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset, and the decoder pages of both pcieVHosts (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input on one page per side (PIPE, DLL, TLPs), under the names WaveCrux auto-binds. With `DUT=rtl` it writes `tb_rtl.fst` (`PHY=rtl`: `tb_rtl_phy.fst`) instead, with a decoder page at every layer boundary of our EP ([below](#viewing-the-ep-in-wavecrux)). Verilator 5.052 writes FST with its own writer, which needs the lz4 headers (`liblz4-dev`). [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
 
 The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
@@ -78,7 +80,7 @@ Three sets of decoders, one per layer, that complement each other:
 | Our TLP decoder (free) | every TLP named, each completion paired with its request | [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp), moving to wavecrux-decoders ([PR #13](https://github.com/Ferrite-Engineering/wavecrux-decoders/pull/13)) |
 | WaveCrux Pro PCIe TLP analysis | latency, timeouts, Base Spec rule checks, bus statistics | [WaveCrux docs](https://github.com/Ferrite-Engineering/wavecrux/blob/main/docs-site/docs/protocol-decoders.md#pcie-tlp-analysis) |
 
-Here today: Ferrite's DLL decoder names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads the host's TLP stream from `tb.u_rc` (prefix `tx_` for RC -> EP, `rx_` for EP -> RC): transaction taps we added to pcieVHost ([details](models/pcievhost/README.md#transaction-taps-our-change)).
+Here today: Ferrite's DLL decoder names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads the host's TLP stream from `tb.u_rc` (prefix `tx_` for RC -> EP, `rx_` for EP -> RC): transaction taps we added to pcieVHost ([details](models/pcievhost/README.md#transaction-taps-our-change)). With `DUT=rtl`, all three sets decode our EP's own layers, from the PIPE to the firmware ([Viewing the EP in WaveCrux](#viewing-the-ep-in-wavecrux)).
 
 ### Transaction taps: a test platform at every layer
 
@@ -104,6 +106,129 @@ What it gives us:
 - **Self-checking tests.** A checker reads the taps, not the console log.
 - **Decoder fixtures from an open simulator.** Verilator and Icarus give the same TLPs at the same times (50 each way in the enumeration run), with expected values from the model, not from a decoder.
 - **Any link partner.** The host's taps work with the mock EP and the EP RTL alike; with the mock EP, both ends of the link are tapped.
+
+### Viewing the EP in WaveCrux
+
+With `DUT=rtl`, `DUMP=1` gives our EP a decoder page at every layer boundary: [`models/ep_wavecrux_view.sv`](models/ep_wavecrux_view.sv), bound into `pcie_core` as `wavecrux` (`tb.dut.u_core.wavecrux`, with `PHY=rtl` `tb.dut.u_pcie_top.u_core.wavecrux`), and the CPU's retired instructions, `riscv_pcie_soc.cpu_view` (`DUMP=1` builds eduBOS5 with `RISCV_FORMAL`). [`wavecrux.f`](wavecrux.f) lists the view files. Verilator does not limit the trace to the `$dumpvars` scopes, so the FST also holds all of `pcie_top`, six levels deep: the RTL behind every decoded packet is in the same file.
+
+| Boundary | Names | Decoder | Sessions |
+|---|---|---|---|
+| PIPE, PHY ↔ MAC | `pipe_dn_*`, `pipe_up_*` | wcx-pcie: PCIe PIPE and PCIe Data Link Layer, 64-bit, `scrambling` auto | layers, free |
+| MAC ↔ DLL | `mac_dn_*`, `mac_up_*` | wcx-pcie: PCIe Data Link Layer, `scrambling` off | layers, free |
+| DLL ↔ TL, `dll_if` | `dll_*` | WaveCrux Pro: PCIe TLP, generic, Data Width 64 | layers, serial |
+| TL ↔ `trn_bridge`, `trn_if` | `trn_*` | the same | layers, serial |
+| `trn_bridge` ↔ SOC, AXI-Stream | `m_axis_rx_*`, `s_axis_tx_*` | WaveCrux Pro: PCIe TLP, Xilinx 7 Series AXIS preset | layers, serial |
+| | `tlp_view.tx_*`, `tlp_view.rx_*` | our [TLP decoder](tools/wavecrux-pcie-tlp) (free), one DW per clock | free |
+| SOC CPU | `tb.dut.u_soc.cpu_view.rvfi_*` | WaveCrux: RISC-V instruction trace | all |
+| serial line, `PHY=rtl` | `tb.ser_dn_line`, `tb.ser_up_line` | wcx-pcie: PCIe serial line, symbols and Data Link Layer | serial |
+| host taps, `PHY=vproc_rc` | `tb.u_rc` `tx_*`, `rx_*` | our TLP decoder | layers, free |
+
+As on the host's page, dn is RC -> EP and up is EP -> RC. The Pro TLP decoder takes both directions in one instance, `tlp_*` RC -> EP and `peer_*` EP -> RC, and pairs every completion with its request. Its Data Width has to be 64: at its default, 32, it reads only the lower DW of each beat, and the completions come out wrong.
+
+The sessions open the FST from this directory: [`tb_rtl.EP-layers.wavecrux`](tb_rtl.EP-layers.wavecrux) (all boundaries, Pro), [`tb_rtl.EP-free.wavecrux`](tb_rtl.EP-free.wavecrux) (the free decoders only) and, for `PHY=rtl`, [`tb_rtl_phy.EP-serial.wavecrux`](tb_rtl_phy.EP-serial.wavecrux). They need WaveCrux 1.1.0, with the [wcx-pcie](https://github.com/Ferrite-Engineering/wavecrux-decoders/releases/tag/pcie-v0.2.0) 0.2.0 and the [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp) plugins added under **Settings -> Extensions -> Decoder Plugins**, the plugin notice accepted (until then the decoder rows stay empty, without a message), and a Pro licence for the Pro rows. A session binds its decoders by signal number, the FST handle, and a change to the RTL can renumber them: then run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py).
+
+The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far left, with the layer of every row, is not WaveCrux's: we added it to the screenshots, because WaveCrux names a decoder row only by its decoder (`PCIe TLP #1`, in its own name column next to ours). Link training, flow-control init and the MAC findings are from the repo as it is. The rest are from a run with the three DLL issues [above](#running-the-co-simulation) worked around locally, as without them no TLP gets through: InitFC repeated every 0.1 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)), the TL given the DLL's fixed InitFC credits ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)) and a gap after every write of the host ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)). Where a picture shows a stretch too long for the decoders' labels, a zoomed one follows it.
+
+**The whole run.** Host on top, then the request path down to the CPU, then the answer path back up:
+
+<img alt="WaveCrux, the whole DUT=rtl run: link training, enumeration, PIO" src="../0.doc/5.sim/wavecrux-ep-overview.png" width=900 />
+
+- 0 to 72 µs, link training. Most of it is Polling.Active: the EP sends the 1024 TS1 the specification asks for (65.5 µs), while the host, with its abbreviated LTSSM, already waits in Polling.Configuration sending TS2 (`TS2 ×1047`). L0 at 72.2 µs (a), DL_Active at 73.4 µs.
+- 74 to 103 µs, enumeration (b): 22 configuration requests. `dll_if` is busy, `trn_if` and the AXI-Stream stay quiet: the TL answers them itself.
+- 103 µs, the first MWr32 and MRd32 to BAR0 (c) go on to the SOC. The SOC takes the MRd32 only at 345 µs (d): until then eduBOS5 clears its PIO memory (`pio_mem` in [`main.c`](../3.sw/EP/main.c), 256 words, 11 instructions each: the firmware is built without `-O`). The CPU row is full from the moment it leaves reset, with the link.
+- 345 to 499 µs, PIO, one request at a time, 24 µs each, almost all of it in the firmware; `fw_pass` at 370.7 µs (e).
+
+Zoomed in on the CPU row, the loop that clears `pio_mem`. On top, a later turn of it (80 to 82 µs): the PC runs through `0x58c` to `0x5b4` again and again. Below, the RISC-V decoder's table with its first turn, from 74.29 µs: 11 instructions per word, and the loop counter read from the stack and written back on every turn (`lw a4, -20(s0)`, `sw a5, -20(s0)`), as a build without `-O` makes it. One word takes 1 µs, the 256 of them about 250 µs:
+
+<img alt="WaveCrux, the CPU clearing pio_mem: PC, instruction and store address, and the RISC-V decoder's disassembly of one turn of the loop" src="../0.doc/5.sim/wavecrux-ep-cpu-loop.png" width=900 />
+
+**Link training and flow-control init** (repo as it is). The PIPE decoder names every training sequence with its fields: the host's `TS2 link=PAD lane=PAD n_fts=4`, the EP's `TS1 link=PAD lane=PAD n_fts=0`, then `TS1 link=0 lane=PAD` (Config.Linkwidth), `TS1 link=0 lane=0` (Config.Lanenum), `TS2 link=0 lane=0` (Config.Complete) and L0, where the DLLPs start:
+
+<img alt="WaveCrux, LTSSM from Polling to L0 and the first DLLPs" src="../0.doc/5.sim/wavecrux-ep-link.png" width=900 />
+
+Zoomed in on 68.85 to 70.45 µs, through Configuration: the host's `TS1 link=0 lane=PAD` and `TS1 link=0 lane=0`, the EP's `TS1 link=PAD lane=PAD n_fts=0`, then `link=0 lane=PAD` and `link=0 lane=0`, under the LTSSM states of the EP; the red box on the EP's side is the cut TS2 of *Found with the decoders*, below:
+
+<img alt="WaveCrux, the TS1 of Config.Linkwidth and Config.Lanenum, both sides" src="../0.doc/5.sim/wavecrux-ep-link-zoom.png" width=900 />
+
+The flow-control init is [#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25) as it happens: the EP sends one InitFC1 set when it enters DL_Init FC1, one InitFC2 set in FC2, and goes to DL_Active at 73.55 µs on the host's InitFC2. The host keeps repeating its InitFC2 set, every 0.18 µs, waiting for one more set of the EP, which never comes; for the rest of the run the EP sends only an UpdateFC every 30 µs, and no TLP crosses `dll_if`:
+
+<img alt="WaveCrux, flow-control init: one InitFC1 set and one InitFC2 set from the EP, the host repeating its InitFC2" src="../0.doc/5.sim/wavecrux-ep-fc-init.png" width=900 />
+
+Zoomed in on the two sets of the EP, with the fixed credits of [#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22) (H=32 for P and NP, Cpl infinite): `InitFC1-P`, `-NP`, `-Cpl` in DL_Init FC1 (top), `InitFC2-*` in FC2 (bottom), on DLL -> MAC and on the PIPE. The host is still sending InitFC1 then. On the PIPE TX row of the top half, the decoder's `Scrambling: on (detected)` notice is drawn over the first DLLP ([wavecrux#52](https://github.com/Ferrite-Engineering/wavecrux/issues/52)):
+
+<img alt="WaveCrux, the InitFC1 and InitFC2 sets of the EP" src="../0.doc/5.sim/wavecrux-ep-fc-init-zoom.png" width=900 />
+
+**Found with the decoders.** The red rows are the decoders' error flags. Two point at our MAC, on its transmit and on its receive side, and the first of them shows a gap in the decoder too.
+
+Every SKP the EP sends in Polling cuts a TS1 short: its first 8 symbols, 16 data symbols (`f527f4ec622438c8`, `e2d32ce6a740be8d`), the SKP ordered set with 4 data symbols behind it (`14c017ff1c1c1cbc`, K `0f`), 8 zero symbols, then the next TS1. The same every 4.77 µs, 14 times before L0:
+
+<img alt="WaveCrux, a TS1 cut short at an SKP in Polling.Active: data symbols outside a packet" src="../0.doc/5.sim/wavecrux-ep-skp.png" width=900 />
+
+Once more with a TS2, on the step from Polling.Configuration to Config.Linkwidth.Start (68.88 µs): its first half (`4545000200f7f7bc`), then data (`fa28fbe36d2b37c7`) and 8 zero symbols instead of its second half, then TS1. Only ordered sets may be sent in Polling and Configuration. pcieVHost does not mind; a link partner that counts consecutive TS1 or TS2 may:
+
+<img alt="WaveCrux, a TS2 cut short on the step to Configuration" src="../0.doc/5.sim/wavecrux-ep-ts2.png" width=900 />
+
+The MAC's receive side drops the COM of every SKP ordered set the host sends, but passes its three SKP symbols to the DLL as data: MAC -> DLL carries `f00308c05c1c1c1c` with K `08`, so `1c 1c 1c` as data before the SDP of the next DLLP, and the decoder flags `Data outside a packet`. It happens every 80 µs, the host's SKP interval; the DLL ignores them:
+
+<img alt="WaveCrux, the SKP symbols of a received SKP ordered set reaching the DLL as data" src="../0.doc/5.sim/wavecrux-ep-macrx-skp.png" width=900 />
+
+The gap in the decoder: it shows the cut TS1 above as a whole one, the 16 data symbols as its tail, with no error, as it does not check the TS1 identifiers in symbols 8 to 15 (the same for the TS2). Only the data after the SKP is flagged.
+
+**A configuration read, layer by layer.** The host's first request, CfgRd0 of the Vendor and Device ID. The TL answers it from its configuration space, so it goes no further than `dll_if`:
+
+<img alt="WaveCrux, CfgRd0 from the PIPE to dll_if and its CplD back" src="../0.doc/5.sim/wavecrux-ep-cfgrd.png" width=900 />
+
+Zoomed in, from top to bottom: the CfgRd0 at the PIPE and after the MAC (74.08 to 74.46 µs), the TL at `dll_if` and the `Ack seq=0` going out (74.66 to 75.10 µs), the `UpdateFC-NP VC0 H=33 D=1` (75.15 to 75.26 µs) and the CplD going out (75.14 to 75.52 µs). The Pro decoder's labels at `dll_if` stay cut here; they are whole in the [TL's table](../2.rtl/5.tlp/README.md#viewing-the-tl-in-wavecrux), rows 1 and 2:
+
+<img alt="WaveCrux, the CfgRd0 zoomed in at each step" src="../0.doc/5.sim/wavecrux-ep-cfgrd-zoom.png" width=900 />
+
+| Time | Where | Decoded | Step |
+|---|---|---|---|
+| 74.096 µs | PIPE RX | `TLP seq=0 CfgRd0 len=1` | STP on the link, scrambled |
+| 74.320 µs | MAC -> DLL | `TLP seq=0 CfgRd0 len=1` | MAC receive, 7 PCLK |
+| 74.704 µs | `dll_if` | `CfgRd0 Vendor ID/Device ID · 00:00.2 tag 0x00` | DLL receive with the LCRC check, 12 PCLK; `Ack seq=0` goes back at 74.74 µs |
+| 75.056 µs | `dll_if` | `CplD [SC] Vendor ID/Device ID = 0x00011234` | the TL, 11 PCLK; `UpdateFC-NP H=33` gives the credit back at 75.18 µs |
+| 75.280 µs | DLL -> MAC | `TLP seq=0 CplD len=1` | DLL transmit, 7 PCLK |
+| 75.408 µs | PIPE TX | `TLP seq=0 CplD len=1` | MAC transmit, 4 PCLK |
+
+1.31 µs, 41 PCLK, from STP in to STP out. The times in this table and the next are the PCLK edge that samples the STP, or the first beat at `dll_if`, `trn_if` and the AXI-Stream; the PCIe TLP decoders' rows start one PCLK, 32 ns, earlier, at the start of that clock (74.672 µs for the CfgRd0 at `dll_if`).
+
+**A memory read, down to the firmware and back.** The last request, MRd32 of BAR0 + 0x010 (a: the host sends it, b: the SOC takes it, c: the SOC sends the CplD, d: the host has it):
+
+<img alt="WaveCrux, MRd32 to BAR0 and its CplD: 26 us, almost all of it firmware" src="../0.doc/5.sim/wavecrux-ep-mrd.png" width=900 />
+
+<img alt="WaveCrux, the two ends of the MRd32: down to the SOC, and the CplD back up" src="../0.doc/5.sim/wavecrux-ep-mrd-ends.png" width=900 />
+
+Zoomed in on the PIPE and the MAC, `TLP seq=29 MRd32 len=1` coming in (472.98 to 473.32 µs) and `TLP seq=25 CplD len=1` going out (498.62 to 498.96 µs):
+
+<img alt="WaveCrux, the MRd32 coming in and its CplD going out, zoomed in" src="../0.doc/5.sim/wavecrux-ep-mrd-zoom.png" width=900 />
+
+The Pro decoders' table, filtered on the address 0x2A784010, holds the rest: the first MWr32 and MRd32 to it (tags 0x16, 0x17) and this MRd32 (tag 0x1D), at `dll_if` (`PCIe TLP #1`), `trn_if` (`#2`) and the AXI-Stream (`Xilinx 7 Series AXIS`). Each CplD gives the request it answers, the requests at the AXI-Stream have `bar_hit` BAR0, and the latency is the time from request to CplD at that boundary. The `bar_hit`, `latency` and `tag` columns are further right in the same table; we put them next to the label:
+
+<img alt="WaveCrux Pro PCIe TLP decoders, the requests to BAR0 + 0x010 and their completions at dll_if, trn_if and the AXI-Stream" src="../0.doc/5.sim/wavecrux-ep-mrd-table.png" width=900 />
+
+| Time | Where | Decoded | Step |
+|---|---|---|---|
+| 473.008 µs | PIPE RX | `TLP seq=29 MRd32 len=1` | STP on the link |
+| 473.232 µs | MAC -> DLL | `TLP seq=29 MRd32 len=1` | MAC receive, 7 PCLK |
+| 473.616 µs | `dll_if` | `MRd32 0x2A784010 · 00:00.2 tag 0x1D` | DLL receive, 12 PCLK |
+| 473.808 µs | `trn_if` | `MRd32 0x2A784010` | the TL: queue, ordering, BAR0 hit, 6 PCLK |
+| 474.384 µs | AXI-Stream | `MRd32 0x2A784010`, `bar_hit` BAR0 | the SOC takes it once the firmware has released the previous request |
+| 498.192 µs | AXI-Stream | `CplD [SC] 0x2A784010 = 0x0DF0FECA` | the firmware, 23.8 µs |
+| 498.224 µs | `trn_if` | `CplD [SC]` | `trn_bridge`, 1 PCLK |
+| 498.448 µs | `dll_if` | `CplD [SC] 0x2A784010` | the TL's TX buffer, which takes a TLP whole before it sends it, 7 PCLK |
+| 498.672 µs | DLL -> MAC | `TLP seq=25 CplD len=1` | DLL transmit, 7 PCLK |
+| 498.800 µs | PIPE TX | `TLP seq=25 CplD len=1` | MAC transmit, 4 PCLK |
+
+25.8 µs from STP in to STP out, 23.8 µs of it in the firmware: the latency of this MRd32 is 24.8 µs at `dll_if`, 24.4 µs at `trn_if` and 23.8 µs at the AXI-Stream. The payload reads `0x0DF0FECA`, byte 0 first: the host wrote 0xcafef00d little-endian. Every layer shows the same tag, 0x1D, and the Pro decoders pair the CplD with this MRd32 at each of them. The first MRd32 to this address (tag 0x17) waited 264 µs; the [TL section](../2.rtl/5.tlp/README.md#viewing-the-tl-in-wavecrux) shows where.
+
+**On the serial line** (`PHY=rtl`). The first CfgRd0 again, with Cologne Chip's PIPE logic and the SerDes BFM below the MAC: the serial-line decoders recover it from the 1-bit line. It is on the line at 80.47 µs and at the PIPE about 0.4 µs later (STP at 80.864 µs: bit lock, 8b/10b, word alignment, elastic buffer); its CplD leaves the PIPE at 82.176 µs and is on the line about 0.13 µs after:
+
+<img alt="WaveCrux, PHY=rtl: CfgRd0 on the serial line, at the PIPE, at dll_if, and its CplD back on the line" src="../0.doc/5.sim/wavecrux-ep-serial.png" width=900 />
+
+Zoomed in on the line: the CfgRd0 coming in, `TLP frame seq=0 (18 symbols)` and `TLP seq=0 CfgRd0 len=1` (80.43 to 80.62 µs), and its CplD going out, `TLP seq=0 CplD len=1` at the PIPE and then on the line, `TLP frame seq=0 (22 symbols)` (82.14 to 82.40 µs):
+
+<img alt="WaveCrux, PHY=rtl: the CfgRd0 and its CplD on the serial line, zoomed in" src="../0.doc/5.sim/wavecrux-ep-serial-zoom.png" width=900 />
 
 ### Choosing the user code
 

@@ -1,0 +1,308 @@
+{
+  "version": 4,
+  "sourceFilePath": "tb_rtl.fst",
+  "signals": [
+    {
+      "kind": "signal",
+      "id": "ocpcie-0",
+      "ref": "1145",
+      "path": "tb.dut.u_core.wavecrux.ltssm_name",
+      "name": "ltssm_name",
+      "color": 4288585374,
+      "format": "ascii",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-1",
+      "ref": "1146",
+      "path": "tb.dut.u_core.wavecrux.dl_name",
+      "name": "dl_name",
+      "color": 4288585374,
+      "format": "ascii",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-2",
+      "ref": "38",
+      "path": "tb.dut.u_core.wavecrux.link_up",
+      "name": "link_up",
+      "color": 4288585374,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-3",
+      "ref": "39",
+      "path": "tb.fw_pass",
+      "name": "fw_pass",
+      "color": 4288585374,
+      "format": "hexadecimal",
+      "height": 30.0
+    }
+  ],
+  "cursor": {
+    "primary": null,
+    "secondary": null
+  },
+  "markers": {},
+  "view": {
+    "ticksPerPixel": 90909.09090909091,
+    "panOffsetTicks": 660000000.0,
+    "scrollOffset": 0.0
+  },
+  "panels": {
+    "signalTree": false,
+    "valueColumn": false,
+    "transactionView": false,
+    "bottomDockTab": "transactions",
+    "stageView": false,
+    "statisticsStrip": false,
+    "cocotbLogPanel": false,
+    "rtlSource": false,
+    "sizes": {
+      "left": 300.0,
+      "right": 150.0,
+      "bottom": 260.0
+    }
+  },
+  "signalTreeState": {
+    "expanded": [],
+    "selected": [],
+    "scroll": 0.0
+  },
+  "translateFilters": {},
+  "stage": {
+    "panels": []
+  },
+  "activeTheme": "wavecrux-dark",
+  "decoders": [
+    {
+      "decoderId": "openpcie.pcie_tlp_down",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "28",
+          "tlp_data": "1397",
+          "tlp_sop": "1398",
+          "tlp_eop": "1399",
+          "tlp_valid": "1400",
+          "peer_data": "1401",
+          "peer_sop": "1402",
+          "peer_eop": "1403",
+          "peer_valid": "1404"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "30",
+          "datak": "31",
+          "rxvalid": "66",
+          "rxstatus": "68"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "30",
+          "datak": "31",
+          "rxvalid": "66"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "92",
+          "datak": "93"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "pcie_tlp",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "rst_n": "49",
+          "tlp_data": "1147",
+          "tlp_sop": "109",
+          "tlp_eop": "110",
+          "tlp_valid": "108",
+          "peer_data": "1148",
+          "peer_sop": "98",
+          "peer_eop": "99",
+          "peer_valid": "97",
+          "peer_keep": "1149"
+        },
+        "parameters": {
+          "data_width": "64"
+        }
+      }
+    },
+    {
+      "decoderId": "pcie_tlp",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "rst_n": "49",
+          "tlp_data": "980",
+          "tlp_sop": "129",
+          "tlp_eop": "130",
+          "tlp_valid": "131",
+          "peer_data": "1098",
+          "peer_sop": "119",
+          "peer_eop": "120",
+          "peer_valid": "121",
+          "tlp_ready": "134",
+          "tlp_keep": "1070",
+          "peer_ready": "126",
+          "peer_keep": "1150"
+        },
+        "parameters": {
+          "data_width": "64"
+        }
+      }
+    },
+    {
+      "decoderId": "pcie_tlp_xilinx_7series",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "user_clk_out": "29",
+          "user_reset_out": "1151",
+          "m_axis_rx_tdata": "56",
+          "m_axis_rx_tkeep": "57",
+          "m_axis_rx_tlast": "59",
+          "m_axis_rx_tvalid": "60",
+          "m_axis_rx_tready": "61",
+          "m_axis_rx_tuser": "1152",
+          "s_axis_tx_tdata": "70",
+          "s_axis_tx_tkeep": "71",
+          "s_axis_tx_tlast": "73",
+          "s_axis_tx_tvalid": "74",
+          "s_axis_tx_tready": "75",
+          "s_axis_tx_tuser": "72"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "decoderId": "riscv",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "instruction": "1177",
+          "valid": "1210",
+          "pc": "1220"
+        },
+        "parameters": {
+          "xlen": "32",
+          "ext_m": false,
+          "ext_a": false,
+          "ext_f": false,
+          "ext_d": false,
+          "ext_c": false
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 3,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "94",
+          "datak": "95"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 4,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "32",
+          "datak": "33",
+          "txelecidle": "35"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "32",
+          "datak": "33",
+          "txelecidle": "35"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "openpcie.pcie_tlp_up",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "28",
+          "tlp_data": "1401",
+          "tlp_sop": "1402",
+          "tlp_eop": "1403",
+          "tlp_valid": "1404",
+          "peer_data": "1397",
+          "peer_sop": "1398",
+          "peer_eop": "1399",
+          "peer_valid": "1400"
+        },
+        "parameters": {}
+      }
+    }
+  ]
+}

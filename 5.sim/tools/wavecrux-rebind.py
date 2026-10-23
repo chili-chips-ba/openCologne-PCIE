@@ -6,7 +6,9 @@
 # Rebind a WaveCrux session to a new FST. A session binds its signal rows,
 # decoders and stage widgets by signal number in the file ("ref"), which
 # changes when the dumped signals change. This maps each old ref to its path,
-# then to the new ref.
+# then to the new ref. A ref numbers the FST's signal handles, in the order
+# they first appear, not its names: all names of an alias (one net seen from
+# several scopes, as Verilator writes interface ports) share one ref.
 #
 # usage:  python3 wavecrux-rebind.py <session> <new.fst> [<old.fst>] [-r OLD=NEW ...] [-o <out>]
 #   <old.fst>    the FST the session was made for; default: the paths in the
@@ -19,17 +21,21 @@
 import argparse, json, os, subprocess, sys
 
 def fst_refs(fst):
-    """path -> ref, in file order"""
+    """path -> ref: the number of the path's handle (its VCD id code), in
+    the order the handles first appear"""
     vcd = subprocess.run(["fst2vcd", fst], capture_output=True, text=True, check=True).stdout
-    refs, scope = {}, []
+    refs, handles, scope = {}, {}, []
     for line in vcd.splitlines():
         w = line.split()
+        if line.startswith("$enddefinitions"):
+            break
         if line.startswith("$scope"):
             scope.append(w[2])
         elif line.startswith("$upscope"):
             scope.pop()
         elif line.startswith("$var"):
-            refs.setdefault(".".join(scope + [w[4]]), str(len(refs)))
+            h = handles.setdefault(w[3], str(len(handles)))
+            refs.setdefault(".".join(scope + [w[4]]), h)
     return refs
 
 a = argparse.ArgumentParser()

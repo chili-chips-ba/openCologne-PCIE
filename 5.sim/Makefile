@@ -118,12 +118,17 @@ LDLIBS         = -Wl,-whole-archive $(USERLIB) -Wl,-no-whole-archive \
 
 # DUMP=1: tb.fst, written natively (Verilator --trace-fst, vvp -fst); depth 3
 # reaches the decoder pages, tb.u_rc (RC) and tb.dut.bfm_pcie (EP); tb.vlt keeps the
-# upstream models out of it
+# upstream models out of it. With DUT=rtl: tb_rtl.fst (PHY=rtl: tb_rtl_phy.fst),
+# with the EP's decoder pages (wavecrux.f), 6 levels down with PHY=rtl; eduBOS5
+# drives its RVFI outputs (RISCV_FORMAL) for the CPU's page
 DUMP          ?= 0
 ifeq ($(DUMP),1)
   VLTDUMP      = --trace-fst --trace-depth 3 +define+DUMP tb.vlt
   ICADUMP      = -DDUMP
   VVPDUMP      = -fst
+  ifeq ($(DUT),rtl)
+    VLTDUMP    = --trace-fst --trace-depth 6 +define+DUMP +define+RISCV_FORMAL tb.vlt -F wavecrux.f
+  endif
 endif
 
 # --timing: the test bench and the models use delays and event controls
@@ -199,6 +204,7 @@ help:
 	@echo "make [SIM=verilator|icarus] [DUT=mock|rtl] [PHY=vproc_rc|rtl]   build the models and the simulation"
 	@echo "make [SIM=verilator|icarus] run    build and run"
 	@echo "make DUMP=1 run                    also write tb.fst (WaveCrux: tb.DLL-PIPE.wavecrux)"
+	@echo "make DUT=rtl DUMP=1 run            also write tb_rtl.fst, the EP's layers (WaveCrux: tb_rtl.*.wavecrux)"
 	@echo "make clean                         remove obj/"
 	@echo "USER_C, USRCODEDIR, OPTFLAG, USRSIMFLAGS (extra simulator flags) can be overridden"
 

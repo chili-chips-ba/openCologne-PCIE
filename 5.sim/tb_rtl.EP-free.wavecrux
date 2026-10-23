@@ -1,0 +1,274 @@
+{
+  "version": 4,
+  "sourceFilePath": "tb_rtl.fst",
+  "signals": [
+    {
+      "kind": "signal",
+      "id": "ocpcie-0",
+      "ref": "1145",
+      "path": "tb.dut.u_core.wavecrux.ltssm_name",
+      "name": "ltssm_name",
+      "color": 4288585374,
+      "format": "ascii",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-1",
+      "ref": "1146",
+      "path": "tb.dut.u_core.wavecrux.dl_name",
+      "name": "dl_name",
+      "color": 4288585374,
+      "format": "ascii",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-2",
+      "ref": "38",
+      "path": "tb.dut.u_core.wavecrux.link_up",
+      "name": "link_up",
+      "color": 4288585374,
+      "format": "hexadecimal",
+      "height": 30.0
+    },
+    {
+      "kind": "signal",
+      "id": "ocpcie-3",
+      "ref": "39",
+      "path": "tb.fw_pass",
+      "name": "fw_pass",
+      "color": 4288585374,
+      "format": "hexadecimal",
+      "height": 30.0
+    }
+  ],
+  "cursor": {
+    "primary": null,
+    "secondary": null
+  },
+  "markers": {},
+  "view": {
+    "ticksPerPixel": 90909.09090909091,
+    "panOffsetTicks": 660000000.0,
+    "scrollOffset": 0.0
+  },
+  "panels": {
+    "signalTree": false,
+    "valueColumn": false,
+    "transactionView": false,
+    "bottomDockTab": "transactions",
+    "stageView": false,
+    "statisticsStrip": false,
+    "cocotbLogPanel": false,
+    "rtlSource": false,
+    "sizes": {
+      "left": 300.0,
+      "right": 150.0,
+      "bottom": 260.0
+    }
+  },
+  "signalTreeState": {
+    "expanded": [],
+    "selected": [],
+    "scroll": 0.0
+  },
+  "translateFilters": {},
+  "stage": {
+    "panels": []
+  },
+  "activeTheme": "wavecrux-dark",
+  "decoders": [
+    {
+      "decoderId": "openpcie.pcie_tlp_down",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "28",
+          "tlp_data": "1397",
+          "tlp_sop": "1398",
+          "tlp_eop": "1399",
+          "tlp_valid": "1400",
+          "peer_data": "1401",
+          "peer_sop": "1402",
+          "peer_eop": "1403",
+          "peer_valid": "1404"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "30",
+          "datak": "31",
+          "rxvalid": "66",
+          "rxstatus": "68"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "30",
+          "datak": "31",
+          "rxvalid": "66"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "92",
+          "datak": "93"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "openpcie.pcie_tlp_down",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "tlp_data": "1153",
+          "tlp_sop": "1154",
+          "tlp_eop": "1155",
+          "tlp_valid": "1156",
+          "peer_data": "1157",
+          "peer_sop": "1158",
+          "peer_eop": "1159",
+          "peer_valid": "1160"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "decoderId": "riscv",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "instruction": "1177",
+          "valid": "1210",
+          "pc": "1220"
+        },
+        "parameters": {
+          "xlen": "32",
+          "ext_m": false,
+          "ext_a": false,
+          "ext_f": false,
+          "ext_d": false,
+          "ext_c": false
+        }
+      }
+    },
+    {
+      "decoderId": "openpcie.pcie_tlp_up",
+      "instanceNumber": 1,
+      "config": {
+        "bindings": {
+          "clk": "29",
+          "tlp_data": "1157",
+          "tlp_sop": "1158",
+          "tlp_eop": "1159",
+          "tlp_valid": "1160",
+          "peer_data": "1153",
+          "peer_sop": "1154",
+          "peer_eop": "1155",
+          "peer_valid": "1156"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 3,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "94",
+          "datak": "95"
+        },
+        "parameters": {
+          "scrambling": "off",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_dll_w64",
+      "instanceNumber": 4,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "32",
+          "datak": "33",
+          "txelecidle": "35"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge"
+        }
+      }
+    },
+    {
+      "decoderId": "ferrite.pcie_pipe_w64",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "pclk": "29",
+          "data": "32",
+          "datak": "33",
+          "txelecidle": "35"
+        },
+        "parameters": {
+          "scrambling": "auto",
+          "sample_point": "before_edge",
+          "coalesce": true,
+          "show_idle": false
+        }
+      }
+    },
+    {
+      "decoderId": "openpcie.pcie_tlp_up",
+      "instanceNumber": 2,
+      "config": {
+        "bindings": {
+          "clk": "28",
+          "tlp_data": "1401",
+          "tlp_sop": "1402",
+          "tlp_eop": "1403",
+          "tlp_valid": "1404",
+          "peer_data": "1397",
+          "peer_sop": "1398",
+          "peer_eop": "1399",
+          "peer_valid": "1400"
+        },
+        "parameters": {}
+      }
+    }
+  ]
+}
