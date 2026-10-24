@@ -2,6 +2,9 @@
 
 ## Table of Contents
 
+* [Introduction](#introduction)
+* [Scope: unit debug, then top-level validation](#scope-unit-debug-then-top-level-validation)
+  * [A host already proven against real silicon](#a-host-already-proven-against-real-silicon)
 * [Block-level flows](#block-level-flows)
 * [Running the co-simulation](#running-the-co-simulation)
   * [Modeling options: DUT, PHY, CPU](#modeling-options-dut-phy-cpu)
@@ -13,9 +16,6 @@
   * [Build defines](#build-defines)
   * [From XSIM to Verilator, via Icarus](#from-xsim-to-verilator-via-icarus)
   * [VIP versions and local changes](#vip-versions-and-local-changes)
-* [Introduction](#introduction)
-* [Scope: unit debug, then top-level validation](#scope-unit-debug-then-top-level-validation)
-  * [A host already proven against real silicon](#a-host-already-proven-against-real-silicon)
 * [VProc Software](#vproc-software)
   * [The CPU node: three ways to run the SOC's software](#the-cpu-node-three-ways-to-run-the-socs-software)
 * [Debugging Code](#debugging-code)
@@ -25,9 +25,50 @@
 * [References](#references)
 
 
+## Introduction
+
+The top-level test bench drives the DUT's PCIE link with the [pcieVHost](https://github.com/wyvernSemi/pcievhost) VIP: a C model of a PCIE 1.1/2.0 link partner, connected to the logic simulation through the [VProc](https://github.com/wyvernSemi/vproc) virtual processor. VProc lets a program compiled natively on the host run "inside" an HDL component, in lock-step with the simulation; pcieVHost is such a program, wrapped so that its PCIE lanes appear as ports. It was designed as a root complex, the role it plays here, and has endpoint features too, enabled by a parameter; they are limited and meant as a target for testing the root complex side.
+
+<p align=center>
+<img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost at VProc node 1 on top, driving the DUT at its 64-bit PIPE interface below it: MAC, DLL and TL RTL, the CSR registers and the SOC CPU socket (soc_cpu.VPROC at node 0, or eduBOS5)" width=1000 src="../0.doc/5.sim/tb-structure.drawio.png">
+</p>
+
+The picture shows the final setup. One part does not exist yet: the `CPU=rtl | vproc | iss` switch. With `DUT=rtl`, `tb.sv` puts `pcie_top` (MAC + DLL + TL + SOC with eduBOS5) under the host, which sits in the `phy_top` socket, or with `PHY=rtl` all of `top`, the host on the serial line; with `DUT=mock` it connects the host straight to the mock EP.
+
+Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
+
+| Node | Model | Program | Role |
+|---|---|---|---|
+| 1 | `RCPIPEx1__pcieVHost` | [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp) | the host: trains the link, enumerates the EP (IDs, BAR sizing and assignment, capabilities), then reads and writes BAR0 |
+| 2 | `EPPIPEx1__pcieVHost_DUT` | [`usercode/VUserMain2.cpp`](usercode/VUserMain2.cpp) | the mock EP ([`stubs`](stubs/README.md)), an option next to the EP RTL + firmware: `DUT=mock` |
+| 0 | `soc_cpu.VPROC` | native C/C++, or the rv32 ISS | the SOC's CPU, in place of eduBOS5, once the `CPU` switch is in (below) |
+
+The model can print the traffic of both link directions to the console, layer by layer; [`hex/ContDisps.hex`](hex/ContDisps.hex) selects what is shown.
+
+## Scope: unit debug, then top-level validation
+
+Every layer is covered twice, on purpose. Block-level test benches debug each unit on its own. The top level then validates them together, with an independent host. This matters most for the PHY: it comes from Cologne Chip, and only the top level checks it against our MAC, DLL, TL and firmware.
+
+| Level | Where | Purpose | Link partner |
+|---|---|---|---|
+| Top | `5.sim` (here) | validates the units together: MAC + DLL + TL RTL and firmware (enumeration, configuration, PIO); with `PHY=rtl`, also Cologne Chip's PIPE and SerDes | `RCPIPEx1__pcieVHost` |
+| DLL over PIPE + PHY | [`2.rtl/4.dll/sim`](../2.rtl/4.dll/sim) | unit debug: DLL, MAC/LTSSM, PIPE and SerDes BFM on the serial line | a second copy of the same stack |
+| PIPE + PHY | [`2.rtl/1.phy/3.sim`](../2.rtl/1.phy/3.sim) | unit debug: Cologne Chip's PIPE logic over the GateMate SerDes; the [SerDes BFM](../2.rtl/1.phy/2.serdes-model) against the vendor model | the vendor's PIPE test case; the BFM, looped back |
+
+How to run each, and today's status: [Simulation, layer by layer](../2.rtl/README.md#simulation-layer-by-layer).
+
+`PHY` sets the top level's depth:
+
+- **`vproc_rc`**: the host sits at the PIPE. Fast (eight symbols per 31.25 MHz clock), and a failure points at MAC, DLL, TL or firmware.
+- **`rtl`**: the real PHY is in, and the host drives the serial line. Slower (2.5 Gb/s bit rate), but it covers the whole stack. It runs on the open-source [SerDes BFM](../2.rtl/1.phy/2.serdes-model), which is checked against the vendor's NDA model ([equivalence checking](../2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md)), so anyone can run it.
+
+### A host already proven against real silicon
+
+`RCPIPEx1__pcieVHost` is the pcieVHost model in our wrapper [`PIPEx1__pcieVHost`](models/PIPEx1__pcieVHost.sv), around upstream's `pcieVHostPipex1`, fixed to the RC role ([`models/RCPIPEx1__pcieVHost.sv`](models/RCPIPEx1__pcieVHost.sv)). The same model and PIPE wrapper were validated on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/5.sim) against the AMD `PCIE_2_1` hard macro: link training, flow control, TLPs and completions, end to end. There the roles were the other way round, the model the EP and the hard macro the RC. What that run established is that the model and the AMD hard macro speak the same PCIE. An EP that passes against this model in simulation therefore stands a better chance of working on the first try in hardware, when a physical Artix-7, running openPCIE as the RC, drives our GateMate EP over the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb).
+
 ## Block-level flows
 
-This directory is the top-level test bench. The layers below it have their own Icarus Verilog flows, next to their RTL: the PHY (PIPE + SerDes, and the opensource SerDes BFM) in [2.rtl/1.phy/3.sim](../2.rtl/1.phy/3.sim/), the DLL over that PHY in [2.rtl/4.dll/sim](../2.rtl/4.dll/sim/).
+This directory is the top-level test bench. The layers below it have their own Icarus Verilog flows, next to their RTL: the PHY (PIPE + SerDes, and the open-source SerDes BFM) in [2.rtl/1.phy/3.sim](../2.rtl/1.phy/3.sim/), the DLL over that PHY in [2.rtl/4.dll/sim](../2.rtl/4.dll/sim/).
 
 ## Running the co-simulation
 
@@ -42,21 +83,26 @@ make DUT=rtl PHY=rtl run # the same with the real PHY, the host on the serial li
 make DUT=rtl DUMP=1 run  # also write tb_rtl.fst: every layer of the EP, for WaveCrux
 ```
 
-`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`): the PIPE link both ways, its clock and reset, and the decoder pages of both pcieVHosts (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input on one page per side (PIPE, DLL, TLPs), under the names WaveCrux auto-binds. With `DUT=rtl` it writes `tb_rtl.fst` (`PHY=rtl`: `tb_rtl_phy.fst`) instead, with a decoder page at every layer boundary of our EP ([below](#viewing-the-ep-in-wavecrux)). Verilator 5.052 writes FST with its own writer, which needs the lz4 headers (`liblz4-dev`). [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) in WaveCrux with Ferrite's PIPE and DLL decoders on both directions. It binds signals by their number in the file, so after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
+`DUMP=1` writes the FST natively (Verilator `--trace-fst`, Icarus `vvp -fst`):
 
-The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
+- **`DUT=mock`: `tb.fst`.** The PIPE link both ways, its clock and reset, and one decoder page per pcieVHost (`tb.u_rc`, `tb.dut.bfm_pcie`): every decoder input (PIPE, DLL, TLPs), under the names WaveCrux auto-binds.
+- **`DUT=rtl`: `tb_rtl.fst`** (`PHY=rtl`: `tb_rtl_phy.fst`). A decoder page at every layer boundary of our EP ([below](#viewing-the-ep-in-wavecrux)).
+- **Session.** [`tb.DLL-PIPE.wavecrux`](tb.DLL-PIPE.wavecrux) opens the tracked [`tb.fst`](tb.fst) (Verilator run) with Ferrite's PIPE and DLL decoders on both directions. It binds signals by number: after a change to the dumped signals, run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py) on it.
+- **lz4.** Verilator 5.052 has its own FST writer, which needs the lz4 headers (`liblz4-dev`).
+
+The VIP (VProc, the pcieVHost PCIE model, mem_model) is copied from upstream into [`vip`](vip/README.md). The first build compiles it once into `~/.cache/opencologne-pcie/vip`, the Makefile's `$VIP_DIR` ([`tools/build-vip.sh`](tools/build-vip.sh)). Our own wrappers are in `models/`.
 
 The DUT is selected with `DUT`: the EP RTL + firmware (`DUT=rtl`: [`rtl.f`](rtl.f), with the host in the `phy_top` socket through [`models/phy_vproc_rc.sv`](models/phy_vproc_rc.sv)), or the mock `EPPIPEx1__pcieVHost_DUT`, a second pcieVHost in EP mode ([`stubs`](stubs/README.md); `DUT=mock`, the default for now). The host is `RCPIPEx1__pcieVHost`, a pcieVHost in RC mode at node 1, running [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp). A passing run shows the link train to L0 on both sides, then the host enumerate the EP: Vendor and Device ID, class code, all six BARs sized and assigned, the capability list walked, ending with `===> Finished with no errors`. The host program ends the simulation itself when it is done.
 
 With `DUT=rtl` the host program is [`usercode/VUserMain1_rtl.cpp`](usercode/VUserMain1_rtl.cpp): the same enumeration for our one BAR0 (4 KB), Memory Space and Bus Master enabled, then DWORD writes and reads in BAR0 that the firmware serves, all checked, with scrambling on. Today the run stops in flow-control initialisation, on gatemate-pipe's DLL:
 
-- it repeats InitFC1/InitFC2 only every 34 µs, and pcieVHost leaves its own FC init only after one more complete set of InitFC DLLPs, so the host never sends a TLP;
+- it sends one InitFC1 and one InitFC2 set, then repeats them only every 34 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)): pcieVHost waits for one more complete set, so it never finishes FC init and never sends a TLP;
 - its InitFC credits are fixed ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)): the first UpdateFC of our TL then looks to the host like a jump of 233 header credits, and the host stops;
-- a TLP that arrives right after another one is dropped without a Nak.
+- a TLP that arrives right after another one is dropped without a Nak ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)).
 
 With these three worked around locally, the run ends with `===> Finished with no errors` and `fw_pass` set, with `PHY=rtl` too.
 
-With `PHY=rtl`, `tb.sv` puts `top` under the host: `phy_top` with Cologne Chip's PIPE logic and the opensource SerDes BFM ([`phy.f`](phy.f)), on a 2.5 Gb/s serial line. The host is then upstream's `PcieVhostSerial`, at node 1 with the same host program, without the transaction taps of our PIPE wrapper. It runs with `Gen2Clk = 1` and twice the Gen1 clocks (500 MHz, 5 GHz), which it divides by 2 at Gen1: with `Gen2Clk = 0` its `generate` block drives the bit clock twice, once straight and once halved (the `else` has no `begin`/`end`), and under Verilator the line ran at 1.25 Gb/s.
+With `PHY=rtl`, `tb.sv` puts `top` under the host: `phy_top` with Cologne Chip's PIPE logic and the open-source SerDes BFM ([`phy.f`](phy.f)), on a 2.5 Gb/s serial line. The host is then upstream's `PcieVhostSerial`, at node 1 with the same host program, without the transaction taps of our PIPE wrapper. It runs with `Gen2Clk = 1` and twice the Gen1 clocks (500 MHz, 5 GHz), which it divides by 2 at Gen1: with `Gen2Clk = 0` its `generate` block drives the bit clock twice, once straight and once halved (the `else` has no `begin`/`end`), and under Verilator the line ran at 1.25 Gb/s.
 
 ### Modeling options: DUT, PHY, CPU
 
@@ -77,7 +123,7 @@ Three sets of decoders, one per layer, that complement each other:
 | Decoders | Show | Where |
 |---|---|---|
 | Ferrite's PIPE, Data Link Layer and serial-line decoders (free) | ordered sets, DLLPs, Ack/Nak, flow control, LCRC, TLP framing | [wavecrux-decoders `decoders/pcie`](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie) |
-| Our TLP decoder (free) | every TLP named, each completion paired with its request | [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp), moving to wavecrux-decoders ([PR #13](https://github.com/Ferrite-Engineering/wavecrux-decoders/pull/13)) |
+| Our TLP decoder (free) | every TLP named, each completion paired with its request | [wavecrux-decoders `decoders/pcie-tlp`](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie-tlp) |
 | WaveCrux Pro PCIe TLP analysis | latency, timeouts, Base Spec rule checks, bus statistics | [WaveCrux docs](https://github.com/Ferrite-Engineering/wavecrux/blob/main/docs-site/docs/protocol-decoders.md#pcie-tlp-analysis) |
 
 Here today: Ferrite's DLL decoder names each TLP from the PIPE bits (`TLP seq=5 MWr32 len=1`). Our TLP decoder reads the host's TLP stream from `tb.u_rc` (prefix `tx_` for RC -> EP, `rx_` for EP -> RC): transaction taps we added to pcieVHost ([details](models/pcievhost/README.md#transaction-taps-our-change)). With `DUT=rtl`, all three sets decode our EP's own layers, from the PIPE to the firmware ([Viewing the EP in WaveCrux](#viewing-the-ep-in-wavecrux)).
@@ -102,7 +148,7 @@ The `dll_rx_*` fields follow Cologne Chip's DLL ([DLL draft v2](../2.rtl/0.doc/2
 What it gives us:
 
 - **RTL driven from the model.** `dll_rx_*` has the shape of `dll_if`'s RX side, so a TL can be tested without the MAC and DLL below it, on its own clock.
-- **A reference for the DUT.** What the host sent and received, packet by packet, to compare against the DUT's own TL and DLL interfaces once `DUT=rtl` is in.
+- **A reference for the DUT.** What the host sent and received, packet by packet, to compare against the DUT's own TL and DLL interfaces with `DUT=rtl`.
 - **Self-checking tests.** A checker reads the taps, not the console log.
 - **Decoder fixtures from an open simulator.** Verilator and Icarus give the same TLPs at the same times (50 each way in the enumeration run), with expected values from the model, not from a decoder.
 - **Any link partner.** The host's taps work with the mock EP and the EP RTL alike; with the mock EP, both ends of the link are tapped.
@@ -118,16 +164,25 @@ With `DUT=rtl`, `DUMP=1` gives our EP a decoder page at every layer boundary: [`
 | DLL ↔ TL, `dll_if` | `dll_*` | WaveCrux Pro: PCIe TLP, generic, Data Width 64 | layers, serial |
 | TL ↔ `trn_bridge`, `trn_if` | `trn_*` | the same | layers, serial |
 | `trn_bridge` ↔ SOC, AXI-Stream | `m_axis_rx_*`, `s_axis_tx_*` | WaveCrux Pro: PCIe TLP, Xilinx 7 Series AXIS preset | layers, serial |
-| | `tlp_view.tx_*`, `tlp_view.rx_*` | our [TLP decoder](tools/wavecrux-pcie-tlp) (free), one DW per clock | free |
+| | `tlp_view.tx_*`, `tlp_view.rx_*` | our [TLP decoder](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie-tlp) (free), one DW per clock | free |
 | SOC CPU | `tb.dut.u_soc.cpu_view.rvfi_*` | WaveCrux: RISC-V instruction trace | all |
 | serial line, `PHY=rtl` | `tb.ser_dn_line`, `tb.ser_up_line` | wcx-pcie: PCIe serial line, symbols and Data Link Layer | serial |
 | host taps, `PHY=vproc_rc` | `tb.u_rc` `tx_*`, `rx_*` | our TLP decoder | layers, free |
 
 As on the host's page, dn is RC -> EP and up is EP -> RC. The Pro TLP decoder takes both directions in one instance, `tlp_*` RC -> EP and `peer_*` EP -> RC, and pairs every completion with its request. Its Data Width has to be 64: at its default, 32, it reads only the lower DW of each beat, and the completions come out wrong.
 
-The sessions open the FST from this directory: [`tb_rtl.EP-layers.wavecrux`](tb_rtl.EP-layers.wavecrux) (all boundaries, Pro), [`tb_rtl.EP-free.wavecrux`](tb_rtl.EP-free.wavecrux) (the free decoders only) and, for `PHY=rtl`, [`tb_rtl_phy.EP-serial.wavecrux`](tb_rtl_phy.EP-serial.wavecrux). They need WaveCrux 1.1.0, with the [wcx-pcie](https://github.com/Ferrite-Engineering/wavecrux-decoders/releases/tag/pcie-v0.2.0) 0.2.0 and the [`tools/wavecrux-pcie-tlp`](tools/wavecrux-pcie-tlp) plugins added under **Settings -> Extensions -> Decoder Plugins**, the plugin notice accepted (until then the decoder rows stay empty, without a message), and a Pro licence for the Pro rows. A session binds its decoders by signal number, the FST handle, and a change to the RTL can renumber them: then run [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py).
+The sessions open the FST from this directory: [`tb_rtl.EP-layers.wavecrux`](tb_rtl.EP-layers.wavecrux) (all boundaries, Pro), [`tb_rtl.EP-free.wavecrux`](tb_rtl.EP-free.wavecrux) (the free decoders only) and, for `PHY=rtl`, [`tb_rtl_phy.EP-serial.wavecrux`](tb_rtl_phy.EP-serial.wavecrux). They need WaveCrux 1.1.0, and:
 
-The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far left, with the layer of every row, is not WaveCrux's: we added it to the screenshots, because WaveCrux names a decoder row only by its decoder (`PCIe TLP #1`, in its own name column next to ours). Link training, flow-control init and the MAC findings are from the repo as it is. The rest are from a run with the three DLL issues [above](#running-the-co-simulation) worked around locally, as without them no TLP gets through: InitFC repeated every 0.1 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)), the TL given the DLL's fixed InitFC credits ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)) and a gap after every write of the host ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)). Where a picture shows a stretch too long for the decoders' labels, a zoomed one follows it. WaveCrux rounds the labels of its time ruler, so on a zoomed picture several ticks can carry the same label; the text gives the exact times.
+- the [wcx-pcie](https://github.com/Ferrite-Engineering/wavecrux-decoders/releases/tag/pcie-v0.2.0) 0.2.0 and [pcie-tlp](https://github.com/Ferrite-Engineering/wavecrux-decoders/releases/tag/pcie-tlp-v0.1.0) 0.1.0 plugins, added under **Settings -> Extensions -> Decoder Plugins**;
+- the plugin notice accepted: until then the decoder rows stay empty, without a message;
+- a Pro licence, for the Pro rows;
+- after an RTL change, [`tools/wavecrux-rebind.py`](tools/wavecrux-rebind.py): a session binds its decoders by signal number (the FST handle), and the RTL can renumber them.
+
+The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0.
+
+- **Layer column.** The column on the far left, with the layer of every row, is ours, added to the screenshots: WaveCrux names a decoder row only by its decoder (`PCIe TLP #1`, in its own name column next to ours).
+- **Which run.** Link training, flow-control init and the MAC findings are from the repo as it is. The rest are from a run with the three DLL issues [above](#running-the-co-simulation) worked around locally, as without them no TLP gets through: InitFC repeated every 0.1 µs ([#25](https://github.com/chili-chips-ba/openCologne-PCIE/issues/25)), the TL given the DLL's fixed InitFC credits ([#22](https://github.com/chili-chips-ba/openCologne-PCIE/issues/22)) and a gap after every write of the host ([#26](https://github.com/chili-chips-ba/openCologne-PCIE/issues/26)).
+- **Zoom.** Where a picture shows a stretch too long for the decoders' labels, a zoomed one follows it. WaveCrux rounds the labels of its time ruler, so on a zoomed picture several ticks can carry the same label; the text gives the exact times.
 
 **The whole run.** Host on top, then the request path down to the CPU, then the answer path back up:
 
@@ -135,7 +190,7 @@ The pictures are WaveCrux Pro 1.1.0 with wcx-pcie 0.2.0. The column on the far l
 
 - 0 to 72 µs, link training. Most of it is Polling.Active: the EP sends the 1024 TS1 the specification asks for (65.5 µs), while the host, with its abbreviated LTSSM, already waits in Polling.Configuration sending TS2 (`TS2 ×1047`). L0 at 72.2 µs (a), DL_Active at 73.4 µs.
 - 74 to 103 µs, enumeration (b): 22 configuration requests. `dll_if` is busy, `trn_if` and the AXI-Stream stay quiet: the TL answers them itself.
-- 103 µs, the first MWr32 and MRd32 to BAR0 (c) go on to the SOC. The SOC takes the MRd32 only at 345 µs (d): until then eduBOS5 clears its PIO memory (`pio_mem` in [`main.c`](../3.sw/EP/main.c), 256 words, 11 instructions each: the firmware is built without `-O`). The CPU row is full from the moment it leaves reset, with the link.
+- 103 µs, the first MWr32 and MRd32 to BAR0 (c) go on to the SOC. The SOC takes the MRd32 only at 345 µs (d): until then eduBOS5 clears its PIO memory (`pio_mem` in [`main.c`](../3.sw/EP/main.c), 256 words, 11 instructions each: the firmware is built without `-O`). The CPU leaves reset with the link; from then on its row is full.
 - 345 to 499 µs, PIO, one request at a time, 24 µs each, almost all of it in the firmware; `fw_pass` at 370.7 µs (e).
 
 Zoomed in on the CPU row, the loop that clears `pio_mem`. On top, a later turn of it (80 to 82 µs): the PC runs through `0x58c` to `0x5b4` again and again. Below, the RISC-V decoder's table with its first turn, from 74.29 µs: 11 instructions per word, and the loop counter read from the stack and written back on every turn (`lw a4, -20(s0)`, `sw a5, -20(s0)`), as a build without `-O` makes it. One word takes 1 µs, the 256 of them about 250 µs. WaveCrux 1.1.0 draws the headings of this table out of line with its columns; in the picture we moved them over their columns:
@@ -252,7 +307,7 @@ A different test is therefore a different `USER_C` or `USRCODEDIR`, with no chan
 
 ### Verilator and Icarus, side by side
 
-The same test bench on both simulators (2026-10-20, WSL2, Verilator 5.052, Icarus Verilog 13.0, single runs; wall-clock times depend on host load):
+The same test bench on both simulators, `DUT=mock` (2026-10-20, WSL2, Verilator 5.052, Icarus Verilog 13.0, single runs; wall-clock times depend on host load):
 
 | | Verilator | Icarus |
 |---|---|---|
@@ -287,7 +342,7 @@ Both build `ltssm.c` with `LTSSM_ABBREVIATED` ([build defines](#build-defines)).
 
 ### From XSIM to Verilator, via Icarus
 
-openPCIE runs its co-simulation on AMD's XSIM, because the encrypted Artix-7 hard macros left no other choice. **The pcieVHost setup we took from openPCIE did not run on Verilator.** The upstream model has had Verilator support since `VERSION_1_0_0` (2024-08-27), with its own Verilator make flow since `VERSION_1_0_1` (2024-09-29); both twins use `VESRSION_1_9_3` (sic, 2026-06-13). But the openPCIE integration (libraries, file list, wiring) was built for XSIM only. Here all RTL is open, so the co-simulation moved to Verilator, the fast one, and Icarus. Each step on the way taught something about the models:
+openPCIE runs its co-simulation on AMD's XSIM, because the encrypted Artix-7 hard macros left no other choice. **The pcieVHost setup we took from openPCIE did not run on Verilator.** The upstream model has had Verilator support since `VERSION_1_0_0` (2024-08-27), with its own Verilator make flow since `VERSION_1_0_1` (2024-09-29); openPCIE and this repo both use `VESRSION_1_9_3` (sic, 2026-06-13). But the openPCIE integration (libraries, file list, wiring) was built for XSIM only. Here all RTL is open, so the co-simulation moved to Verilator, the fast one, and Icarus. Each step on the way taught something about the models:
 
 1. **Libraries built from source, per simulator.** XSIM loaded prebuilt `libcosimlnx.a` / `libpcielnx.a`. Verilator reaches the C models through DPI-C, Icarus through VPI, and the two need different builds of the same sources, so [`tools/build-vip.sh`](tools/build-vip.sh) builds both: `libcosimlnx.a` / `libpcielnx.a` for DPI-C, `libcosimica.a` / `libpcieica.a` for VPI. The VPI library also carries pcieVHost's `veriuser.c`, the table that registers the models' system tasks with Icarus.
 2. **Every referenced module must exist.** The pcieVHost wrappers instantiate `clkmux` and `Serialiser` (from pcieVHost's `verilog/lib`), which the earlier XSIM file list never compiled. Verilator wants every module the design references, so the VIP build now collects them.
@@ -322,47 +377,6 @@ The upstream files are copied in [`vip`](vip/README.md), with these changes made
 
 The rv32 integration code in `models/rv32/usercode` is the same as openPCIE's.
 
-## Introduction
-
-The top-level test bench drives the DUT's PCIE link with the [pcieVHost](https://github.com/wyvernSemi/pcievhost) VIP: a C model of a PCIE 1.1/2.0 link partner, connected to the logic simulation through the [VProc](https://github.com/wyvernSemi/vproc) virtual processor. VProc lets a program compiled natively on the host run "inside" an HDL component, in lock-step with the simulation; pcieVHost is such a program, wrapped so that its PCIE lanes appear as ports. It was designed as a root complex, the role it plays here, and has endpoint features too, enabled by a parameter; they are [limited](models/pcievhost/README.md#endpoint-feature-limitations) and meant as a target for testing the root complex side.
-
-<p align=center>
-<img alt="openCologne-PCIE test bench: the host RCPIPEx1__pcieVHost at VProc node 1 on top, driving the DUT at its 64-bit PIPE interface below it: MAC, DLL and TL RTL, the CSR registers and the SOC CPU socket (soc_cpu.VPROC at node 0, or eduBOS5)" width=1000 src="../0.doc/5.sim/tb-structure.drawio.png">
-</p>
-
-The picture is forward-looking: it shows the final setup, with the EP RTL in place, to guide developers in building it. Part of it does not exist yet: the `CPU=rtl | vproc | iss` switch. With `DUT=rtl`, `tb.sv` puts `pcie_top` (MAC + DLL + TL + SOC with eduBOS5) under the host, which sits in the `phy_top` socket, or with `PHY=rtl` all of `top`, the host on the serial line; with `DUT=mock` it connects the host straight to the mock EP.
-
-Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
-
-| Node | Model | Program | Role |
-|---|---|---|---|
-| 1 | `RCPIPEx1__pcieVHost` | [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp) | the host: trains the link, enumerates the EP (IDs, BAR sizing and assignment, capabilities), then reads and writes BAR0 |
-| 2 | `EPPIPEx1__pcieVHost_DUT` | [`usercode/VUserMain2.cpp`](usercode/VUserMain2.cpp) | the mock EP ([`stubs`](stubs/README.md)), an option next to the EP RTL + firmware: `DUT=mock` |
-| 0 | `soc_cpu.VPROC` | native C/C++, or the rv32 ISS | the SOC's CPU, in place of eduBOS5, once the EP RTL is in (below) |
-
-The model can print the traffic of both link directions to the console, layer by layer; [`hex/ContDisps.hex`](hex/ContDisps.hex) selects what is shown.
-
-## Scope: unit debug, then top-level validation
-
-Every layer is covered twice, on purpose. Block-level test benches debug each unit on its own. The top level then validates them together, with an independent host. This matters most for the PHY: it comes from Cologne Chip, and only the top level checks it against our MAC, DLL, TL and firmware.
-
-| Level | Where | Purpose | Link partner |
-|---|---|---|---|
-| Top | `5.sim` (here) | validates the units together: MAC + DLL + TL RTL and firmware (enumeration, configuration, PIO); with `PHY=rtl`, also Cologne Chip's PIPE and SerDes | `RCPIPEx1__pcieVHost` |
-| DLL over PIPE + PHY | [`2.rtl/4.dll/sim`](../2.rtl/4.dll/sim) | unit debug: DLL, MAC/LTSSM, PIPE and SerDes BFM on the serial line | a second copy of the same stack |
-| PIPE + PHY | [`2.rtl/1.phy/3.sim`](../2.rtl/1.phy/3.sim) | unit debug: Cologne Chip's PIPE logic over the GateMate SerDes; the [SerDes BFM](../2.rtl/1.phy/2.serdes-model) against the vendor model | the vendor's PIPE test case; the BFM, looped back |
-
-How to run each, and today's status: [Simulation, layer by layer](../2.rtl/README.md#simulation-layer-by-layer).
-
-`PHY` sets the top level's depth:
-
-- **`vproc_rc`**: the host sits at the PIPE. Fast (eight symbols per 31.25 MHz clock), and a failure points at MAC, DLL, TL or firmware.
-- **`rtl`**: the real PHY is in, and the host drives the serial line. Slower (2.5 Gb/s bit rate), but it covers the whole stack. It runs on the open-source [SerDes BFM](../2.rtl/1.phy/2.serdes-model), which is checked against the vendor's NDA model ([equivalence checking](../2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md)), so anyone can run it.
-
-### A host already proven against real silicon
-
-`RCPIPEx1__pcieVHost` is the pcieVHost model in our wrapper [`PIPEx1__pcieVHost`](models/PIPEx1__pcieVHost.sv), around upstream's `pcieVHostPipex1`, fixed to the RC role ([`models/RCPIPEx1__pcieVHost.sv`](models/RCPIPEx1__pcieVHost.sv)). The same model and PIPE wrapper were validated on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/5.sim) against the AMD `PCIE_2_1` hard macro: link training, flow control, TLPs and completions, end to end. There the roles were the other way round, the model the EP and the hard macro the RC. What that run established is that the model and the AMD hard macro speak the same PCIE. An EP that passes against this model in simulation therefore stands a better chance of working on the first try in hardware, when a physical Artix-7, running openPCIE as the RC, drives our GateMate EP over the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb).
-
 ## VProc Software
 
 A VProc program is ordinary C or C++ with one difference: its entry point is `VUserMain<n>()`, with C linkage, instead of `main()`, because the simulator already has a `main()` and each node has its own program. Under it, VProc's scheduler talks to the simulator over DPI-C (Verilator) or VPI (Icarus); the program does not see the difference. VProc offers a low-level C API and a C++ one, the `VProc` class in `VProcClass.h` (its headers are in `$VIP_DIR/include`, see [Running the co-simulation](#running-the-co-simulation)):
@@ -396,7 +410,7 @@ Being C, they have no default arguments. `node` here selects a memory space, not
 
 ### The CPU node: three ways to run the SOC's software
 
-Once the EP RTL is in, node 0 can stand in for eduBOS5 in the SOC's CPU socket ([`models/soc_cpu.VPROC.sv`](models/soc_cpu.VPROC.sv), on the same `mem_if` bus), in the same three ways as on openPCIE:
+Once the `CPU` switch is in, node 0 can stand in for eduBOS5 in the SOC's CPU socket ([`models/soc_cpu.VPROC.sv`](models/soc_cpu.VPROC.sv), on the same `mem_if` bus), in the same three ways as on openPCIE:
 
 - **RTL:** eduBOS5 itself runs `firmware.hex`, as in the bitstream. The reference.
 - **Native:** a C/C++ program compiled for the host drives the bus. With the co-simulation HAL ([below](#co-simulation-hal)) the firmware's own sources compile this way, and run much faster than on the RTL core.
@@ -483,7 +497,7 @@ Two more things differ between the two builds, and the generated headers cover b
 - **The entry point.** The hardware build starts at `main()`, the co-simulation at `VUserMain0()`. The headers define `PCIEMAIN` as one or the other, so the application writes `void PCIEMAIN (void)`.
 - **Delays.** A delay loop on the target is wasted simulation time in co-simulation. Wrap delays in one function whose co-simulation version converts time into clock cycles and calls VProc's tick. `csr_cosim.h` defines `SOC_CPU_CLK_PERIOD_PS` for that (16000 ps unless defined before the include) and `SOC_CPU_VPNODE`, the CPU node (0; option `-v` of `sysrdl_cosim.py`).
 
-## References:
+## References
 - [Logic sim using pcieVHost and 3rd Party PCIe](https://www.linkedin.com/pulse/case-study-logic-simulation-environment-using-third-party-southwell-tyere)
 - [VProc](https://github.com/wyvernSemi/vproc)
 - [mem_model](https://github.com/wyvernSemi/mem_model)
@@ -491,6 +505,7 @@ Two more things differ between the two builds, and the generated headers cover b
 - [rv32 RISC-V ISS](https://github.com/wyvernSemi/rv32/tree/main/iss)
 - [cocotbext-pcie](https://github.com/alexforencich/cocotbext-pcie): Alex Forencich's PCIE models for cocotb (Python)
 - [WaveCrux PCIE decoders](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie): PIPE and DLL traffic as transactions in the waveform
+- [WaveCrux TLP decoder](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie-tlp): our TLP plugin, every TLP named, each completion paired with its request
 - [WaveCrux RV32 ISA decoder](https://github.com/Ferrite-Engineering/wavecrux/tree/main/assets/decoders/isa/riscv): RISC-V instructions in the waveform
 - [SystemRDL](https://www.accellera.org/downloads/standards/systemrdl)
 - [PeakRDL and SystemRDLcompiler](https://github.com/SystemRDL)
