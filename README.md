@@ -87,7 +87,7 @@ For additional detail, please jump to [1.pcb/README.md](1.pcb/README.md)
 
 --------------------
 
-# PHY and PIPE (is not a dream)
+# PHY PIPE is not a dream
 
 <p align="center">
   <img alt="PCIe physical layer sub-blocks" width="60%" src="2.rtl/1.phy/0.doc/images/PHY-Layers.jpg">
