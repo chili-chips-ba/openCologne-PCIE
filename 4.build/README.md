@@ -40,7 +40,7 @@ The versions this repo has been run with so far. "Runs" means the step completes
 | Verilator | 5.052 | co-sim (`make run`, default), SOC lint; its FST writer needs `liblz4-dev` | runs, checks |
 | nextpnr-himbaechel (GateMate), gmpack | from the OSS CAD Suite | place and route, bitstream | not yet run here |
 | openFPGALoader | 1.1.1 | loading the bitstream over JTAG | not yet used on the board |
-| WaveCrux Pro | 1.1.0 (1.0.1+) | waveforms; PIPE, DLL and serial-line decoding (wcx-pcie 0.2.0), TLP decoding (Pro, and [our plugin](../5.sim/tools/wavecrux-pcie-tlp)), RISC-V (Windows) | runs |
+| WaveCrux Pro | 1.1.0 (1.0.1+) | waveforms; PIPE, DLL and serial-line decoding (wcx-pcie 0.2.0), TLP decoding (Pro, and [our plugin](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie-tlp)), RISC-V (Windows) | runs |
 | Python | 3.12 | build scripts | runs |
 
 #### References:

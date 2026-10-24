@@ -36,7 +36,7 @@
 //     <-> SOC      as they are, the names of the Pro decoder's Xilinx 7
 //     (AXI-Stream) Series preset (PG054); m_axis_rx_tuser padded to its 22
 //                  bits. tlp_view.tx_* / rx_*: one DW per clock, for our
-//                  free TLP decoder (tools/wavecrux-pcie-tlp)
+//                  free TLP decoder (wavecrux-decoders, decoders/pcie-tlp)
 //
 //   and the link state as rows: ltssm_state, dl_state (enums), the same as
 //   text (ltssm_name, dl_name: ASCII format), link_up.

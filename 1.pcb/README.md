@@ -57,8 +57,8 @@ When our two new plug-in boards become available, the plan is to gradually switc
 </p>
 
 #### References:
-- [GateMate Evaluation Board, DS1003](../0.doc/1.pcb/ds1003-GateMate-EVB-datasheet.Jan2024.pdf) and its [schematics, rev 3v2](../0.doc/1.pcb/ds1003-GateMate-EVB-3v2-schematics.Jan2024.pdf) by Cologne Chip, January 2024: the board of the SerDes PRBS test
-- [GateMate A2 GPIO Bank Allocation, UG1004](../0.doc/1.pcb/ug1004-GateMate-A2-GPIO-allocation.Jun2025.pdf) by Cologne Chip, June 2025
+- [GateMate Evaluation Board, DS1003](../0.doc/1.pcb/GateMate/ds1003-GateMate-EVB-datasheet.Jan2024.pdf) and its [schematics, rev 3v2](../0.doc/1.pcb/GateMate/ds1003-GateMate-EVB-3v2-schematics.Jan2024.pdf) by Cologne Chip, January 2024: the board of the SerDes PRBS test
+- [GateMate A2 GPIO Bank Allocation, UG1004](../0.doc/1.pcb/GateMate/ug1004-GateMate-A2-GPIO-allocation.Jun2025.pdf) by Cologne Chip, June 2025
 - [USB3 PHY for GateMate](https://nlnet.nl/project/GateMate-USB3-PHY)
 - [KiCad and openEMS](https://www.youtube.com/watch?v=VcJqhsbzR3c)
 - [Automated PCB trace selection for SI simulation](https://antmicro.com/blog/2024/07/automated-pcb-trace-selection-for-si-simulation)
