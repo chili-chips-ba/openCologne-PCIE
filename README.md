@@ -22,7 +22,7 @@ The project aims to take _openCologne_ to a new level, not only by introducing *
 </p>
 
 It aims to complement _openPCIE RootComplex_ with a layered EndPoint that's portable to other FPGA families, and even to [OpenROAD](https://github.com/The-OpenROAD-Project) ASICs, leaving only the PHY in the hard-macro (HM) domain. This is the only soft PCIE protocol stack in opensource at the moment.
-> dev track to put together an opensource SerDes for wafer.space GlobalFoundries GF180MCU process node is in full swing
+> Two opensource SerDes dev tracks are now in full swing, each for a different process technology, and more are likely to follow: one for wafer.space's GlobalFoundries GF180MCU (180 nm CMOS), the other, [BRICD](https://www.thebricd.org)'s Open-SERDES, for the EU-based IHP SG13G2 (130 nm SiGe BiCMOS)
 
 Our PCIE EP core comes with unique **Verification IP (VIP)** and two **PCIE cards for GateMate**. The new boards can host all three GateMate variants: A1, A2, A4 and are plug-and-play compatible with the vast assortment of 3rd-party carriers, including our opensource [PCIE Backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb/openpci2-backplane). 
 
@@ -104,6 +104,8 @@ The GateMate SerDes has thus far not been used in the PCIE context. It is theref
 There are two major elements in this design:
 - **PCIE-capable SerDes** -- in our case Cologne Chip (CC) **proprietary** mixed-signal hard IP. They wrap it into a thin, soft adaptation layer (_phy_top_) and present in the form an industry-standard PIPE interface. To enable faster and public domain simulations, we have complemented this CC HM with an opensource SerDes BFM
 - **PCIE protocol stack**: Our soft RTL that implements MAC/LTSSM, DLL and TL, crowned by an eduBOS5-based RISC-V SOC for application layer.
+
+> **Plug-and-play:** the TL's user interface, `trn_if`, is a drop-in replacement for the TRN interface of the AMD Artix-7 `PCIE_2_1` hard macro in EndPoint mode: same signals, widths and handshakes. User logic written for that HM, including openPCIE's `trn_bridge` to AXI-Stream, connects unchanged ([details](2.rtl/README.md#compatibility-goal-an-artix-7-endpoint-in-open-source)).
 
 <p align="center">
   <img alt="RTL blocks of the EndPoint: SOC, trn_bridge, soft TL+DLL+MAC, phy_top with the Cologne Chip soft wrapper and the GateMate SerDes, its BFM below" src="0.doc/2.rtl/block-diagram.drawio.png" width="100%">
@@ -368,7 +370,9 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 - enablement of hardware acceleration for AI, video, and general DSP compute workloads
 - bolting our PCIE EP to [ztachip](https://github.com/ztachip/ztachip), to then look into acceleration of the PC host Python
 > This borrows from Xilinx PYNQ framework and Alveo platform, where programmable [DPUs](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/dpu.html) are used for rapid mapping of algorithms into acceleration hardware, avoiding the time-consuming process of RTL design and validation. Such a combination would then make for the first-ever opensource "DPU" co-processor, and would also work hand-in-hand with our two new cards. After all, NiteFury and SQRL Acorn CLE 215+ M.2 cards were made for acceleration of crypto mining
-- possibly also tackling the SerDes HM building brick. An opensource SerDes is in the works for the [GF180MCU](https://github.com/google/gf180mcu-pdk) process node. [wafer.space](https://wafer.space), who run shuttles on it, track that work and expect it in 6 to 9 months (as of October 2026).
+- possibly also tackling the SerDes HM building brick. Two opensource SerDes are now in the works, in two different process technologies, and more are likely to follow:
+  - **180 nm CMOS**, GlobalFoundries [GF180MCU](https://github.com/google/gf180mcu-pdk). [wafer.space](https://wafer.space), who run shuttles on it, track that work and expect it in 6 to 9 months (as of October 2026);
+  - **130 nm SiGe BiCMOS**, the EU-based [IHP](https://www.ihp-microelectronics.com) [SG13G2](https://github.com/IHP-GmbH/IHP-Open-PDK): [BRICD](https://www.thebricd.org)'s Open-SERDES, with an open channel-to-GDS flow.
 
 --------------------
 

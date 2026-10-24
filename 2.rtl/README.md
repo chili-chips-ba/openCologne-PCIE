@@ -18,7 +18,7 @@ At the moment, this section is merely a scratchpad of our thoughts and ideas, te
 
 ### Compatibility goal: an Artix-7 EndPoint, in open source
 
-To its user, our EP looks exactly like the AMD Artix-7 EP, the `PCIE_2_1` hard macro in EndPoint mode. The TRN / AXI-Stream user interface is kept as-is, and the soft TL answers configuration requests itself, as the hard macro does. Code written for the Artix-7 EP should port with no changes to the user interface. When in doubt about how something should behave, [UG477](../0.doc/2.rtl/ug477_7Series_IntBlock_PCIe.pdf) is the reference.
+To its user, our EP looks exactly like the AMD Artix-7 EP, the `PCIE_2_1` hard macro in EndPoint mode. **`trn_if` is plug-and-play, drop-in compatible with the TRN interface of `PCIE_2_1`**: same signals, widths and handshakes, so logic written for the HM connects unchanged. The TRN / AXI-Stream user interface is kept as-is, and the soft TL answers configuration requests itself, as the hard macro does. Code written for the Artix-7 EP should port with no changes to the user interface. When in doubt about how something should behave, [UG477](../0.doc/2.rtl/ug477_7Series_IntBlock_PCIe.pdf) is the reference.
 
 ### Porting plan: openPCIE → openCologne-PCIE
 
