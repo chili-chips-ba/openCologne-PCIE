@@ -215,15 +215,15 @@ Zoomed in on the two sets of the EP, with the fixed credits of [#22](https://git
 
 **Found with the decoders.** The red rows are the decoders' error flags. Two point at our MAC, on its transmit and on its receive side, and the first of them shows a gap in the decoder too.
 
-Every SKP the EP sends in Polling cuts a TS1 short: its first 8 symbols, 16 data symbols (`f527f4ec622438c8`, `e2d32ce6a740be8d`), the SKP ordered set with 4 data symbols behind it (`14c017ff1c1c1cbc`, K `0f`), 8 zero symbols, then the next TS1. The same every 4.77 µs, 14 times before L0:
+Every SKP the EP sends in Polling cuts a TS1 short ([#31](https://github.com/chili-chips-ba/openCologne-PCIE/issues/31)): its first 8 symbols, 16 data symbols (`f527f4ec622438c8`, `e2d32ce6a740be8d`), the SKP ordered set with 4 data symbols behind it (`14c017ff1c1c1cbc`, K `0f`), 8 zero symbols, then the next TS1. The same every 4.77 µs, 14 times before L0:
 
 <img alt="WaveCrux, a TS1 cut short at an SKP in Polling.Active: data symbols outside a packet" src="../0.doc/5.sim/wavecrux-ep-skp.png" width=900 />
 
-Once more with a TS2, on the step from Polling.Configuration to Config.Linkwidth.Start (68.88 µs): its first half (`4545000200f7f7bc`), then data (`fa28fbe36d2b37c7`) and 8 zero symbols instead of its second half, then TS1. Only ordered sets may be sent in Polling and Configuration. pcieVHost does not mind; a link partner that counts consecutive TS1 or TS2 may:
+Once more with a TS2 ([#31](https://github.com/chili-chips-ba/openCologne-PCIE/issues/31)), on the step from Polling.Configuration to Config.Linkwidth.Start (68.88 µs): its first half (`4545000200f7f7bc`), then data (`fa28fbe36d2b37c7`) and 8 zero symbols instead of its second half, then TS1. Only ordered sets may be sent in Polling and Configuration. pcieVHost does not mind; a link partner that counts consecutive TS1 or TS2 may:
 
 <img alt="WaveCrux, a TS2 cut short on the step to Configuration" src="../0.doc/5.sim/wavecrux-ep-ts2.png" width=900 />
 
-The MAC's receive side drops the COM of every SKP ordered set the host sends, but passes its three SKP symbols to the DLL as data: MAC -> DLL carries `f00308c05c1c1c1c` with K `08`, so `1c 1c 1c` as data before the SDP of the next DLLP, and the decoder flags `Data outside a packet`. It happens every 80 µs, the host's SKP interval; the DLL ignores them:
+The MAC's receive side passes the SKP ordered sets the host sends on to the DLL, as data ([#32](https://github.com/chili-chips-ba/openCologne-PCIE/issues/32)): at 80.3 µs MAC -> DLL carries `f00308c05c1c1c1c` with K `08`, so `1c 1c 1c` as data before the SDP of the next DLLP (the COM is in the word before, which does not reach the DLL), and the decoder flags `Data outside a packet`. It happens every 80 µs, the host's SKP interval, at 160.3 µs with the COM too (`001c1c1cbcfdeda2`, K `04`); the DLL ignores them:
 
 <img alt="WaveCrux, the SKP symbols of a received SKP ordered set reaching the DLL as data" src="../0.doc/5.sim/wavecrux-ep-macrx-skp.png" width=900 />
 
