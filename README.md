@@ -7,7 +7,7 @@
 [![WaveCrux:YES](https://badgen.net/badge/WaveCrux/YES/green)](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)
 [![Lint:WIP](https://badgen.net/badge/Lint/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
 [![Verible:WIP](https://badgen.net/badge/Verible/WIP/orange)](2.rtl/README.md#rtl-coding-rules)
-[![8b10b-Formal:Pass](https://badgen.net/badge/8b10b%20Formal/Pass/green)](2.rtl/1.phy/2.serdes-model/formal)
+[![8b10b-Formal:Pass](https://badgen.net/badge/8b10b%20Formal/Pass/green)](https://github.com/chili-chips-ba/openCologne/tree/main/7.SerDes/1.sim-model/formal_8b10b)
 [![DLL+PHY-Sim:Pass](https://badgen.net/badge/DLL%2BPHY%20Sim/Pass/green)](2.rtl/4.dll/sim)
 [![TopSim:WIP](https://badgen.net/badge/TopSim/WIP/orange)](5.sim)
 [![PCIE:TODO](https://badgen.net/badge/PCIE/TODO/red)](#project-status)
@@ -146,13 +146,13 @@ Either half of the design can be swapped for pcieVHost, the same model that alre
 
 1. **`phy_top` → `RCPIPEx1__pcieVHost`** (pcieVHost as the RC): our MAC, DLL, TL and firmware get a full PCIE link partner at the PIPE interface. This is the top-level run.
 2. **`pcie_top` → `EPPIPEx1__pcieVHost_DUT`** (pcieVHost as the EP, `DUT=mock`): the test bench and the host program run before our EP RTL exists. This is today's default.
-3. **`phy_top` alone**, in its own [block-level test benches](2.rtl/README.md#simulation-layer-by-layer), with either SerDes: the vendor's `CC_SERDES` simulation model or our opensource SerDes BFM, with an [equivalence check](2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md) between the two.
+3. **`phy_top` alone**, in its own [block-level test benches](2.rtl/README.md#simulation-layer-by-layer), on our opensource SerDes BFM.
 
 The block-level runs also feed the [WaveCrux PCIE decoders](https://github.com/Ferrite-Engineering/wavecrux-decoders/tree/main/decoders/pcie), which show PIPE and DLL traffic as transactions ([DLL in WaveCrux](2.rtl/4.dll/README.md#viewing-the-dll-in-wavecrux)). Cologne Chip's own bench in the submodule drives their MAC + DLL with pcieVHost ([pictures](2.rtl/4.dll/README.md#simulation-with-pcievhost)). WaveCrux's [RV32 ISA decoder](https://github.com/Ferrite-Engineering/wavecrux/tree/main/assets/decoders/isa/riscv) can show the firmware's instructions the same way. The top-level run with our EP decodes all of it at once, every layer from the PIPE to the firmware and back ([EP in WaveCrux](5.sim/README.md#viewing-the-ep-in-wavecrux), [TL in WaveCrux](2.rtl/5.tlp/README.md#viewing-the-tl-in-wavecrux)).
 
 * A [_VProc_](https://github.com/wyvernSemi/vproc) virtual processor based [`soc_cpu.VPROC`](5.sim/models/README.md#soc_cpuvproc) component, in place of the RTL CPU
   * Can run natively compiled test code
-  * Can run the application compiled natively with the [auto-generated co-sim HAL](5.sim/README.md#co-simulation-hal)
+  * Can run the firmware itself, compiled natively through the same [HAL](5.sim/README.md#co-simulation-hal)
   * Can run RISC-V compiled code using the [rv32 RISC-V ISS model](5.sim/models/rv32/README.md)
 * Uses a C [sparse memory model](https://github.com/wyvernSemi/mem_model)
   * An [HDL component](5.sim/models/cosim/README.md) instantiated in logic gives logic access to this memory
@@ -162,7 +162,7 @@ More details on the architecture and usage of the test bench can be found in the
 
 ## Co-simulation HAL
 
-The PCIE EP control and status register harware abstraction layer (HAL) software is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/). For co-simulation purposes an additional layer is auto-generated from the same SystemRDL specification using [`systemrdl-compiler`](https://systemrdl-compiler.readthedocs.io/en/stable/) that accompanies the `peakrdl` tools. This produces two header files that define a common API to the application layer for both the RISC-V platform and the *VProc* based co-simulation verification environment. The details of the HAL generation can be found in the [README.md](5.sim/README.md#co-simulation-hal) in the `4.build/` directory.
+The PCIE EP control and status register hardware abstraction layer (HAL) is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/), from one SystemRDL file, [`4.build/csr_build/csr.rdl`](4.build/csr_build/csr.rdl). The firmware reaches every register through one accessor, `CSR_REG32()`: a load or store on eduBOS5, a *VProc* bus cycle when the same firmware is compiled for the host in co-simulation. Details: [5.sim/README.md](5.sim/README.md#co-simulation-hal).
 
 More details of the test bench, the _pcievhost_ component and its usage can be found in the [5.sim/README.md](5.sim/README.md) file.
   

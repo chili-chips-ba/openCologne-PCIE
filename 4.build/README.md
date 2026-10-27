@@ -15,7 +15,7 @@ We aim for Linux-native tools throughout, and accept WSL for convenience and inc
 
 | Step | Makefile / Directory | Produces |
 |---|---|---|
-| 1. CSR | [`MakefileCSR`](./MakefileCSR) | `csr_build/generated-files/` - `csr.sv`, `csr_pkg.sv`, `csr.h`, `csr_hw.h`, `csr_cosim.h` |
+| 1. CSR | [`MakefileCSR`](./MakefileCSR) | `csr_build/generated-files/` - `csr.sv`, `csr_pkg.sv`, `csr.h` |
 | 2. SW | [`sw_build`](./sw_build) | `firmware.elf`, `firmware.bin`, `firmware.hex` |
 | 3. HW | [`hw_build`](./hw_build): `run-lint.sh`, `run-format.sh`, `run-leq.sh`, `run-synth.sh` | lint, format and equivalence reports, the GateMate netlist (`top.json`); the bitstream once the board constraints exist |
 
@@ -23,7 +23,7 @@ eduBOS5 is a copy of openPCIE's, in [`2.rtl/6.soc/CPU.eduBOS5`](../2.rtl/6.soc/C
 
 ### Build Structure
 
-<p align="center"><img src="../0.doc/4.build/build-flow.drawio.png" width="100%" alt="Build flow: csr.rdl through PeakRDL into the register RTL and the firmware and co-sim HALs, firmware build, Yosys + nextpnr-himbaechel to the bitstream, co-simulation, lint and logic equivalence"></p>
+<p align="center"><img src="../0.doc/4.build/build-flow.drawio.png" width="100%" alt="Build flow: csr.rdl through PeakRDL into the register RTL and the firmware HAL, firmware build, Yosys + nextpnr-himbaechel to the bitstream, co-simulation, lint and logic equivalence"></p>
 
 The diagram source is [`0.doc/4.build/build-flow.drawio`](../0.doc/4.build/build-flow.drawio).
 

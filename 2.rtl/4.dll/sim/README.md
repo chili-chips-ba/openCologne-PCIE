@@ -43,6 +43,8 @@ The test:
 6. TLPs of 3, 5 and 7 DW in both directions, the last word marked with `tl_tx_tlp_last_half`: each is sent once, with 12, 20 or 28 TLP bytes on the line
 7. step 4 with a 5 DW TLP
 
+**Known failure:** the test fails from step 4 until [#24](https://github.com/chili-chips-ba/openCologne-PCIE/issues/24) is fixed (upstream [gatemate-pipe#15](https://github.com/colognechip/gatemate-pipe/issues/15)): the DLL has no REPLAY_TIMER, so a TLP whose END is hit is never Naked or replayed, and the EP stops sending TLPs. Steps 1 to 3 pass. The run below is from before the SerDes model update, when the step-4 flips passed by chance.
+
 Every TLP the two DLLs send has its LCRC checked on the way out, against a CRC-32 the testbench computes over the sequence number and the TLP bytes; in step 6 also its length.
 
 ```
@@ -77,4 +79,4 @@ The MAC implements the upstream port. The Root Complex is a second instance of t
 * the SerDes is set up and clocked as in Cologne Chip's `ccfpga_pipe_wrapper.v`: `PLL_FCNTRL = 6'h1A`, a 62.5 MHz PLL clock, the SerDes TX and RX core clock on the PIPE logic's `o_tx_clk`, so PCLK and the SerDes word clock are both 31.25 MHz
 * the PIPE reset is released 256 `clk_reg` cycles after the global reset, the MAC and DLL reset once the SerDes reports ready, synchronised to PCLK
 * the DLL gets `phy_linkup` when the MAC reports link up and the LTSSM is in L0
-* the bit errors in steps 4 and 7 are short inversions of the serial pair, starting 176 ns after the STP leaves the EP's MAC, so they hit the TLP and the RC NAKs it
+* the bit errors in steps 4 and 7 are short inversions of the serial pair, starting 176 ns after the STP leaves the EP's MAC, so they hit the TLP; the RC NAKs it only once #24 is fixed

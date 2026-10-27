@@ -58,19 +58,16 @@ https://github.com/colognechip/gatemate-pipe/tree/dll_test/sim
 --------------------
 ## Open-source SerDes simulation model
 
-`2.serdes-model/` holds an open-source **behavioural model of the GateMate
-SerDes hard macro**, a drop-in replacement for the CologneChip simulation model
-(same module name, port list and parameters). It lets the PIPE, MAC and DLL be
-simulated without the vendor model, which is under NDA.
+`2.serdes-model/` holds a copy of the open-source **SerDes BFM**, a behavioural
+model of the GateMate SerDes hard macro. It lets the PIPE, MAC and DLL be
+simulated with open tools. The master copy, its documentation, tests and 8b/10b
+proofs: [openCologne `7.SerDes/1.sim-model`](https://github.com/chili-chips-ba/openCologne/blob/main/7.SerDes/1.sim-model/README.md).
 
-| flow | vendor model | open model |
-|---|---|---|
-| PIPE test, 64-bit (`3.sim/run-phy.sh pipe64`) | 5 min 16 s, PASSED | ~14 s, PASSED |
-| DLL, MAC, PIPE and SerDes, two link partners (`4.dll/sim/run-dll-phy.sh`) | | ~15 s, PASSED |
+| flow | result |
+|---|---|
+| PIPE test, 64-bit (`3.sim/run-phy.sh pipe64`) | PASSED |
+| DLL, MAC, PIPE and SerDes, two link partners (`4.dll/sim/run-dll-phy.sh`) | fails from step 4 until [#24](https://github.com/chili-chips-ba/openCologne-PCIE/issues/24) |
 
-Equivalence against the vendor model, including cross-linked interoperability,
-and formal proofs of the 8b/10b codec are described in
-[2.serdes-model/0.doc/equivalence-checking.md](2.serdes-model/0.doc/equivalence-checking.md).
 The PHY flows are described in [3.sim/README.md](3.sim/README.md), the DLL over this PHY in
 [4.dll/sim/README.md](../4.dll/sim/README.md). The test-bench PHY of that flow, SerDes model + PIPE + bring-up FSM,
 is [`phy_model.sv`](../4.dll/sim/phy_model.sv).

@@ -44,7 +44,13 @@
 
 __attribute__((noreturn)) void halt(uint32_t marker) {
     PCIE_RESULT = marker;
+#ifdef VPROC
+    // Co-simulation (CPU=vproc): park the VProc node without stopping
+    // the simulation
+    while (1) VTick(10000, SOC_CPU_VPNODE);
+#else
     while (1) {}
+#endif
 }
 
 // Waits until the Tx FSM is idle and the core has a free buffer, then loads

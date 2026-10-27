@@ -51,8 +51,7 @@
 
 module phy_model #(
    parameter DATA_BYTES = 8,
-   parameter DATA_WIDTH = DATA_BYTES * 8,
-   parameter real BHV_PLL_LOCK_TIME_NS = 500.0
+   parameter DATA_WIDTH = DATA_BYTES * 8
    )
    (
    input  logic                   clk_ref,
@@ -322,8 +321,7 @@ module phy_model #(
       .ALIGN_PCOMMA_VALUE   ( ALIGN_PCOMMA_VALUE   ),
       .ALIGN_COMMA_ENABLE   ( ALIGN_COMMA_ENABLE   ),
       .ALIGN_COMMA_WORD     ( ALIGN_COMMA_WORD     ),
-      .PLL_SET_OP_LOCK      ( 1'h0                 ),
-      .BHV_PLL_LOCK_TIME_NS ( BHV_PLL_LOCK_TIME_NS )
+      .PLL_SET_OP_LOCK      ( 1'h0                 )
    ) serdes_inst (
       .clk_ref_i            ( clk_ref            ),
       .clk_reg_i            ( clk_reg            ),

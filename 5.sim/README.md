@@ -41,7 +41,7 @@ Each VProc instance is a node with its own program, `VUserMain<n>` for node `n`:
 |---|---|---|---|
 | 1 | `RCPIPEx1__pcieVHost` | [`usercode/VUserMain1.cpp`](usercode/VUserMain1.cpp) | the host: trains the link, enumerates the EP (IDs, BAR sizing and assignment, capabilities), then reads and writes BAR0 |
 | 2 | `EPPIPEx1__pcieVHost_DUT` | [`usercode/VUserMain2.cpp`](usercode/VUserMain2.cpp) | the mock EP ([`stubs`](stubs/README.md)), an option next to the EP RTL + firmware: `DUT=mock` |
-| 0 | `soc_cpu.VPROC` | native C/C++, or the rv32 ISS | the SOC's CPU, in place of eduBOS5, once the `CPU` switch is in (below) |
+| 0 | `soc_cpu.VPROC` | native C/C++, or the rv32 ISS | the SOC's CPU, in place of eduBOS5, with `CPU=vproc` or `CPU=iss` (below) |
 
 The model can print the traffic of both link directions to the console, layer by layer; [`hex/ContDisps.hex`](hex/ContDisps.hex) selects what is shown.
 
@@ -60,7 +60,7 @@ How to run each, and today's status: [Simulation, layer by layer](../2.rtl/READM
 `PHY` sets the top level's depth:
 
 - **`vproc_rc`**: the host sits at the PIPE. Fast (eight symbols per 31.25 MHz clock), and a failure points at MAC, DLL, TL or firmware.
-- **`rtl`**: the real PHY is in, and the host drives the serial line. Slower (2.5 Gb/s bit rate), but it covers the whole stack. It runs on the open-source [SerDes BFM](../2.rtl/1.phy/2.serdes-model), which is checked against the vendor's NDA model ([equivalence checking](../2.rtl/1.phy/2.serdes-model/0.doc/equivalence-checking.md)), so anyone can run it.
+- **`rtl`**: the real PHY is in, and the host drives the serial line. Slower (2.5 Gb/s bit rate), but it covers the whole stack. It runs on the open-source [SerDes BFM](../2.rtl/1.phy/2.serdes-model), so anyone can run it.
 
 ### A host already proven against real silicon
 
@@ -112,7 +112,7 @@ Three `make` switches choose the models, as in the [block diagram](#introduction
 |---|---|---|---|
 | `DUT` | `mock` (default), `rtl` | the EP: a second pcieVHost in EP mode (`EPPIPEx1__pcieVHost_DUT`, node 2), or our MAC + DLL + TL RTL with firmware | both; `rtl` stops in FC init, [above](#running-the-co-simulation) |
 | `PHY` | `vproc_rc`, `rtl` | the `phy_top` socket: the host `RCPIPEx1__pcieVHost` (node 1), or the real PHY | both, with `DUT=rtl`; `rtl`: the host is `PcieVhostSerial`, [above](#running-the-co-simulation) |
-| `CPU` | `rtl`, `vproc`, `iss` | the SOC CPU, with `DUT=rtl`: eduBOS5 RTL, a native C/C++ program at node 0, or the rv32 ISS ([below](#the-cpu-node-three-ways-to-run-the-socs-software)) | not a switch yet; needs `DUT=rtl` |
+| `CPU` | `rtl`, `vproc`, `iss` | the SOC CPU, with `DUT=rtl`: eduBOS5 RTL, a native C/C++ program at node 0, or the rv32 ISS ([below](#the-cpu-node-three-ways-to-run-the-socs-software)) | all three, with `DUT=rtl` |
 
 `SIM` (`verilator`, `icarus`) and `DUMP` (`0`, `1`) choose the simulator and the waveform, not the models.
 
@@ -410,11 +410,11 @@ Being C, they have no default arguments. `node` here selects a memory space, not
 
 ### The CPU node: three ways to run the SOC's software
 
-Once the `CPU` switch is in, node 0 can stand in for eduBOS5 in the SOC's CPU socket ([`models/soc_cpu.VPROC.sv`](models/soc_cpu.VPROC.sv), on the same `mem_if` bus), in the same three ways as on openPCIE:
+With `DUT=rtl`, node 0 can stand in for eduBOS5 in the SOC's CPU socket ([`models/soc_cpu.VPROC.sv`](models/soc_cpu.VPROC.sv), on the same `mem_if` bus), in the same three ways as on openPCIE, chosen with `CPU`:
 
-- **RTL:** eduBOS5 itself runs `firmware.hex`, as in the bitstream. The reference.
-- **Native:** a C/C++ program compiled for the host drives the bus. With the co-simulation HAL ([below](#co-simulation-hal)) the firmware's own sources compile this way, and run much faster than on the RTL core.
-- **ISS:** the [rv32](https://github.com/wyvernSemi/rv32) instruction set simulator runs the real RISC-V `firmware.elf`: real instructions, interpreted rather than executed by RTL. Its integration program ([`models/rv32/usercode`](models/rv32/usercode)) routes each load and store to the memory model, to a bus transaction on the SOC, or back to the ISS. The ISS sources, with openPCIE's fixes, are in [`vip/rv32`](vip/rv32).
+- **RTL** (`CPU=rtl`, default): eduBOS5 itself runs `firmware.hex`, as in the bitstream. The reference.
+- **Native** (`CPU=vproc`): the firmware's own sources, compiled for the host, drive the bus ([Co-simulation HAL](#co-simulation-hal)); [`usercode/VUserMain0.cpp`](usercode/VUserMain0.cpp) calls them.
+- **ISS** (`CPU=iss`): the [rv32](https://github.com/wyvernSemi/rv32) instruction set simulator runs the real RISC-V `firmware.elf`: real instructions, interpreted rather than executed by RTL. Its integration program ([`models/rv32/usercode`](models/rv32/usercode)) routes each load and store to the memory model, to a bus transaction on the SOC, or back to the ISS. The ISS sources, with openPCIE's fixes, are in [`vip/rv32`](vip/rv32).
 
 The ISS reads its options from `vusermain.cfg`, in the form of a command line for `vusermain0`. A set of timing models makes it count cycles like a given core; `-V EDUBOS5STG2` (2-stage eduBOS5) or `-V EDUBOS5STG3` match ours.
 
@@ -490,12 +490,14 @@ On a 64-bit PIPE, eight symbols travel per PIPE clock, so `pclk` runs at `pciecl
 
 ## Co-simulation HAL
 
-`make -f MakefileCSR` in `4.build` generates, from the single register map `csr_build/csr.rdl`, the CSR RTL, the C header the firmware uses (`csr.h`), and two C++ HALs: `csr_hw.h` for the hardware and `csr_cosim.h` for co-simulation ([`sysrdl_cosim.py`](../4.build/sysrdl_cosim.py)). Both present the same API, a hierarchy of register objects that mirrors the RDL, so the same application source compiles for the RISC-V target and for a native VProc program on node 0; only the header behind it changes, and with it whether an access is a pointer dereference or a VProc bus transaction.
+`make -f MakefileCSR` in `4.build` generates, from the single register map `csr_build/csr.rdl`, the CSR RTL and the C header `csr.h`. The firmware reaches the CSR through the accessors in [`csr_regs.h`](../4.build/csr_build/csr_regs.h), which take the register offsets and the CSR base address from `csr.h`: `CSR_REG32()` for a whole register, `CSR_GET()`, `CSR_SET()` and `CSR_RMW()` for one field. On eduBOS5 they are loads and stores (`lw`, and `sb`, `sh` or `sw` as wide as the field's bytes). Compiled for the host as C++ with `VPROC` defined, the same accessors become _VProc_ bus cycles: `VRead`, `VWrite`, or `VWriteBE` with the byte enables of the core's store, each followed by `CSR_VP_GAP` (8) idle SOC cycles. The design is openPCIE's ([Co-simulation HAL](https://github.com/chili-chips-ba/openPCIE/blob/main/5.sim/README.md#co-simulation-hal)).
 
-Two more things differ between the two builds, and the generated headers cover both:
+Two more things differ on the host:
 
-- **The entry point.** The hardware build starts at `main()`, the co-simulation at `VUserMain0()`. The headers define `PCIEMAIN` as one or the other, so the application writes `void PCIEMAIN (void)`.
-- **Delays.** A delay loop on the target is wasted simulation time in co-simulation. Wrap delays in one function whose co-simulation version converts time into clock cycles and calls VProc's tick. `csr_cosim.h` defines `SOC_CPU_CLK_PERIOD_PS` for that (16000 ps unless defined before the include) and `SOC_CPU_VPNODE`, the CPU node (0; option `-v` of `sysrdl_cosim.py`).
+- **Entry point:** every _VProc_ node starts at `VUserMain<n>`, and the simulator has its own `main()`. So the firmware is compiled with `-Dmain=fw_main`, and a `VUserMain0` shim calls it.
+- **Halt:** `halt()` in [`3.sw/common/pcie.c`](../3.sw/common/pcie.c) ends in an endless loop. Under `VPROC` the loop ticks the _VProc_ node, so the simulation runs on to its end.
+
+`make DUT=rtl CPU=vproc run` runs it on node 0 ([above](#the-cpu-node-three-ways-to-run-the-socs-software)).
 
 ## References
 - [Logic sim using pcieVHost and 3rd Party PCIe](https://www.linkedin.com/pulse/case-study-logic-simulation-environment-using-third-party-southwell-tyere)

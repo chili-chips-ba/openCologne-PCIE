@@ -70,8 +70,6 @@ module tb_phy;
    parameter integer N_PAYLOAD    = 400;
    parameter integer N_TAIL       = 40;
 
-   parameter real   BHV_LOCK_NS   = 500.0;
-
    parameter  [5:0] PLL_FCNTRL               = 58;
    parameter  [5:0] PLL_MAIN_DIVSEL          = {1'b0,2'b11,1'b0,2'b11};
    parameter  [1:0] PLL_OUT_DIVSEL           = 2'b01;
@@ -249,8 +247,7 @@ module tb_phy;
       .PLL_BISC_CAL_SIGN        (PLL_BISC_CAL_SIGN),
       .PLL_BISC_CAL_AUTO        (PLL_BISC_CAL_AUTO),
       .PLL_BISC_DLY_PFD_MON_DIV (PLL_BISC_DLY_PFD_MON_DIV),
-      .PLL_BISC_COR_DLY         (PLL_BISC_COR_DLY),
-      .BHV_PLL_LOCK_TIME_NS     (BHV_LOCK_NS)
+      .PLL_BISC_COR_DLY         (PLL_BISC_COR_DLY)
    ) DUT_BHV (
       .clk_ref_i            (clk_ref),
       .clk_reg_i            (clk_reg),
@@ -767,8 +764,8 @@ module tb_phy;
            $display("[%0t] trace BHV: pll_rst_n=%b txdone=%b rxdone=%b align=%b st=%0d cap=%0d",
                     $time, bhv_reset_core_n, bhv_tx_resetdone, bhv_rx_resetdone,
                     bhv_aligned, bhv_state, bhv_cap_n);
-         $display("        BHV cdr_locked=%b rst_cnt=%0d ei_filt=%b ui=%.4f",
-                  DUT_BHV.rx_cdr_locked, DUT_BHV.rx_rst_cnt, DUT_BHV.rx_ei_filt, DUT_BHV.ui);
+         $display("        BHV cdr_locked=%b ei_filt=%b ui=%.4f",
+                  DUT_BHV.rx_cdr_locked, DUT_BHV.rx_ei_filt, DUT_BHV.ui);
 `endif
       end
    end

@@ -73,7 +73,7 @@ if [ "${TEST}" = equiv ]; then
   BUILD="${SERDES_BUILD_DIR}/equiv"
   mkdir -p "${BUILD}/sim"
   rm -f "${BUILD}/equiv.vvp"
-  DEFS="-DTB_PHY_EQUIV -DPIPE ${DUMP} ${CROSS}"
+  DEFS="-DTB_PHY_EQUIV -DPIPE -DBHV_RX_WORD_PHASE_RANDOM=0 ${DUMP} ${CROSS}"  # the check expects the comma in lane 0
   REF_SRC=""
   if [ "${WITH_REF}" = "1" ]; then
     echo "==> preparing throwaway copy of vendor sources (originals untouched)"

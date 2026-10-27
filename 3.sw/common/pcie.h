@@ -57,7 +57,7 @@
 // PeakRDL generates out of 4.build/csr_build/csr.rdl, so hardware and
 // software cannot drift apart.
 // -------------------------------------------------------------------------
-#include "opencologne_pcie_regs.h"
+#include "csr_regs.h"
 
 #define PCIE_TX_HEADER0      CSR_REG32(tx.header0)
 #define PCIE_TX_HEADER1      CSR_REG32(tx.header1)

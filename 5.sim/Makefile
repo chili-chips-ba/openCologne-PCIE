@@ -48,19 +48,51 @@ endif
 # ---- PHY ----------------------------------------------------------------------
 #   vproc_rc  (default) the host at the PIPE, in the phy_top socket
 #   rtl       the real PHY, with DUT=rtl: top (phy_top, Cologne Chip's PIPE logic,
-#             the opensource SerDes BFM, phy.f); the host on the serial line
+#             the opensource SerDes BFM, phy.f); the host on the serial line,
+#             so the BFM puts real bits on it (CDR_MODEL=FAST)
 PHY           ?= vproc_rc
 ifeq ($(PHY),rtl)
   ifneq ($(DUT),rtl)
     $(error PHY=rtl needs DUT=rtl)
   endif
   DUT_FILES   += phy.f
-  DUT_VLT     += +define+PHY_RTL -F phy.f
-  DUT_ICA     += -DPHY_RTL
+  DUT_VLT     += +define+PHY_RTL +define+CDR_MODEL=FAST -F phy.f
+  DUT_ICA     += -DPHY_RTL -DCDR_MODEL=FAST
   DUT_OBJ      = _rtl_phy
   PHY_DEFS     = -DPHY_RTL
 else ifneq ($(PHY),vproc_rc)
   $(error PHY must be vproc_rc or rtl (got "$(PHY)"))
+endif
+
+# ---- CPU ----------------------------------------------------------------------
+#   rtl    (default) the eduBOS5 RTL core, running firmware.hex
+#   vproc  VProc at node 0 (models/soc_cpu.VPROC.sv), running the 3.sw firmware
+#          compiled for the host (usercode/VUserMain0.cpp calls its main)
+#   iss    VProc at node 0, running the rv32 ISS on firmware.elf, with
+#          eduBOS5's 2-stage timing (vusermain.cfg)
+# Only the module in the riscv_pcie_soc CPU socket changes (SOC_CPU_VPROC).
+CPU           ?= rtl
+ifneq ($(CPU),rtl)
+  ifneq ($(DUT),rtl)
+    $(error CPU=$(CPU) needs DUT=rtl)
+  endif
+  CPU_SV       = models/soc_cpu.VPROC.sv
+  DUT_VLT     += +define+SOC_CPU_VPROC $(CPU_SV)
+  DUT_ICA     += -DSOC_CPU_VPROC
+  DUT_OBJ     := $(DUT_OBJ)_$(CPU)
+  FW_DIR       = $(CURDIR)/../3.sw
+  ifeq ($(CPU),vproc)
+    USER_C    += VUserMain0.cpp
+    FW_HOST_C  = fw_pcie fw_main
+  else ifeq ($(CPU),iss)
+    ISS_C     = VUserMain0.cpp mem_vproc_api.cpp uart.cpp rv32_cache.cpp vuserutils.cpp
+    ISSCODEDIR = $(CURDIR)/models/rv32/usercode
+    RV32SRC    = $(CURDIR)/vip/rv32/iss/src
+    RV32_CPP   = rv32i_cpu_elf rv32_cpu_gdb rv32i_cpu rv32csr_cpu rv32m_cpu rv32a_cpu \
+                 rv32f_cpu rv32d_cpu rv32c_cpu rv32zba_cpu rv32zbb_cpu rv32zbs_cpu rv32zbc_cpu
+  else
+    $(error CPU must be rtl, vproc or iss (got "$(CPU)"))
+  endif
 endif
 
 # ---- user code ----------------------------------------------------------------
@@ -108,12 +140,18 @@ endif
 DEFS          += $(PHY_DEFS)
 
 VOBJS          = $(addprefix $(OBJDIR)/, $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(notdir $(USER_ALL)))))
+VOBJS         += $(addprefix $(OBJDIR)/, $(ISS_C:.cpp=.o) $(FW_HOST_C:=.o))
+
+# CPU=iss: the rv32 ISS library, built from vip/rv32 (with rv32-openpcie.patch)
+RV32OBJDIR     = $(OBJDIR)/rv32
+RV32LIB        = $(if $(RV32SRC),$(RV32OBJDIR)/librv32.a)
+RV32OBJS       = $(addprefix $(RV32OBJDIR)/, $(RV32_CPP:=.o))
 
 # ---- Verilator ----------------------------------------------------------------
 # The C/C++ side: our user code (whole-archive, so VProc finds VUserMain<n>),
 # then the VProc and pcieVHost libraries
 LDLIBS         = -Wl,-whole-archive $(USERLIB) -Wl,-no-whole-archive \
-                 -L$(VIP_DIR)/lib -lcosimlnx -lpcielnx \
+                 $(RV32LIB) -L$(VIP_DIR)/lib -lcosimlnx -lpcielnx \
                  -lpthread -lrt -ldl -rdynamic
 
 # DUMP=1: tb.fst, written natively (Verilator --trace-fst, vvp -fst); depth 3
@@ -161,6 +199,36 @@ all: $(SIMEXE)
 $(OBJDIR):
 	@mkdir -p $@
 
+# CPU=iss: the ISS integration (models/rv32/usercode) and the rv32 library.
+# This rule comes first, so its VUserMain0.o wins over usercode/'s.
+ifneq ($(ISS_C),)
+$(OBJDIR)/%.o: $(ISSCODEDIR)/%.cpp | $(OBJDIR)
+	@$(HOST_CXX) -c -fPIC $(OPTFLAG) $(CPPSTD) -Wno-write-strings $(DEFS) -I$(ISSCODEDIR) $(INCLPATHS) -I$(RV32SRC) $< -o $@
+
+$(RV32OBJDIR):
+	@mkdir -p $@
+
+$(RV32OBJDIR)/%.o: $(RV32SRC)/%.cpp $(wildcard $(RV32SRC)/*.h) | $(RV32OBJDIR)
+	@$(HOST_CXX) -c -fPIC $(OPTFLAG) -I$(RV32SRC) -D_REENTRANT $< -o $@
+
+$(RV32LIB): $(RV32OBJS)
+	@rm -f $@
+	@$(HOST_AR) cr $@ $(RV32OBJS)
+endif
+
+# CPU=vproc: the 3.sw firmware itself, compiled for the host as C++ with
+# main() renamed fw_main() for usercode/VUserMain0.cpp to call. Under VPROC,
+# CSR_REG32 (csr_regs.h) is a VProc bus cycle.
+FW_HOST_FLAGS  = -x c++ -Dmain=fw_main -Wno-volatile -I$(FW_DIR)/common \
+                 -I$(CURDIR)/../4.build/csr_build -I$(CURDIR)/../4.build/csr_build/generated-files
+FW_HOST_DEPS   = $(FW_DIR)/common/pcie.h $(CURDIR)/../4.build/csr_build/csr_regs.h
+
+$(OBJDIR)/fw_pcie.o: $(FW_DIR)/common/pcie.c $(FW_HOST_DEPS) | $(OBJDIR)
+	@$(HOST_CXX) -c -fPIC $(OPTFLAG) $(CPPSTD) $(FW_HOST_FLAGS) $(DEFS) $(INCLPATHS) $< -o $@
+
+$(OBJDIR)/fw_main.o: $(FW_DIR)/EP/main.c $(FW_HOST_DEPS) | $(OBJDIR)
+	@$(HOST_CXX) -c -fPIC $(OPTFLAG) $(CPPSTD) $(FW_HOST_FLAGS) $(DEFS) $(INCLPATHS) $< -o $@
+
 $(OBJDIR)/%.o: $(USRCODEDIR)/%.c | $(OBJDIR)
 	@$(HOST_CC) -c -fPIC $(OPTFLAG) $(DEFS) $(INCLPATHS) $< -o $@
 
@@ -176,16 +244,17 @@ $(USERLIB): $(VOBJS)
 
 ifeq ($(SIM),verilator)
 # Verilator decides itself what to rebuild; always ask it
-$(SIMEXE): $(USERLIB) FORCE
+$(SIMEXE): $(USERLIB) $(RV32LIB) FORCE
 	@$(VERILATOR) $(VLTFLAGS)
 else
-$(VPROC_SO): $(USERLIB)
+$(VPROC_SO): $(USERLIB) $(RV32LIB)
 	@$(HOST_CXX) -shared -fPIC -pthread -rdynamic -o $@ \
-	    -Wl,-whole-archive $(USERLIB) -L$(VIP_DIR)/lib -lpcieica -lcosimica -Wl,-no-whole-archive \
+	    -Wl,-whole-archive $(USERLIB) -Wl,-no-whole-archive $(RV32LIB) -Wl,-whole-archive -L$(VIP_DIR)/lib -lpcieica -lcosimica -Wl,-no-whole-archive \
 	    -L$(ICA_LIB) -lvpi -lrt -ldl
 
 $(ICA_FILES): tb.f $(DUT_FILES) FORCE | $(OBJDIR)
 	@sed -e 's#$$VIP_DIR#$(VIP_DIR)#g' -e '/mem_model\.sv/d' $(DUT_FILES) tb.f > $@
+	@$(if $(CPU_SV),echo $(CPU_SV) >> $@)
 
 $(SIMEXE): $(VPROC_SO) $(ICA_FILES) FORCE
 	@$(IVERILOG) -o $@ $(ICAFLAGS)
@@ -202,6 +271,7 @@ endif
 
 help:
 	@echo "make [SIM=verilator|icarus] [DUT=mock|rtl] [PHY=vproc_rc|rtl]   build the models and the simulation"
+	@echo "make DUT=rtl CPU=vproc|iss run      the SOC CPU: native firmware or the rv32 ISS (default CPU=rtl, eduBOS5)"
 	@echo "make [SIM=verilator|icarus] run    build and run"
 	@echo "make DUMP=1 run                    also write tb.fst (WaveCrux: tb.DLL-PIPE.wavecrux)"
 	@echo "make DUT=rtl DUMP=1 run            also write tb_rtl.fst, the EP's layers (WaveCrux: tb_rtl.*.wavecrux)"

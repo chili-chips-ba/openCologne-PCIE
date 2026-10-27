@@ -25,8 +25,9 @@
 #
 # A phase whose tool is not found is skipped. The tool commands can be
 # overridden: VERILATOR, YOSYS (+ YOSYS_ARGS), YOSYS_CONFIG, PYTHON, VERIBLE.
-# read_slang is a Yosys plugin here: YOSYS_ARGS defaults to "-m slang"; point
-# it at the plugin, e.g. YOSYS_ARGS="-m ~/opt/src/sv-elab-main/build/slang.so".
+# read_slang is built into the openXC7 Yosys, a plugin in the OSS CAD Suite.
+# When YOSYS_ARGS is not set, it is "" if the Yosys has read_slang, else
+# "-m slang".
 # The GateMate primitives (CC_SERDES, CC_PLL, ...) come from the Yosys
 # library (yosys-config --datdir), as blackboxes.
 #
@@ -59,7 +60,13 @@ VERILATOR=${VERILATOR:-verilator}
 YOSYS=${YOSYS:-yosys}
 YOSYS_CONFIG=${YOSYS_CONFIG:-yosys-config}
 PYTHON=${PYTHON:-python3}
-YOSYS_ARGS=${YOSYS_ARGS:--m slang}
+if [ -z "${YOSYS_ARGS+set}" ]; then
+  if "$YOSYS" -p 'help read_slang' 2>/dev/null | grep -q 'read_slang \['; then
+    YOSYS_ARGS=""
+  else
+    YOSYS_ARGS="-m slang"
+  fi
+fi
 VERIBLE=${VERIBLE:-verible-verilog-lint}
 VIEW=${VIEW:-chip}
 case $VIEW in
