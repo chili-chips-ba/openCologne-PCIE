@@ -128,6 +128,10 @@ On the host side, we test with:
 2) **Raspberry Pi**
 3) **PC**
 
+## HAL
+
+The PCIE EP control and status register hardware abstraction layer (HAL) is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/), from one SystemRDL file, [`4.build/csr_build/csr.rdl`](4.build/csr_build/csr.rdl). The firmware reaches every register through one accessor, `CSR_REG32()`: a load or store on eduBOS5, a *VProc* bus cycle when the same firmware is compiled for the host in co-simulation.
+
 For additional detail, please jump to [3.sw/README.md](3.sw/README.md)
 
 --------------------
@@ -158,14 +162,8 @@ The block-level runs also feed the [WaveCrux PCIE decoders](https://github.com/F
   * An [HDL component](5.sim/models/cosim/README.md) instantiated in logic gives logic access to this memory
   * An API is provided to _VProc_ running code for direct access from the _pcieVHost_ software, which implements this sparse memory C model.
 
-More details on the architecture and usage of the test bench can be found in the [README.md](5.sim/README.md) in the `5.sim` directory.
+More details on the architecture, the _pcievhost_ component, and usage of the test bench can be found in the [5.sim/README.md](5.sim/README.md).
 
-## Co-simulation HAL
-
-The PCIE EP control and status register hardware abstraction layer (HAL) is [auto-generated](5.sim/README.md#co-simulation-hal), as is the CSR RTL, using [`peakrdl`](https://peakrdl-cheader.readthedocs.io/en/latest/), from one SystemRDL file, [`4.build/csr_build/csr.rdl`](4.build/csr_build/csr.rdl). The firmware reaches every register through one accessor, `CSR_REG32()`: a load or store on eduBOS5, a *VProc* bus cycle when the same firmware is compiled for the host in co-simulation. Details: [5.sim/README.md](5.sim/README.md#co-simulation-hal).
-
-More details of the test bench, the _pcievhost_ component and its usage can be found in the [5.sim/README.md](5.sim/README.md) file.
-  
 
 --------------------
 
@@ -230,10 +228,10 @@ See [6.litex/README.md](6.litex/README.md)
 - 🟠 Design, debug and manufacture two flavors of EP cards
 > Given the high-speed nature of this design, we plan for two iterations:
 >- ✅ M.2  **RevA**
->- 🟠 Edge RevA
+>- 🟠 "Slot" RevA
 
 >- 🟠 M.2  **RevB**
->- ⬜ Edge RevB
+>- ⬜ "Slot" RevB
 
  
 - 🟠 Develop opensource PHY with PIPE interface for GateMate SerDes
@@ -293,7 +291,7 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
   <a href="https://www.envox.eu"><img width="25%" alt="EEZ / Envox logo: openPCIE backplane" src="0.doc/artwork/EEZ-web-logo.png"></a>
 </p>
 
-KiCad turns electrical idea into a manufacturable board. PrjPeppercorn, with Yosys at its core, turns RTL into a loadable FPGA bitfile. PeakRDL turns our SystemRDL file into CSR RTL+headers+RegMap docs. WaveCrux greatly facilitates waveform decoding and viewing. But, that's not everything that made this project possible -- Thank you all for these wonderful opensource tools ✨.
+**KiCad** turns electrical idea into a manufacturable board. **PrjPeppercorn**, with **Yosys** at its core, turns RTL into a loadable FPGA bitfile. **PeakRDL** turns our SystemRDL file into CSR RTL+headers+RegMap docs. **WaveCrux** greatly facilitates waveform decoding and viewing. But, that's not all -- Thank you all for these wonderful opensource tools ✨.
 
 <p align="center">
    <a href="https://oshwa.org"><img width="20%" alt="Open Source Hardware Association logo" src="0.doc/artwork/oshw-logo-filled-black.png"></a>
