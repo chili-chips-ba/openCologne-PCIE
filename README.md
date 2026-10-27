@@ -293,6 +293,8 @@ This project was funded through the NGI0 Commons Fund, a fund established by NLn
   <a href="https://www.envox.eu"><img width="25%" alt="EEZ / Envox logo: openPCIE backplane" src="0.doc/artwork/EEZ-web-logo.png"></a>
 </p>
 
+KiCad turns electrical idea into a manufacturable board. PrjPeppercorn, with Yosys at its core, turns RTL into a loadable FPGA bitfile. PeakRDL turns our SystemRDL file into CSR RTL+headers+RegMap docs. WaveCrux greatly facilitates waveform decoding and viewing. But, that's not everything that made this project possible -- Thank you all for these wonderful opensource tools ✨.
+
 <p align="center">
    <a href="https://oshwa.org"><img width="20%" alt="Open Source Hardware Association logo" src="0.doc/artwork/oshw-logo-filled-black.png"></a>
    <a href="https://www.kicad.org"><img width="25%" alt="KiCad logo" src="0.doc/artwork/kicad_logo.png"></a>

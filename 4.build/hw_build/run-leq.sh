@@ -31,8 +31,9 @@
 # that is only constant after reset shows up as unproven and needs a look by
 # hand.
 #
-# Needs Yosys with the read_slang plugin: YOSYS_ARGS defaults to "-m slang";
-# point it at the plugin, e.g. YOSYS_ARGS="-m ~/opt/src/sv-elab-main/build/slang.so".
+# Needs Yosys with read_slang: built in (openXC7 v1.0.0), else the plugin, loaded
+# with "-m slang"; point YOSYS_ARGS at another one, e.g.
+# YOSYS_ARGS="-m ~/opt/src/sv-elab-main/build/slang.so".
 # YOSYS and YOSYS_CONFIG override the commands.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -42,7 +43,13 @@ CSR=$HERE/../csr_build/generated-files
 TOP=top
 YOSYS=${YOSYS:-yosys}
 YOSYS_CONFIG=${YOSYS_CONFIG:-yosys-config}
-YOSYS_ARGS=${YOSYS_ARGS:--m slang}
+if [ -z "${YOSYS_ARGS+set}" ]; then  # as run-lint.sh
+  if "$YOSYS" -p 'help read_slang' 2>/dev/null | grep -q 'read_slang \['; then
+    YOSYS_ARGS=""
+  else
+    YOSYS_ARGS="-m slang"
+  fi
+fi
 W=$(mktemp -d); cd "$W"
 cp "$HERE/../sw_build/firmware.hex" .
 
@@ -93,10 +100,19 @@ equiv_simple -seq 3
 equiv_induct -seq 3
 equiv_status
 EOF
-"$YOSYS" $YOSYS_ARGS -q -l eq.log eq.ys >/dev/null || true
+rc=0
+"$YOSYS" $YOSYS_ARGS -q -l eq.log eq.ys >/dev/null || rc=$?
 grep -E "Found [0-9]+ .equiv|Of those cells|^ERROR" eq.log | tail -3
 grep "Unproven" eq.log | sed -E 's/.*: .([^ ]*)_gold.*/\1/; s/\[[0-9]+\]//g' | sort | uniq -c
 echo "log: $W/eq.log"
+
+# Pass only if Yosys got through equiv_status and proved every $equiv cell
+unproven=$(sed -nE 's/.*Of those cells [0-9]+ are proven and ([0-9]+) are unproven.*/\1/p' eq.log | tail -1)
+if [ $rc -ne 0 ] || [ -z "$unproven" ] || [ "$unproven" -ne 0 ]; then
+  echo "LEQ: FAILED (yosys exit $rc, unproven: ${unproven:-no equiv_status result})"
+  exit 1
+fi
+echo "LEQ: PASS"
 
 # -----------------------------------------------------------------------------
 # Project:     openCologne-PCIE
