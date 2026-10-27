@@ -5,6 +5,7 @@
 * [Introduction](#introduction)
 * [Scope: unit debug, then top-level validation](#scope-unit-debug-then-top-level-validation)
   * [A host already proven against real silicon](#a-host-already-proven-against-real-silicon)
+  * [An Artix-7 RC profile for the host](#an-artix-7-rc-profile-for-the-host)
 * [Block-level flows](#block-level-flows)
 * [Running the co-simulation](#running-the-co-simulation)
   * [Modeling options: DUT, PHY, CPU](#modeling-options-dut-phy-cpu)
@@ -65,6 +66,18 @@ How to run each, and today's status: [Simulation, layer by layer](../2.rtl/READM
 ### A host already proven against real silicon
 
 `RCPIPEx1__pcieVHost` is the pcieVHost model in our wrapper [`PIPEx1__pcieVHost`](models/PIPEx1__pcieVHost.sv), around upstream's `pcieVHostPipex1`, fixed to the RC role ([`models/RCPIPEx1__pcieVHost.sv`](models/RCPIPEx1__pcieVHost.sv)). The same model and PIPE wrapper were validated on [openPCIE](https://github.com/chili-chips-ba/openPCIE/tree/main/5.sim) against the AMD `PCIE_2_1` hard macro: link training, flow control, TLPs and completions, end to end. There the roles were the other way round, the model the EP and the hard macro the RC. What that run established is that the model and the AMD hard macro speak the same PCIE. An EP that passes against this model in simulation therefore stands a better chance of working on the first try in hardware, when a physical Artix-7, running openPCIE as the RC, drives our GateMate EP over the [openPCIE backplane](https://github.com/chili-chips-ba/openPCIE/tree/main/1.pcb).
+
+### An Artix-7 RC profile for the host
+
+Speaking the same PCIE is not behaving the same. As the RC, pcieVHost runs its own LTSSM, timers and credits, not the hard macro's. To test our EP against the RC it meets in the lab, we give the model an Artix-7 RC profile, the way the [rv32 ISS](#the-cpu-node-three-ways-to-run-the-socs-software) has timing models for PicoRV32 and eduBOS5:
+
+1. **Measure.** On openPCIE, the `PCIE_2_1` RC drives the pcieVHost EP. Its PIPE, taps and LTSSM state show what the RC puts on the wire: training sequence counts and fields per LTSSM state, timeouts, speed change, InitFC credits, ACK and UpdateFC timing. Cases: direct, Gen1 x1 and Gen2 x1.
+2. **Profile.** One table: behaviour, Artix-7 value, pcieVHost value.
+3. **Model.** RC-only changes to pcieVHost (`ltssm.c` and the user code), picked by a profile switch. `ltssm.c` has one Configuration path for both roles, so an unguarded change moves the RC too.
+4. **Check.** The same pcieVHost EP, against the profiled RC here and against the hard macro on openPCIE, must log the same link training and DLLP sequence.
+5. **Use.** Our EP runs against the profiled RC, once with full-length training (no `LTSSM_ABBREVIATED`) for lab fidelity.
+
+Limits: the hard macro's simulation model is not silicon (analog effects, CDR lock time), and a profile covers only what the openPCIE runs exercise. On openPCIE the EP model cannot follow a Gen1 to Gen2 speed change, so Gen2 data stops at the RC's Recovery.Speed attempt until that is added.
 
 ## Block-level flows
 
