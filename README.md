@@ -378,7 +378,7 @@ Reflecting on our roadmap and possible future growth paths, in addition to the a
 
 ### GenAI
 
-Our repo may contain elements of work facilitated by the modern GenAI tools <img alt="Claude" height="16" src="https://cdn.simpleicons.org/claude/D97757">, used under strict guidance and tight supervision of the blood-and-flesh developers, and solely as suggestions.
+Our repo may contain elements of work facilitated by the modern GenAI tools <img alt="Claude" height="16" src="https://cdn.simpleicons.org/claude/D97757">, used under strict guidance and tight supervision of the blood-and-flesh developers, solely for reviews, as a second pair of eyes for QA and suggestions. That is read-only use, in line with [NLnet's GenAI policy v2.0](https://nlnet.nl/foundation/policies/generativeAI/2.0/). Work before October 20, 2026 followed the then-valid [v1.1](https://nlnet.nl/foundation/policies/generativeAI/1.1/). Rules for contributors: [GenAI](CONTRIBUTING.md#genai).
 
 In the end, it is us, the human devs, who are fully responsible for any shortfalls you may uncover while tapping into repo resources.
 

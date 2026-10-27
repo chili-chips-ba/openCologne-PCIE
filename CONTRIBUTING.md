@@ -27,13 +27,13 @@ Soft code is BSD-3-Clause. PCB hardware is CC-BY-SA-4.0 ([REUSE.toml](REUSE.toml
 
 ## GenAI
 
-Allowed, if:
+GenAI may be used read-only, as [NLnet's GenAI policy v2.0](https://nlnet.nl/foundation/policies/generativeAI/2.0/) asks of the projects it funds, us included:
 
-- you understand and take responsibility for every line,
-- no third-party copyrighted content gets in,
-- you say in the Pull Request which tool and model you used, and for what.
-
-Purely AI-generated work is not accepted. This follows [NLnet's GenAI policy](https://nlnet.nl/foundation/policies/generativeAI/), our funder.
+- **Allowed:** reviews, a second pair of eyes for QA, suggestions. You write the code, design, docs and fixes yourself.
+- **Not allowed:** code, design or docs produced by GenAI.
+- You understand and take responsibility for every line, and can explain it.
+- No third-party copyrighted content gets in.
+- Say in the Pull Request which tool and model (with version) you used, and for what. Best also in the commit message, as a `GenAI:` line.
 
 -----------
 #### End-of-Document
