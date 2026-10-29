@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Chili.CHIPS
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Mock pins for top (2.rtl/top.sv) on the Cologne Chip GateMate A1 EVB, as in
+# openCologne 7.SerDes/3.iclink-sv/3.build/GateMateA1-EVB.ccf, so that place
+# and route can run before the openCologne-PCIE board exists. The SerDes pins
+# are fixed by the chip and need no entry. Only the ports top.sv has: nextpnr
+# rejects a pin for a port the design does not have.
+#
+# TODO: align with Goran's board (1.pcb) once its pinout is final.
+
+Pin_in  "clk_brd" Loc = "IO_SB_A8" | SCHMITT_TRIGGER=true;  # CLK0, 10 MHz
+Pin_in  "perst_n" Loc = "IO_SB_B7" | PULLUP=true;           # FPGA_BUT, low when pressed: PERST#
+Pin_out "link_up" Loc = "IO_SB_B6";                         # FPGA_LED
+Pin_out "fw_pass" Loc = "IO_EA_A4";                         # PMOD pin 1
